@@ -67,7 +67,8 @@ class DatabaseService extends ChangeNotifier {
       const Agent(
         id: 'miller',
         name: 'Agent Miller',
-        avatarUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150',
         zone: 'Mumbai Metro Area',
         assignedTarget: 12450.0,
         collectedAmount: 10209.0, // 82% of target met
@@ -75,11 +76,15 @@ class DatabaseService extends ChangeNotifier {
         pendingVisitsCount: 6,
         isAdmin: false,
         isOnline: true,
+        email: 'miller@fieldprotocol.com',
+        phone: '+91 98765 43210',
+        address: 'Office 102, Skyline Plaza, Metro Sector 4, Mumbai',
       ),
       const Agent(
         id: 'rahul',
         name: 'Agent Rahul',
-        avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
         zone: 'Mumbai South',
         assignedTarget: 15000.0,
         collectedAmount: 12500.0,
@@ -87,11 +92,15 @@ class DatabaseService extends ChangeNotifier {
         pendingVisitsCount: 8,
         isAdmin: false,
         isOnline: true,
+        email: 'rahul@fieldprotocol.com',
+        phone: '+91 99999 88888',
+        address: 'Worli Financial Tower B, Suite 120, Worli, Mumbai',
       ),
       const Agent(
         id: 'priya',
         name: 'Agent Priya',
-        avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
         zone: 'Mumbai West',
         assignedTarget: 18000.0,
         collectedAmount: 8500.0,
@@ -99,11 +108,15 @@ class DatabaseService extends ChangeNotifier {
         pendingVisitsCount: 9,
         isAdmin: false,
         isOnline: true,
+        email: 'priya@fieldprotocol.com',
+        phone: '+91 98888 77777',
+        address: 'Apex Heights, Tower 4, Powai, Mumbai',
       ),
       const Agent(
         id: 'vance',
         name: 'Alexander Vance',
-        avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDBRx9r1cR-RQb8YjXwlBrDNww_q6yPcvL1U55Qh2Yl9AppZD8M1pD6LFz9X8hOAC5DaSNf1I-LLbjynUbailf1POhaR5Du84ro-go9UPHhTm0MvD_mN-WQE_A3VY7mc9gq2oJD4EJ-suFIO7f9iUy3gt4omfLfilmFyVOyOfqWu5cqtCG0we8amXFCaT9bkbl_tBlmKBdkeM8IZ2nIM3qXDMC0Sqksb66gR_uhYPHucAk80p-8hQXaB3KOT1Rr_IjfdqTwdJ1hjAxe',
+        avatarUrl:
+            'https://lh3.googleusercontent.com/aida-public/AB6AXuDBRx9r1cR-RQb8YjXwlBrDNww_q6yPcvL1U55Qh2Yl9AppZD8M1pD6LFz9X8hOAC5DaSNf1I-LLbjynUbailf1POhaR5Du84ro-go9UPHhTm0MvD_mN-WQE_A3VY7mc9gq2oJD4EJ-suFIO7f9iUy3gt4omfLfilmFyVOyOfqWu5cqtCG0we8amXFCaT9bkbl_tBlmKBdkeM8IZ2nIM3qXDMC0Sqksb66gR_uhYPHucAk80p-8hQXaB3KOT1Rr_IjfdqTwdJ1hjAxe',
         zone: 'All Zones',
         assignedTarget: 0.0,
         collectedAmount: 0.0,
@@ -111,7 +124,11 @@ class DatabaseService extends ChangeNotifier {
         pendingVisitsCount: 0,
         isAdmin: true,
         isOnline: true,
-      )
+        email: 'a.vance@fieldprotocol.com',
+        phone: '+1 (555) 024-9981',
+        address:
+            '882 Financial District, Plaza Tower, Suite 402, Metro City, 10001',
+      ),
     ];
 
     // Default current user to Agent Miller
@@ -128,12 +145,16 @@ class DatabaseService extends ChangeNotifier {
         address: '422 Oakwood Avenue, Suite 400, Mumbai',
         phone: '+91 98765 43210',
         priority: 'HIGH',
-        avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
         lat: 19.0760,
         lng: 72.8777,
         assignedAgentId: 'miller',
         status: 'OVERDUE',
-        notes: ['Customer was busy during last visit.', 'Needs verification of UPI transaction.'],
+        notes: [
+          'Customer was busy during last visit.',
+          'Needs verification of UPI transaction.',
+        ],
       ),
       Customer(
         id: 'cust_jenkins',
@@ -144,7 +165,8 @@ class DatabaseService extends ChangeNotifier {
         address: '102 Skyline Apartments, Bandra West, Mumbai',
         phone: '+91 98123 45678',
         priority: 'MEDIUM',
-        avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
         lat: 19.0596,
         lng: 72.8295,
         assignedAgentId: 'miller',
@@ -160,7 +182,8 @@ class DatabaseService extends ChangeNotifier {
         address: '58 Orchard Road, Andheri East, Mumbai',
         phone: '+91 97654 32109',
         priority: 'HIGH',
-        avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150',
         lat: 19.1136,
         lng: 72.8697,
         assignedAgentId: 'miller',
@@ -175,7 +198,8 @@ class DatabaseService extends ChangeNotifier {
         address: '702 Sea Green Complex, Worli, Mumbai',
         phone: '+91 99999 88888',
         priority: 'HIGH',
-        avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
         lat: 19.0178,
         lng: 72.8174,
         assignedAgentId: 'rahul',
@@ -190,7 +214,8 @@ class DatabaseService extends ChangeNotifier {
         address: 'Tower 4, Apex Heights, Powai, Mumbai',
         phone: '+91 98888 77777',
         priority: 'MEDIUM',
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
         lat: 19.1176,
         lng: 72.9060,
         assignedAgentId: 'priya',
@@ -284,7 +309,7 @@ class DatabaseService extends ChangeNotifier {
         'subtitle': 'Case #8821 • Debtor Refusal (David Miller)',
         'time': '1h ago',
         'type': 'warning',
-      }
+      },
     ];
 
     // 5. Initialize Notifications
@@ -299,22 +324,27 @@ class DatabaseService extends ChangeNotifier {
       AppNotification(
         id: 'not2',
         title: 'Target Approaching',
-        body: 'You are at 82% of your daily collection target. ₹2,241 remaining.',
+        body:
+            'You are at 82% of your daily collection target. ₹2,241 remaining.',
         timestamp: DateTime.now().subtract(const Duration(hours: 4)),
         type: 'alert',
-      )
+      ),
     ];
   }
 
   // Auth Operations
   bool login(String username, String password) {
-    if (username.toLowerCase().contains('admin') || password.toLowerCase().contains('admin')) {
+    if (username.toLowerCase().contains('admin') ||
+        password.toLowerCase().contains('admin')) {
       _currentRole = 'ADMIN';
       _currentUser = _agents.firstWhere((a) => a.isAdmin);
     } else {
       _currentRole = 'AGENT';
       // Find matching agent or default to Miller
-      _currentUser = _agents.firstWhere((a) => a.id == 'miller', orElse: () => _agents[0]);
+      _currentUser = _agents.firstWhere(
+        (a) => a.id == 'miller',
+        orElse: () => _agents[0],
+      );
     }
     _isLoggedIn = true;
     notifyListeners();
@@ -324,9 +354,15 @@ class DatabaseService extends ChangeNotifier {
   void switchPortal(String role) {
     _currentRole = role;
     if (role == 'ADMIN') {
-      _currentUser = _agents.firstWhere((a) => a.isAdmin, orElse: () => _agents[3]);
+      _currentUser = _agents.firstWhere(
+        (a) => a.isAdmin,
+        orElse: () => _agents[3],
+      );
     } else {
-      _currentUser = _agents.firstWhere((a) => a.id == 'miller', orElse: () => _agents[0]);
+      _currentUser = _agents.firstWhere(
+        (a) => a.id == 'miller',
+        orElse: () => _agents[0],
+      );
     }
     notifyListeners();
   }
@@ -345,7 +381,8 @@ class DatabaseService extends ChangeNotifier {
     String? receiptPath,
   }) {
     final customer = _customers.firstWhere((c) => c.id == customerId);
-    final txnId = 'TXN${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+    final txnId =
+        'TXN${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
 
     // Create pending payment record
     final newPayment = PaymentRecord(
@@ -377,7 +414,9 @@ class DatabaseService extends ChangeNotifier {
       _agents = _agents.map((a) {
         if (a.id == _currentUser!.id) {
           return a.copyWith(
-            pendingVisitsCount: a.pendingVisitsCount > 0 ? a.pendingVisitsCount - 1 : 0,
+            pendingVisitsCount: a.pendingVisitsCount > 0
+                ? a.pendingVisitsCount - 1
+                : 0,
           );
         }
         return a;
@@ -389,7 +428,8 @@ class DatabaseService extends ChangeNotifier {
     _activityFeed.insert(0, {
       'id': 'act_${txnId}',
       'title': 'Collection Recorded',
-      'subtitle': '${_currentUser?.name} • ₹$amount pending approval for ${customer.name}',
+      'subtitle':
+          '${_currentUser?.name} • ₹$amount pending approval for ${customer.name}',
       'time': 'Just now',
       'type': 'warning',
     });
@@ -403,7 +443,7 @@ class DatabaseService extends ChangeNotifier {
     if (recordIndex == -1) return;
 
     final record = _payments[recordIndex];
-    
+
     // Update record status to APPROVED
     _payments[recordIndex] = record.copyWith(status: 'APPROVED');
 
@@ -412,7 +452,9 @@ class DatabaseService extends ChangeNotifier {
       if (c.id == record.customerId) {
         return c.copyWith(
           status: 'PAID',
-          amountDue: c.amountDue - record.amount >= 0 ? c.amountDue - record.amount : 0,
+          amountDue: c.amountDue - record.amount >= 0
+              ? c.amountDue - record.amount
+              : 0,
         );
       }
       return c;
@@ -421,9 +463,7 @@ class DatabaseService extends ChangeNotifier {
     // Credit agent targets
     _agents = _agents.map((a) {
       if (a.id == record.agentId) {
-        return a.copyWith(
-          collectedAmount: a.collectedAmount + record.amount,
-        );
+        return a.copyWith(collectedAmount: a.collectedAmount + record.amount);
       }
       return a;
     }).toList();
@@ -434,13 +474,17 @@ class DatabaseService extends ChangeNotifier {
     }
 
     // Push Notification to the specific Agent
-    _notifications.insert(0, AppNotification(
-      id: 'not_${DateTime.now().millisecondsSinceEpoch}',
-      title: 'Collection Verified',
-      body: 'Your collection of ₹${record.amount} for ${record.customerName} has been approved by admin.',
-      timestamp: DateTime.now(),
-      type: 'approval',
-    ));
+    _notifications.insert(
+      0,
+      AppNotification(
+        id: 'not_${DateTime.now().millisecondsSinceEpoch}',
+        title: 'Collection Verified',
+        body:
+            'Your collection of ₹${record.amount} for ${record.customerName} has been approved by admin.',
+        timestamp: DateTime.now(),
+        type: 'approval',
+      ),
+    );
 
     // Update activity feed
     _activityFeed.insert(0, {
@@ -473,13 +517,17 @@ class DatabaseService extends ChangeNotifier {
     }).toList();
 
     // Notify agent
-    _notifications.insert(0, AppNotification(
-      id: 'not_rej_${DateTime.now().millisecondsSinceEpoch}',
-      title: 'Collection Rejected',
-      body: 'Your collection of ₹${record.amount} for ${record.customerName} was rejected. Please verify details.',
-      timestamp: DateTime.now(),
-      type: 'alert',
-    ));
+    _notifications.insert(
+      0,
+      AppNotification(
+        id: 'not_rej_${DateTime.now().millisecondsSinceEpoch}',
+        title: 'Collection Rejected',
+        body:
+            'Your collection of ₹${record.amount} for ${record.customerName} was rejected. Please verify details.',
+        timestamp: DateTime.now(),
+        type: 'alert',
+      ),
+    );
 
     // Update activity feed
     _activityFeed.insert(0, {
@@ -498,14 +546,29 @@ class DatabaseService extends ChangeNotifier {
     _customers = _customers.map((c) {
       if (c.id == customerId) {
         final List<String> updatedNotes = List.from(c.notes);
-        updatedNotes.add('Scheduled follow-up visit for ${date.day}/${date.month}/${date.year}.');
-        return c.copyWith(
-          scheduledVisit: date,
-          notes: updatedNotes,
+        updatedNotes.add(
+          'Scheduled follow-up visit for ${date.day}/${date.month}/${date.year}.',
         );
+        return c.copyWith(scheduledVisit: date, notes: updatedNotes);
       }
       return c;
     }).toList();
+
+    final customer = _customers.firstWhere((c) => c.id == customerId);
+    final String agentName = _currentUser?.name ?? 'An Agent';
+    _notifications.insert(
+      0,
+      AppNotification(
+        id: 'not_sched_${DateTime.now().millisecondsSinceEpoch}',
+        title: 'Collection Scheduled',
+        body:
+            '$agentName scheduled a collection visit with ${customer.name} for ${date.day}/${date.month}/${date.year}.',
+        timestamp: DateTime.now(),
+        type: 'schedule',
+        recipientRole: 'ADMIN',
+        customerId: customerId,
+      ),
+    );
 
     notifyListeners();
   }
@@ -525,20 +588,19 @@ class DatabaseService extends ChangeNotifier {
     // Adjust case counts on agents
     _agents = _agents.map((a) {
       if (a.id == oldAgentId) {
-        return a.copyWith(
-          casesCount: a.casesCount > 0 ? a.casesCount - 1 : 0,
-        );
+        return a.copyWith(casesCount: a.casesCount > 0 ? a.casesCount - 1 : 0);
       }
       if (a.id == newAgentId) {
-        return a.copyWith(
-          casesCount: a.casesCount + 1,
-        );
+        return a.copyWith(casesCount: a.casesCount + 1);
       }
       return a;
     }).toList();
 
     if (_currentUser != null) {
-      _currentUser = _agents.firstWhere((a) => a.id == _currentUser!.id, orElse: () => _currentUser!);
+      _currentUser = _agents.firstWhere(
+        (a) => a.id == _currentUser!.id,
+        orElse: () => _currentUser!,
+      );
     }
 
     final newAgentName = _agents.firstWhere((a) => a.id == newAgentId).name;
@@ -567,21 +629,91 @@ class DatabaseService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Case Delete Operation (Admin)
+  void deleteCase(String customerId) {
+    final customer = _customers.where((c) => c.id == customerId).firstOrNull;
+    if (customer == null) return;
+
+    // Remove from active list
+    _customers.removeWhere((c) => c.id == customerId);
+
+    // Adjust agent case count if assigned
+    if (customer.assignedAgentId.isNotEmpty && customer.assignedAgentId != 'unassigned') {
+      _agents = _agents.map((a) {
+        if (a.id == customer.assignedAgentId) {
+          return a.copyWith(
+            casesCount: a.casesCount > 0 ? a.casesCount - 1 : 0,
+          );
+        }
+        return a;
+      }).toList();
+    }
+
+    // Log update in activity feed
+    _activityFeed.insert(0, {
+      'id': 'act_delete_${customerId}_${DateTime.now().millisecondsSinceEpoch}',
+      'title': 'Case Deleted',
+      'subtitle': 'Admin deleted portfolio record for ${customer.name}',
+      'time': 'Just now',
+      'type': 'error',
+    });
+
+    notifyListeners();
+  }
+
+  // Bulk Case Delete Operation (Admin)
+  void deleteMultipleCases(List<String> customerIds) {
+    for (var id in customerIds) {
+      final customer = _customers.where((c) => c.id == id).firstOrNull;
+      if (customer == null) continue;
+
+      // Adjust agent case count if assigned
+      if (customer.assignedAgentId.isNotEmpty && customer.assignedAgentId != 'unassigned') {
+        _agents = _agents.map((a) {
+          if (a.id == customer.assignedAgentId) {
+            return a.copyWith(
+              casesCount: a.casesCount > 0 ? a.casesCount - 1 : 0,
+            );
+          }
+          return a;
+        }).toList();
+      }
+    }
+
+    // Remove from active list
+    _customers.removeWhere((c) => customerIds.contains(c.id));
+
+    // Log update in activity feed
+    _activityFeed.insert(0, {
+      'id': 'act_bulk_delete_${DateTime.now().millisecondsSinceEpoch}',
+      'title': 'Bulk Cases Deleted',
+      'subtitle': 'Admin deleted ${customerIds.length} portfolio records simultaneously.',
+      'time': 'Just now',
+      'type': 'error',
+    });
+
+    notifyListeners();
+  }
+
   // CSV Data upload simulation
   void uploadBankRecords(List<Map<String, dynamic>> records) {
     int addedCount = 0;
     for (var r in records) {
-      final id = 'cust_csv_${DateTime.now().millisecondsSinceEpoch}_$addedCount';
+      final id =
+          'cust_csv_${DateTime.now().millisecondsSinceEpoch}_$addedCount';
       final newCust = Customer(
         id: id,
         name: r['name'] ?? 'Unknown debtor',
         amountDue: (r['amountDue'] as num?)?.toDouble() ?? 0.0,
-        dueDate: DateTime.now().subtract(Duration(days: r['overdueDays'] as int? ?? 10)),
+        dueDate: DateTime.now().subtract(
+          Duration(days: r['overdueDays'] as int? ?? 10),
+        ),
         overdueDays: r['overdueDays'] as int? ?? 10,
         address: r['address'] ?? 'No address provided',
         phone: r['phone'] ?? '+91 99999 99999',
         priority: r['priority'] ?? 'MEDIUM',
-        avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+        avatarUrl:
+            'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
         lat: 19.0760 + (addedCount * 0.01),
         lng: 72.8777 + (addedCount * 0.01),
         assignedAgentId: 'miller', // auto assign to miller for test
@@ -594,9 +726,7 @@ class DatabaseService extends ChangeNotifier {
     // Update Agent Miller's casesCount
     _agents = _agents.map((a) {
       if (a.id == 'miller') {
-        return a.copyWith(
-          casesCount: a.casesCount + addedCount,
-        );
+        return a.copyWith(casesCount: a.casesCount + addedCount);
       }
       return a;
     }).toList();
@@ -630,7 +760,10 @@ class DatabaseService extends ChangeNotifier {
 
   void markAllNotificationsAsRead() {
     _notifications = _notifications.map((n) {
-      return n.copyWith(isRead: true);
+      if (n.recipientRole == _currentRole) {
+        return n.copyWith(isRead: true);
+      }
+      return n;
     }).toList();
     notifyListeners();
   }
@@ -638,7 +771,7 @@ class DatabaseService extends ChangeNotifier {
   // Register New Field Agent
   void registerAgent(Agent newAgent) {
     _agents.add(newAgent);
-    
+
     // Add to activity feed
     _activityFeed.insert(0, {
       'id': 'act_reg_${newAgent.id}',
@@ -647,7 +780,7 @@ class DatabaseService extends ChangeNotifier {
       'time': 'Just now',
       'type': 'success',
     });
-    
+
     notifyListeners();
   }
 
@@ -659,20 +792,87 @@ class DatabaseService extends ChangeNotifier {
       }
       return a;
     }).toList();
-    
+
     if (_currentUser?.id == agentId) {
       _currentUser = _agents.firstWhere((a) => a.id == agentId);
     }
-    
+
     // Log in activity feed
     _activityFeed.insert(0, {
       'id': 'act_status_${agentId}_${DateTime.now().millisecondsSinceEpoch}',
       'title': isOnline ? 'Agent Online' : 'Agent Offline',
-      'subtitle': 'Agent ID #${agentId.toUpperCase()} is now ${isOnline ? 'Online' : 'Offline'}',
+      'subtitle':
+          'Agent ID #${agentId.toUpperCase()} is now ${isOnline ? 'Online' : 'Offline'}',
       'time': 'Just now',
       'type': isOnline ? 'login' : 'warning',
     });
-    
+
+    notifyListeners();
+  }
+
+  // Update Field Agent Personal Profile details (Stitch Specs)
+  void updateAgentProfile({
+    required String name,
+    required String email,
+    required String phone,
+    required String address,
+    required String avatarUrl,
+  }) {
+    if (_currentUser == null) return;
+    final updatedAgent = _currentUser!.copyWith(
+      name: name,
+      email: email,
+      phone: phone,
+      address: address,
+      avatarUrl: avatarUrl,
+    );
+
+    // Update inside _agents list
+    _agents = _agents.map((a) {
+      if (a.id == _currentUser!.id) {
+        return updatedAgent;
+      }
+      return a;
+    }).toList();
+
+    _currentUser = updatedAgent;
+
+    // Log update in activity feed
+    _activityFeed.insert(0, {
+      'id':
+          'act_profile_update_${_currentUser!.id}_${DateTime.now().millisecondsSinceEpoch}',
+      'title': 'Profile Updated',
+      'subtitle':
+          'Agent #${_currentUser!.id.toUpperCase()} successfully updated personal identity records.',
+      'time': 'Just now',
+      'type': 'success',
+    });
+
+    notifyListeners();
+  }
+
+  // Update Field Agent's assigned region/zone
+  void updateAgentZone(String agentId, String newZone) {
+    _agents = _agents.map((a) {
+      if (a.id == agentId) {
+        return a.copyWith(zone: newZone);
+      }
+      return a;
+    }).toList();
+
+    if (_currentUser?.id == agentId) {
+      _currentUser = _agents.firstWhere((a) => a.id == agentId);
+    }
+
+    // Log update in activity feed
+    _activityFeed.insert(0, {
+      'id': 'act_zone_update_${agentId}_${DateTime.now().millisecondsSinceEpoch}',
+      'title': 'Agent Region Updated',
+      'subtitle': 'Agent ID #${agentId.toUpperCase()} reassigned to $newZone.',
+      'time': 'Just now',
+      'type': 'success',
+    });
+
     notifyListeners();
   }
 }

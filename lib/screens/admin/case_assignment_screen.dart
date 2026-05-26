@@ -3,6 +3,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
+import '../../models/customer.dart';
+import '../agent/customer_details_screen.dart';
 
 class CaseAssignmentScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -713,6 +715,47 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
     );
   }
 
+  Customer _createMockCustomer(CaseItem item) {
+    // Determine priority based on risk level
+    String priority = 'MEDIUM';
+    if (item.riskLevel == 'Critical' || item.riskLevel == 'High Risk') {
+      priority = 'HIGH';
+    } else if (item.riskLevel == 'Low Balance') {
+      priority = 'LOW';
+    }
+
+    // Parse overdue days from overdueStatus e.g. "12 Days Overdue" or "Due Tomorrow"
+    int overdueDays = 15;
+    final RegExp matchDays = RegExp(r'(\d+)');
+    final match = matchDays.firstMatch(item.overdueStatus);
+    if (match != null) {
+      overdueDays = int.tryParse(match.group(1) ?? '15') ?? 15;
+    } else if (item.overdueStatus.contains('Tomorrow')) {
+      overdueDays = 1;
+    }
+
+    return Customer(
+      id: item.id,
+      name: item.name,
+      amountDue: item.amount,
+      dueDate: DateTime.now().subtract(Duration(days: overdueDays)),
+      overdueDays: overdueDays,
+      address: '${item.location}, Mumbai Metro Area',
+      phone: '+91 99999 88888',
+      priority: priority,
+      avatarUrl:
+          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      lat: 19.0760,
+      lng: 72.8777,
+      assignedAgentId: item.assignedAgentId ?? 'miller',
+      status: item.riskLevel == 'Critical' ? 'OVERDUE' : 'PENDING_VERIFICATION',
+      notes: [
+        'Initial mock case record imported.',
+        'Verified geographic region: ${item.location}.',
+      ],
+    );
+  }
+
   Widget _buildCaseCard(CaseItem caseItem, bool isChecked) {
     // Resolve premium colors for each risk level badge
     Color badgeBgColor;
@@ -852,7 +895,7 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                   const Divider(height: 1, color: AppTheme.outlineVariant),
                   const SizedBox(height: 12),
 
-                  // Lower block (Location & Risk tags)
+                  // Lower block (Location & Risk tags & details link)
                   Row(
                     children: [
                       // Location label
@@ -902,6 +945,43 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                                 color: badgeTextColor,
                                 letterSpacing: 0.1,
                               ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+
+                      // Subtle Premium Details Link
+                      GestureDetector(
+                        onTap: () {
+                          final customer = _db.customers.firstWhere(
+                            (c) => c.id == caseItem.id,
+                            orElse: () => _createMockCustomer(caseItem),
+                          );
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  CustomerDetailsScreen(customer: customer),
+                            ),
+                          );
+                        },
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Details',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primary,
+                              ),
+                            ),
+                            SizedBox(width: 2),
+                            Icon(
+                              LucideIcons.chevronRight,
+                              size: 13,
+                              color: AppTheme.primary,
                             ),
                           ],
                         ),

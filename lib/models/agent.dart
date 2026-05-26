@@ -9,6 +9,9 @@ class Agent {
   final int pendingVisitsCount;
   final bool isAdmin;
   final bool isOnline;
+  final String email;
+  final String phone;
+  final String address;
 
   const Agent({
     required this.id,
@@ -21,6 +24,9 @@ class Agent {
     required this.pendingVisitsCount,
     this.isAdmin = false,
     this.isOnline = true,
+    this.email = '',
+    this.phone = '',
+    this.address = '',
   });
 
   Agent copyWith({
@@ -34,6 +40,9 @@ class Agent {
     int? pendingVisitsCount,
     bool? isAdmin,
     bool? isOnline,
+    String? email,
+    String? phone,
+    String? address,
   }) {
     return Agent(
       id: id ?? this.id,
@@ -46,6 +55,9 @@ class Agent {
       pendingVisitsCount: pendingVisitsCount ?? this.pendingVisitsCount,
       isAdmin: isAdmin ?? this.isAdmin,
       isOnline: isOnline ?? this.isOnline,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      address: address ?? this.address,
     );
   }
 }

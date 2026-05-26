@@ -6,12 +6,14 @@ import '../../widgets/custom_bento_card.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import '../../widgets/performance_chart.dart';
 import '../shared/login_screen.dart';
+import '../shared/notifications_screen.dart';
 import 'agent_tracking_screen.dart';
 import 'case_assignment_screen.dart';
 import 'verification_queue_screen.dart';
 import 'upload_data_screen.dart';
 import 'uploaded_records_view.dart';
 import 'add_agent_screen.dart';
+import '../agent/agent_edit_profile_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -35,6 +37,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
         // Count pending approvals
         final pendingCount = _db.payments.where((p) => p.status == 'PENDING').length;
+        final adminUnreadCount = _db.notifications
+            .where((n) => n.recipientRole == 'ADMIN' && !n.isRead)
+            .length;
 
         final List<Widget> pages = [
           _buildHomeDashboard(context, pendingCount),
@@ -58,14 +63,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
             actions: [
               IconButton(
                 icon: Badge(
-                  label: Text('$pendingCount'),
-                  isLabelVisible: pendingCount > 0,
+                  label: Text('$adminUnreadCount'),
+                  isLabelVisible: adminUnreadCount > 0,
                   child: const Icon(LucideIcons.bell, color: AppTheme.primary),
                 ),
                 onPressed: () {
-                  setState(() {
-                    _currentIndex = 3; // jump to approvals
-                  });
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationsScreen(),
+                    ),
+                  );
                 },
               ),
               GestureDetector(
@@ -582,34 +590,44 @@ class _AdminDashboardState extends State<AdminDashboard> {
       child: Column(
         children: [
           UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(color: AppTheme.primary),
-            currentAccountPicture: CircleAvatar(
-              backgroundImage: NetworkImage(admin.avatarUrl),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppTheme.primary, Color(0xFF0047BB)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            currentAccountPicture: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: CircleAvatar(
+                backgroundImage: NetworkImage(admin.avatarUrl),
+              ),
             ),
             accountName: Text(
               admin.name,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white, letterSpacing: -0.2),
             ),
             accountEmail: Text(
               'Senior Administrator (ID: ${admin.id.toUpperCase()})',
-              style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+              style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ),
+
+          // Register New Agent
           ListTile(
-            leading: const Icon(LucideIcons.arrowLeftRight, color: AppTheme.primary),
-            title: const Text('Switch to Agent Portal', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text('Simulate field updates'),
-            onTap: () {
-              Navigator.pop(context); // close drawer
-              _db.switchPortal('AGENT');
-              Navigator.of(context).pushReplacementNamed('/agent_dashboard');
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(LucideIcons.userPlus, color: AppTheme.primary),
-            title: const Text('Register New Agent', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text('Configure credentials & regions'),
+            leading: const Icon(LucideIcons.userPlus, color: AppTheme.primary, size: 20),
+            title: const Text(
+              'Register New Agent',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Configure credentials & regions',
+              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+            ),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
@@ -618,9 +636,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
               );
             },
           ),
+          const Divider(height: 1),
+
+          // Import Debtors CSV
           ListTile(
-            leading: const Icon(LucideIcons.fileUp),
-            title: const Text('Import Debtors CSV'),
+            leading: const Icon(LucideIcons.fileUp, color: AppTheme.primary, size: 20),
+            title: const Text(
+              'Import Debtors CSV',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Parse external debt ledger sheets',
+              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+            ),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
@@ -629,10 +657,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
               );
             },
           ),
+          const Divider(height: 1),
+
+          // Manage Uploaded Records
           ListTile(
-            leading: const Icon(LucideIcons.layoutDashboard, color: AppTheme.primary),
-            title: const Text('Manage Uploaded Records', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text('Review and deploy portfolios'),
+            leading: const Icon(LucideIcons.layoutDashboard, color: AppTheme.primary, size: 20),
+            title: const Text(
+              'Manage Uploaded Records',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Review and deploy portfolios',
+              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+            ),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
@@ -641,9 +678,40 @@ class _AdminDashboardState extends State<AdminDashboard> {
               );
             },
           ),
+          const Divider(height: 1),
+
+          // Edit Admin Profile settings
           ListTile(
-            leading: const Icon(LucideIcons.terminal),
-            title: const Text('System Protocols Logs'),
+            leading: const Icon(LucideIcons.userCog, color: AppTheme.primary, size: 20),
+            title: const Text(
+              'Edit Profile Settings',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Update name, contact & photo',
+              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AgentEditProfileScreen()),
+              );
+            },
+          ),
+          const Divider(height: 1),
+
+          // System Protocols Logs
+          ListTile(
+            leading: const Icon(LucideIcons.terminal, color: AppTheme.primary, size: 20),
+            title: const Text(
+              'System Protocols Logs',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Inspect techno-operational log stream',
+              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+            ),
             onTap: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
@@ -651,11 +719,39 @@ class _AdminDashboardState extends State<AdminDashboard> {
               );
             },
           ),
+          
           const Spacer(),
-          const Divider(),
+          const Divider(height: 1),
+          
+          // Switch to Agent Portal
           ListTile(
-            leading: const Icon(LucideIcons.logOut, color: AppTheme.error),
-            title: const Text('Sign Out', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold)),
+            leading: const Icon(LucideIcons.arrowLeftRight, color: AppTheme.primary, size: 20),
+            title: const Text(
+              'Switch to Agent Portal',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Simulate field updates',
+              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+            ),
+            onTap: () {
+              Navigator.pop(context); // close drawer
+              _db.switchPortal('AGENT');
+              Navigator.of(context).pushReplacementNamed('/agent_dashboard');
+            },
+          ),
+          const Divider(height: 1),
+
+          ListTile(
+            leading: const Icon(LucideIcons.logOut, color: AppTheme.error, size: 20),
+            title: const Text(
+              'Sign Out',
+              style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Terminate secure admin session',
+              style: TextStyle(fontSize: 11, color: AppTheme.secondary),
+            ),
             onTap: () {
               _db.logout();
               Navigator.of(context).pushAndRemoveUntil(

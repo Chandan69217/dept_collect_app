@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_feedback.dart';
 import 'otp_screen.dart';
+import 'reset_password_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -39,7 +40,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     CustomFeedback.showFeedbackDialog(
       context,
       title: 'Verification Code Sent!',
-      message: 'A 6-digit secure authentication code has been dispatched to $email. Please check your inbox.',
+      message:
+          'A 6-digit secure authentication code has been dispatched to $email. Please check your inbox.',
       type: 'success',
       confirmLabel: 'ENTER OTP',
       cancelLabel: 'CANCEL',
@@ -50,13 +52,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             builder: (context) => OTPScreen(
               destination: email,
               onVerified: () {
-                CustomFeedback.showToast(
+                // Navigate to Reset Password screen after OTP is verified
+                Navigator.pushReplacement(
                   context,
-                  'Identity verified! Secure reset link dispatched.',
-                  type: 'success',
+                  MaterialPageRoute(
+                    builder: (context) => const ResetPasswordScreen(),
+                  ),
                 );
-                Navigator.pop(context); // pop OTP screen
-                Navigator.pop(context); // pop Forgot Password screen
               },
             ),
           ),
@@ -91,14 +93,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             fontSize: 18,
           ),
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 16.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -107,11 +111,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   Text(
                     'Forgot Password?',
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: AppTheme.onSurface,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 28,
-                          letterSpacing: -0.5,
-                        ),
+                      color: AppTheme.onSurface,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 28,
+                      letterSpacing: -0.5,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -205,21 +209,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Enter your registered email ID',
-                      prefixIcon: const Icon(LucideIcons.atSign, size: 20, color: AppTheme.primary),
+                      prefixIcon: const Icon(
+                        LucideIcons.atSign,
+                        size: 20,
+                        color: AppTheme.primary,
+                      ),
                       fillColor: Colors.white,
                       filled: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppTheme.border, width: 1),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppTheme.primary, width: 2),
-                      ),
                     ),
                   ),
                   const SizedBox(height: 28),
@@ -263,7 +265,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     child: TextButton(
                       onPressed: () => Navigator.pop(context),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(99),
                         ),
@@ -297,7 +302,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       children: [
                         const Text(
                           'Having trouble? ',
-                          style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.secondary,
+                          ),
                         ),
                         GestureDetector(
                           onTap: () {

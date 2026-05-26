@@ -9,10 +9,7 @@ import 'edit_permissions_screen.dart';
 class AgentProfileScreen extends StatelessWidget {
   final Agent agent;
 
-  const AgentProfileScreen({
-    super.key,
-    required this.agent,
-  });
+  const AgentProfileScreen({super.key, required this.agent});
 
   @override
   Widget build(BuildContext context) {
@@ -22,8 +19,10 @@ class AgentProfileScreen extends StatelessWidget {
       listenable: db,
       builder: (context, child) {
         // Find the most up-to-date agent details from shared state
-        final activeAgent = db.agents.firstWhere((a) => a.id == agent.id, orElse: () => agent);
-        final admin = db.agents.firstWhere((a) => a.isAdmin, orElse: () => db.currentUser!);
+        final activeAgent = db.agents.firstWhere(
+          (a) => a.id == agent.id,
+          orElse: () => agent,
+        );
 
         final targetPercentage = activeAgent.assignedTarget == 0
             ? 0.88 // Fallback standard representation matching mockup
@@ -40,23 +39,11 @@ class AgentProfileScreen extends StatelessWidget {
             ),
             title: const Text(
               'Agent Profile',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary),
-            ),
-            actions: [
-              Container(
-                margin: const EdgeInsets.only(right: 16),
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppTheme.outlineVariant, width: 1),
-                  image: DecorationImage(
-                    image: NetworkImage(admin.avatarUrl),
-                    fit: BoxFit.cover,
-                  ),
-                ),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primary,
               ),
-            ],
+            ),
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
@@ -127,7 +114,11 @@ class AgentProfileScreen extends StatelessWidget {
                   color: AppTheme.primary,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(LucideIcons.badgeCheck, color: Colors.white, size: 14),
+                child: const Icon(
+                  LucideIcons.badgeCheck,
+                  color: Colors.white,
+                  size: 14,
+                ),
               ),
             ],
           ),
@@ -139,9 +130,9 @@ class AgentProfileScreen extends StatelessWidget {
                 Text(
                   agent.name,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -160,7 +151,9 @@ class AgentProfileScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: agent.isOnline ? AppTheme.primary : AppTheme.error,
+                        color: agent.isOnline
+                            ? AppTheme.primary
+                            : AppTheme.error,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -195,7 +188,11 @@ class AgentProfileScreen extends StatelessWidget {
               border: Border.all(color: AppTheme.outlineVariant),
             ),
             child: IconButton(
-              icon: const Icon(LucideIcons.phone, color: AppTheme.primary, size: 20),
+              icon: const Icon(
+                LucideIcons.phone,
+                color: AppTheme.primary,
+                size: 20,
+              ),
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -212,7 +209,11 @@ class AgentProfileScreen extends StatelessWidget {
   }
 
   // Bento Statistics Grid
-  Widget _buildStatsBentoGrid(BuildContext context, Agent agent, double targetPercentage) {
+  Widget _buildStatsBentoGrid(
+    BuildContext context,
+    Agent agent,
+    double targetPercentage,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final boxWidth = constraints.maxWidth;
@@ -251,7 +252,11 @@ class AgentProfileScreen extends StatelessWidget {
                     const SizedBox(height: 6),
                     const Row(
                       children: [
-                        Icon(LucideIcons.trendingUp, color: Colors.green, size: 14),
+                        Icon(
+                          LucideIcons.trendingUp,
+                          color: Colors.green,
+                          size: 14,
+                        ),
                         SizedBox(width: 4),
                         Text(
                           '+12% this month',
@@ -301,7 +306,9 @@ class AgentProfileScreen extends StatelessWidget {
                         value: targetPercentage > 1.0 ? 1.0 : targetPercentage,
                         minHeight: 4,
                         backgroundColor: AppTheme.surfaceContainerHigh,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppTheme.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -341,7 +348,10 @@ class AgentProfileScreen extends StatelessWidget {
                       ],
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.errorContainer,
                         borderRadius: BorderRadius.circular(6),
@@ -387,7 +397,11 @@ class AgentProfileScreen extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, color: AppTheme.outlineVariant),
-          _buildDetailRow(LucideIcons.mapPin, 'Regional Assignment', agent.zone),
+          _buildDetailRow(
+            LucideIcons.mapPin,
+            'Regional Assignment',
+            agent.zone,
+          ),
           const Divider(height: 1, color: AppTheme.outlineVariant),
           _buildDetailRow(LucideIcons.refreshCw, 'Last Sync Time', '5m ago'),
           const Divider(height: 1, color: AppTheme.outlineVariant),
@@ -409,13 +423,20 @@ class AgentProfileScreen extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 label,
-                style: const TextStyle(fontSize: 13, color: AppTheme.onSurfaceVariant),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.onSurface),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.onSurface,
+            ),
           ),
         ],
       ),
@@ -423,7 +444,11 @@ class AgentProfileScreen extends StatelessWidget {
   }
 
   // Quick Action Buttons Row
-  Widget _buildQuickActionsRow(BuildContext context, DatabaseService db, Agent agent) {
+  Widget _buildQuickActionsRow(
+    BuildContext context,
+    DatabaseService db,
+    Agent agent,
+  ) {
     return Row(
       children: [
         Expanded(
@@ -439,11 +464,16 @@ class AgentProfileScreen extends StatelessWidget {
                 );
               },
               icon: const Icon(LucideIcons.squarePen, size: 16),
-              label: const Text('Edit Permissions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              label: const Text(
+                'Edit Permissions',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -454,11 +484,24 @@ class AgentProfileScreen extends StatelessWidget {
             height: 48,
             child: OutlinedButton.icon(
               onPressed: () => _showDeactivationDialog(context, db, agent),
-              icon: const Icon(LucideIcons.userX, size: 16, color: AppTheme.error),
-              label: const Text('Deactivate Agent', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.error)),
+              icon: const Icon(
+                LucideIcons.userX,
+                size: 16,
+                color: AppTheme.error,
+              ),
+              label: const Text(
+                'Deactivate Agent',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: AppTheme.error,
+                ),
+              ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppTheme.error, width: 1.5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -468,13 +511,22 @@ class AgentProfileScreen extends StatelessWidget {
   }
 
   // Deactivation confirmation modal dialog
-  void _showDeactivationDialog(BuildContext context, DatabaseService db, Agent agent) {
+  void _showDeactivationDialog(
+    BuildContext context,
+    DatabaseService db,
+    Agent agent,
+  ) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Deactivate Agent Profile?', style: TextStyle(fontWeight: FontWeight.bold)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Deactivate Agent Profile?',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           content: Text(
             'This action will mark ${agent.name} (#${agent.id.toUpperCase()}) as inactive. They will no longer be able to log in or sync local collection ledgers until reactivated.',
             style: const TextStyle(fontSize: 13, height: 1.4),
@@ -482,7 +534,13 @@ class AgentProfileScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('CANCEL', style: TextStyle(color: AppTheme.secondary, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'CANCEL',
+                style: TextStyle(
+                  color: AppTheme.secondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () {
@@ -492,15 +550,26 @@ class AgentProfileScreen extends StatelessWidget {
                   SnackBar(
                     backgroundColor: AppTheme.error,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     content: Text(
                       'Agent ${agent.name} is now Offline.',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 );
               },
-              child: const Text('DEACTIVATE', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'DEACTIVATE',
+                style: TextStyle(
+                  color: AppTheme.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         );
@@ -518,13 +587,16 @@ class AgentProfileScreen extends StatelessWidget {
           children: [
             Text(
               'Recent Activity',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             TextButton(
               onPressed: () {},
-              child: const Text('View All', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'View All',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -576,10 +648,7 @@ class AgentProfileScreen extends StatelessWidget {
           Container(
             width: 36,
             height: 36,
-            decoration: BoxDecoration(
-              color: bg,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 18),
           ),
           const SizedBox(width: 12),
@@ -592,24 +661,39 @@ class AgentProfileScreen extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.onSurface),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: AppTheme.onSurface,
+                      ),
                     ),
                     Text(
                       time.toUpperCase(),
-                      style: const TextStyle(fontSize: 9, color: AppTheme.outline, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: AppTheme.outline,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(
                   desc,
-                  style: const TextStyle(fontSize: 11, color: AppTheme.onSurfaceVariant),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(LucideIcons.chevronRight, size: 18, color: AppTheme.outline),
+          const Icon(
+            LucideIcons.chevronRight,
+            size: 18,
+            color: AppTheme.outline,
+          ),
         ],
       ),
     );

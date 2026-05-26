@@ -38,9 +38,9 @@ class AppTheme {
   static const Color warningContainer = Color(0xFFFFF3E0);
 
   // Borders
-  static const double radiusSmall = 4.0;
-  static const double radiusMedium = 8.0;
-  static const double radiusLarge = 12.0;
+  static const double radiusSmall = 6.0;
+  static const double radiusMedium = 10.0;
+  static const double radiusLarge = 16.0;
 
   static ThemeData get lightTheme {
     return ThemeData(
@@ -164,21 +164,24 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusSmall),
+          borderRadius: BorderRadius.circular(radiusLarge),
           borderSide: const BorderSide(color: outlineVariant, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusSmall),
+          borderRadius: BorderRadius.circular(radiusLarge),
           borderSide: const BorderSide(color: outlineVariant, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusSmall),
+          borderRadius: BorderRadius.circular(radiusLarge),
           borderSide: const BorderSide(color: primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusSmall),
+          borderRadius: BorderRadius.circular(radiusLarge),
           borderSide: const BorderSide(color: error, width: 1),
         ),
         labelStyle: const TextStyle(color: secondary, fontSize: 14),

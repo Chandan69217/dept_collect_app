@@ -8,6 +8,7 @@ class CustomBentoCard extends StatelessWidget {
   final double? height;
   final double padding;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final Widget? backgroundDecoration;
 
   const CustomBentoCard({
@@ -18,6 +19,7 @@ class CustomBentoCard extends StatelessWidget {
     this.height,
     this.padding = 16.0,
     this.onTap,
+    this.onLongPress,
     this.backgroundDecoration,
   });
 
@@ -53,11 +55,12 @@ class CustomBentoCard extends StatelessWidget {
     return Container(
       height: height,
       decoration: boxDecoration,
-      child: onTap != null
+      child: onTap != null || onLongPress != null
           ? Material(
               color: Colors.transparent,
               child: InkWell(
                 onTap: onTap,
+                onLongPress: onLongPress,
                 borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                 child: cardContent,
               ),

@@ -242,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _idController,
                 decoration: const InputDecoration(
                   hintText: 'Enter your ID',
-                   prefixIcon: const Icon(LucideIcons.user, size: 20),
+                  prefixIcon: Icon(LucideIcons.user, size: 20),
                 ),
               ),
               const SizedBox(height: 24),

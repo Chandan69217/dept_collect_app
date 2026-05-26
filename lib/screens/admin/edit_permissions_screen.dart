@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_bento_card.dart';
 import '../../models/agent.dart';
+import '../../services/database_service.dart';
 
 class EditPermissionsScreen extends StatefulWidget {
   final Agent agent;
@@ -25,6 +26,13 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
   bool _deleteRecords = false;
 
   bool _isSaving = false;
+  String? _selectedRegion;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRegion = widget.agent.zone;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -102,11 +110,96 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
                               ),
                             ),
                             Text(
-                              'Region: ${widget.agent.zone} • v2.4.0',
+                              'Region: $_selectedRegion • v2.4.0',
                               style: const TextStyle(fontSize: 11, color: AppTheme.onSurfaceVariant),
                             ),
                           ],
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Regional Assignment Selector
+                CustomBentoCard(
+                  padding: 16,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'REGIONAL ASSIGNMENT',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.secondary,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: _selectedRegion,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          fillColor: Colors.white,
+                          filled: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: AppTheme.outlineVariant,
+                              width: 1,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: AppTheme.outlineVariant,
+                              width: 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: AppTheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(
+                          LucideIcons.chevronDown,
+                          color: AppTheme.secondary,
+                          size: 18,
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Mumbai Metro Area',
+                            child: Text('Mumbai Metro Area (North Sector)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Mumbai South',
+                            child: Text('Mumbai South (South Sector)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Mumbai West',
+                            child: Text('Mumbai West (West Sector)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Mumbai East',
+                            child: Text('Mumbai East (East Sector)'),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedRegion = val;
+                          });
+                        },
                       ),
                     ],
                   ),
@@ -185,66 +278,71 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 border: Border(
                   top: BorderSide(color: AppTheme.outlineVariant, width: 1),
                 ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: OutlinedButton(
-                        onPressed: _isSaving ? null : () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppTheme.outline, width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: OutlinedButton(
+                            onPressed: _isSaving ? null : () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppTheme.outline, width: 1.5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text('Discard', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface)),
+                          ),
                         ),
-                        child: const Text('Discard', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface)),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: SizedBox(
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : _handleSaveChanges,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: _isSaving
-                            ? const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _isSaving ? null : _handleSaveChanges,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: _isSaving
+                                ? const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text('Saving...', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ],
+                                  )
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(LucideIcons.save, size: 16),
+                                      SizedBox(width: 6),
+                                      Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    ],
                                   ),
-                                  SizedBox(width: 8),
-                                  Text('Saving...', style: TextStyle(fontWeight: FontWeight.bold)),
-                                ],
-                              )
-                            : const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(LucideIcons.save, size: 16),
-                                  SizedBox(width: 6),
-                                  Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
-                                ],
-                              ),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -343,6 +441,12 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
     // Simulate saving delay
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted) return;
+
+      // Update region assignment in shared DatabaseService
+      if (_selectedRegion != null) {
+        DatabaseService().updateAgentZone(widget.agent.id, _selectedRegion!);
+      }
+
       setState(() {
         _isSaving = false;
       });

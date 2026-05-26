@@ -78,6 +78,8 @@ class CustomerDetailsScreen extends StatelessWidget {
           orElse: () => customer,
         );
 
+        final bool isAdmin = db.currentRole == 'ADMIN';
+
         final bool isPaid = currentCust.status == 'PAID';
         final bool isPending = currentCust.status == 'PENDING_VERIFICATION';
 
@@ -139,7 +141,7 @@ class CustomerDetailsScreen extends StatelessWidget {
             children: [
               // Scrollable Details Body
               SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+                padding: EdgeInsets.fromLTRB(16, 16, 16, isAdmin ? 16 : 110),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -697,11 +699,12 @@ class CustomerDetailsScreen extends StatelessWidget {
               ),
 
               // Sticky Contextual Actions Footer Bar
-              Positioned(
-                bottom: 0,
-                left: 0,
-                width: MediaQuery.of(context).size.width,
-                child: Container(
+              if (!isAdmin)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  width: MediaQuery.of(context).size.width,
+                  child: Container(
                   decoration: const BoxDecoration(
                     color: Colors.white,
                     border: Border(

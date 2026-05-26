@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_feedback.dart';
+import '../agent/customer_details_screen.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -14,7 +15,10 @@ class NotificationsScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: db,
       builder: (context, child) {
-        final unreadCount = db.notifications.where((n) => !n.isRead).length;
+        final roleNotifications = db.notifications
+            .where((n) => n.recipientRole == db.currentRole)
+            .toList();
+        final unreadCount = roleNotifications.where((n) => !n.isRead).length;
 
         return Scaffold(
           backgroundColor: AppTheme.background,
@@ -46,7 +50,7 @@ class NotificationsScreen extends StatelessWidget {
                 ),
             ],
           ),
-          body: db.notifications.isEmpty
+          body: roleNotifications.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -76,14 +80,14 @@ class NotificationsScreen extends StatelessWidget {
               : ListView.separated(
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  itemCount: db.notifications.length,
+                  itemCount: roleNotifications.length,
                   separatorBuilder: (context, index) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
-                    final item = db.notifications[index];
+                    final item = roleNotifications[index];
                     IconData icon;
                     Color color;
                     Color bg;
-
+ 
                     switch (item.type) {
                       case 'approval':
                         icon = LucideIcons.circleCheck;
@@ -92,6 +96,11 @@ class NotificationsScreen extends StatelessWidget {
                         break;
                       case 'assignment':
                         icon = LucideIcons.clipboard;
+                        color = AppTheme.primary;
+                        bg = AppTheme.primaryContainer.withOpacity(0.1);
+                        break;
+                      case 'schedule':
+                        icon = LucideIcons.calendarDays;
                         color = AppTheme.primary;
                         bg = AppTheme.primaryContainer.withOpacity(0.1);
                         break;
@@ -114,6 +123,18 @@ class NotificationsScreen extends StatelessWidget {
                               context,
                               'Notification marked as read.',
                               type: 'success',
+                            );
+                          }
+                          if (item.customerId != null) {
+                            final customer = db.customers.firstWhere(
+                              (c) => c.id == item.customerId,
+                              orElse: () => db.customers[0],
+                            );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CustomerDetailsScreen(customer: customer),
+                              ),
                             );
                           }
                         },

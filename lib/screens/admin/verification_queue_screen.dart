@@ -4,6 +4,8 @@ import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
 import '../../models/payment_record.dart';
+import '../../models/customer.dart';
+import '../agent/customer_details_screen.dart';
 
 class VerificationQueueScreen extends StatelessWidget {
   final bool isEmbedded;
@@ -430,28 +432,58 @@ class VerificationQueueScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'CUSTOMER',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.secondary,
-                          letterSpacing: 0.5,
+                  GestureDetector(
+                    onTap: () {
+                      final customerList = db.customers.where((c) => c.id == item.customerId);
+                      final Customer? customer = customerList.isNotEmpty ? customerList.first : null;
+                      if (customer != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CustomerDetailsScreen(customer: customer),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Customer details not found for ${item.customerName}')),
+                        );
+                      }
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'CUSTOMER',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.secondary,
+                            letterSpacing: 0.5,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.customerName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: AppTheme.onSurface,
+                        const SizedBox(height: 2),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              item.customerName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: AppTheme.primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              LucideIcons.info,
+                              size: 13,
+                              color: AppTheme.primary,
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,

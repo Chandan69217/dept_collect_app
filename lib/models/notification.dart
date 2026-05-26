@@ -4,7 +4,9 @@ class AppNotification {
   final String body;
   final DateTime timestamp;
   final bool isRead;
-  final String type; // 'approval', 'assignment', 'alert'
+  final String type; // 'approval', 'assignment', 'alert', 'schedule'
+  final String recipientRole; // 'ADMIN' or 'AGENT'
+  final String? customerId; // linked customer ID for details navigation
 
   const AppNotification({
     required this.id,
@@ -13,6 +15,8 @@ class AppNotification {
     required this.timestamp,
     this.isRead = false,
     required this.type,
+    this.recipientRole = 'AGENT',
+    this.customerId,
   });
 
   AppNotification copyWith({
@@ -22,6 +26,8 @@ class AppNotification {
     DateTime? timestamp,
     bool? isRead,
     String? type,
+    String? recipientRole,
+    String? customerId,
   }) {
     return AppNotification(
       id: id ?? this.id,
@@ -30,6 +36,8 @@ class AppNotification {
       timestamp: timestamp ?? this.timestamp,
       isRead: isRead ?? this.isRead,
       type: type ?? this.type,
+      recipientRole: recipientRole ?? this.recipientRole,
+      customerId: customerId ?? this.customerId,
     );
   }
 }

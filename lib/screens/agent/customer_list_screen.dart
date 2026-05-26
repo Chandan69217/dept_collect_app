@@ -21,7 +21,14 @@ class CustomerListScreen extends StatefulWidget {
 class _CustomerListScreenState extends State<CustomerListScreen> {
   final _db = DatabaseService();
   String _searchQuery = '';
-  String _selectedTab = 'ALL'; // 'ALL', 'OVERDUE', 'DUE_SOON'
+  String _selectedTab = 'ALL'; // 'ALL', 'OVERDUE', 'DUE_SOON', 'PAID'
+
+  // Premium visual filters state variables
+  DateTime? _startDate;
+  DateTime? _endDate;
+  double? _minAmount;
+  double? _maxAmount;
+  String _sortBy = 'Newest First';
 
   String _formatDate(DateTime date, String customerId) {
     if (customerId == 'cust_robert') {
@@ -53,6 +60,34 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     return '#CSV-${customerId.hashCode.toString().substring(0, 4)}';
   }
 
+  void _showFilterBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return _FilterBottomSheet(
+          initialStatus: _selectedTab,
+          initialStartDate: _startDate,
+          initialEndDate: _endDate,
+          initialMinAmount: _minAmount,
+          initialMaxAmount: _maxAmount,
+          initialSortBy: _sortBy,
+          onApply: (status, start, end, min, max, sort) {
+            setState(() {
+              _selectedTab = status;
+              _startDate = start;
+              _endDate = end;
+              _minAmount = min;
+              _maxAmount = max;
+              _sortBy = sort;
+            });
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -69,21 +104,48 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         final int totalCount = allAgentCustomers.length;
         final int overdueCount = allAgentCustomers.where((c) => c.status == 'OVERDUE').length;
         final int dueSoonCount = allAgentCustomers.where((c) => c.status == 'PENDING_VERIFICATION' || c.status == 'OVERDUE').length;
+        final int paidCount = allAgentCustomers.where((c) => c.status == 'PAID').length;
 
         // Apply filters
-        final filteredCustomers = allAgentCustomers.where((c) {
+        var filteredCustomers = allAgentCustomers.where((c) {
           final matchesSearch = c.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
               c.address.toLowerCase().contains(_searchQuery.toLowerCase());
+          if (!matchesSearch) return false;
 
           bool matchesTab = true;
           if (_selectedTab == 'OVERDUE') {
             matchesTab = c.status == 'OVERDUE';
           } else if (_selectedTab == 'DUE_SOON') {
             matchesTab = c.status == 'PENDING_VERIFICATION' || c.status == 'OVERDUE';
+          } else if (_selectedTab == 'PAID') {
+            matchesTab = c.status == 'PAID';
           }
+          if (!matchesTab) return false;
 
-          return matchesSearch && matchesTab;
+          if (_minAmount != null && c.amountDue < _minAmount!) return false;
+          if (_maxAmount != null && c.amountDue > _maxAmount!) return false;
+
+          if (_startDate != null && c.dueDate.isBefore(_startDate!)) return false;
+          if (_endDate != null && c.dueDate.isAfter(_endDate!.add(const Duration(days: 1)))) return false;
+
+          return true;
         }).toList();
+
+        // Sort customers based on selected criteria
+        filteredCustomers.sort((a, b) {
+          switch (_sortBy) {
+            case 'Newest First':
+              return b.dueDate.compareTo(a.dueDate);
+            case 'Oldest First':
+              return a.dueDate.compareTo(b.dueDate);
+            case 'Amount: High to Low':
+              return b.amountDue.compareTo(a.amountDue);
+            case 'Amount: Low to High':
+              return a.amountDue.compareTo(b.amountDue);
+            default:
+              return 0;
+          }
+        });
 
         final content = Column(
           children: [
@@ -134,7 +196,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                       const SizedBox(width: 12),
                       SizedBox(
                         height: 48,
-                        child: OutlinedButton(
+                        child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             backgroundColor: AppTheme.surfaceContainerHigh,
                             foregroundColor: AppTheme.primary,
@@ -144,12 +206,18 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                             ),
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                           ),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Filter configurations triggered.')),
-                            );
-                          },
-                          child: const Text('Filter', style: TextStyle(fontWeight: FontWeight.bold)),
+                          onPressed: () => _showFilterBottomSheet(),
+                          icon: const Icon(
+                            LucideIcons.slidersHorizontal,
+                            size: 18,
+                            color: AppTheme.primary,
+                          ),
+                          label: Text(
+                            _selectedTab == 'ALL'
+                                ? 'Filter'
+                                : 'Filter: ${_selectedTab == 'DUE_SOON' ? 'Due Soon' : _selectedTab[0] + _selectedTab.substring(1).toLowerCase()}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
                     ],
@@ -193,6 +261,18 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                           onTap: () {
                             setState(() {
                               _selectedTab = 'DUE_SOON';
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        // Paid Tab
+                        _buildFilterTab(
+                          label: 'Paid ($paidCount)',
+                          isActive: _selectedTab == 'PAID',
+                          color: AppTheme.success,
+                          onTap: () {
+                            setState(() {
+                              _selectedTab = 'PAID';
                             });
                           },
                         ),
@@ -538,5 +618,691 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         ),
       ),
     );
+  }
+}
+
+// Stateful bottom sheet filter widget matching premium visual style
+class _FilterBottomSheet extends StatefulWidget {
+  final String initialStatus;
+  final DateTime? initialStartDate;
+  final DateTime? initialEndDate;
+  final double? initialMinAmount;
+  final double? initialMaxAmount;
+  final String initialSortBy;
+  final Function(
+    String status,
+    DateTime? start,
+    DateTime? end,
+    double? min,
+    double? max,
+    String sortBy,
+  ) onApply;
+
+  const _FilterBottomSheet({
+    required this.initialStatus,
+    required this.initialStartDate,
+    required this.initialEndDate,
+    required this.initialMinAmount,
+    required this.initialMaxAmount,
+    required this.initialSortBy,
+    required this.onApply,
+  });
+
+  @override
+  State<_FilterBottomSheet> createState() => _FilterBottomSheetState();
+}
+
+class _FilterBottomSheetState extends State<_FilterBottomSheet> {
+  late String _status;
+  DateTime? _startDate;
+  DateTime? _endDate;
+  final _minController = TextEditingController();
+  final _maxController = TextEditingController();
+  late String _sortBy;
+  late RangeValues _amountRange;
+
+  @override
+  void initState() {
+    super.initState();
+    _status = widget.initialStatus;
+    _startDate = widget.initialStartDate;
+    _endDate = widget.initialEndDate;
+    _sortBy = widget.initialSortBy;
+
+    double minVal = widget.initialMinAmount ?? 0.0;
+    double maxVal = widget.initialMaxAmount ?? 30000.0;
+    if (minVal < 0.0) minVal = 0.0;
+    if (maxVal > 30000.0) maxVal = 30000.0;
+    if (minVal > maxVal) minVal = maxVal;
+    _amountRange = RangeValues(minVal, maxVal);
+
+    if (widget.initialMinAmount != null) {
+      _minController.text = widget.initialMinAmount!.toStringAsFixed(0);
+    }
+    if (widget.initialMaxAmount != null) {
+      _maxController.text = widget.initialMaxAmount!.toStringAsFixed(0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _minController.dispose();
+    _maxController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectDate(BuildContext context, bool isStart) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppTheme.primary,
+              onPrimary: Colors.white,
+              onSurface: AppTheme.onSurface,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _startDate = picked;
+        } else {
+          _endDate = picked;
+        }
+      });
+    }
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'mm/dd/yyyy';
+    return '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  width: 48,
+                  height: 5,
+                  margin: const EdgeInsets.only(top: 12, bottom: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC4C7C5),
+                    borderRadius: BorderRadius.circular(2.5),
+                  ),
+                ),
+              ),
+
+              // Header Row
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 8.0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Filters',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0B1C30),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        LucideIcons.x,
+                        color: Color(0xFF1C1B1F),
+                        size: 24,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Form Fields scroll list
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                    vertical: 10.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Status chips section
+                      const Text(
+                        'Status',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0B1C30),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _buildStatusChip('ALL', 'All'),
+                          _buildStatusChip('OVERDUE', 'Overdue'),
+                          _buildStatusChip('DUE_SOON', 'Due Soon'),
+                          _buildStatusChip('PAID', 'Paid'),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Date range picker Row
+                      const Text(
+                        'Due Date Range',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0B1C30),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Start Date',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF5C5F61),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                GestureDetector(
+                                  onTap: () => _selectDate(context, true),
+                                  child: Container(
+                                    height: 48,
+                                    alignment: Alignment.centerLeft,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEFF4FF),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: const Color(0xFFC3C6D6),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      _formatDate(_startDate),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: _startDate == null
+                                            ? const Color(0xFF737685)
+                                            : const Color(0xFF0B1C30),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'End Date',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF5C5F61),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                GestureDetector(
+                                  onTap: () => _selectDate(context, false),
+                                  child: Container(
+                                    height: 48,
+                                    alignment: Alignment.centerLeft,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEFF4FF),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: const Color(0xFFC3C6D6),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      _formatDate(_endDate),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: _endDate == null
+                                            ? const Color(0xFF737685)
+                                            : const Color(0xFF0B1C30),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Amount range inputs Row
+                      const Text(
+                        'EMI Amount Range (₹)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0B1C30),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          sliderTheme: SliderThemeData(
+                            activeTrackColor: const Color(0xFF00328A),
+                            inactiveTrackColor: const Color(0xFFEFF4FF),
+                            thumbColor: const Color(0xFF00328A),
+                            overlayColor: const Color(0xFF00328A).withOpacity(0.12),
+                            valueIndicatorColor: const Color(0xFF0B1C30),
+                            valueIndicatorTextStyle: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Inter',
+                            ),
+                            showValueIndicator: ShowValueIndicator.always,
+                          ),
+                        ),
+                        child: RangeSlider(
+                          values: _amountRange,
+                          min: 0.0,
+                          max: 30000.0,
+                          divisions: 60,
+                          labels: RangeLabels(
+                            '₹${_amountRange.start.toStringAsFixed(0)}',
+                            '₹${_amountRange.end.toStringAsFixed(0)}',
+                          ),
+                          onChanged: (RangeValues values) {
+                            setState(() {
+                              _amountRange = values;
+                              _minController.text = values.start.toStringAsFixed(0);
+                              _maxController.text = values.end.toStringAsFixed(0);
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              height: 48,
+                              alignment: Alignment.centerLeft,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF4FF),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: const Color(0xFFC3C6D6),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Text(
+                                    '₹ ',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF737685),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Theme(
+                                      data: Theme.of(context).copyWith(
+                                        inputDecorationTheme:
+                                            const InputDecorationTheme(
+                                              filled: false,
+                                              border: InputBorder.none,
+                                              enabledBorder: InputBorder.none,
+                                              focusedBorder: InputBorder.none,
+                                              disabledBorder: InputBorder.none,
+                                              errorBorder: InputBorder.none,
+                                              focusedErrorBorder:
+                                                  InputBorder.none,
+                                              contentPadding: EdgeInsets.zero,
+                                            ),
+                                      ),
+                                      child: TextField(
+                                        controller: _minController,
+                                        keyboardType: TextInputType.number,
+                                        onChanged: (val) {
+                                          final parsed = double.tryParse(val) ?? 0.0;
+                                          setState(() {
+                                            _amountRange = RangeValues(
+                                              parsed.clamp(0.0, _amountRange.end),
+                                              _amountRange.end,
+                                            );
+                                          });
+                                        },
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFF0B1C30),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        decoration: const InputDecoration(
+                                          hintText: 'Min',
+                                          hintStyle: TextStyle(
+                                            color: Color(0xFF737685),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.normal,
+                                          ),
+                                          isDense: true,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Container(
+                              height: 48,
+                              alignment: Alignment.centerLeft,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF4FF),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: const Color(0xFFC3C6D6),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Text(
+                                    '₹ ',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF737685),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Theme(
+                                      data: Theme.of(context).copyWith(
+                                        inputDecorationTheme:
+                                            const InputDecorationTheme(
+                                              filled: false,
+                                              border: InputBorder.none,
+                                              enabledBorder: InputBorder.none,
+                                              focusedBorder: InputBorder.none,
+                                              disabledBorder: InputBorder.none,
+                                              errorBorder: InputBorder.none,
+                                              focusedErrorBorder:
+                                                  InputBorder.none,
+                                              contentPadding: EdgeInsets.zero,
+                                            ),
+                                      ),
+                                      child: TextField(
+                                        controller: _maxController,
+                                        keyboardType: TextInputType.number,
+                                        onChanged: (val) {
+                                          final parsed = double.tryParse(val) ?? 30000.0;
+                                          setState(() {
+                                            _amountRange = RangeValues(
+                                              _amountRange.start,
+                                              parsed.clamp(_amountRange.start, 30000.0),
+                                            );
+                                          });
+                                        },
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFF0B1C30),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        decoration: const InputDecoration(
+                                          hintText: 'Max',
+                                          hintStyle: TextStyle(
+                                            color: Color(0xFF737685),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.normal,
+                                          ),
+                                          isDense: true,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Sort option list
+                      const Text(
+                        'Sort By',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0B1C30),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildSortRadio('Newest First'),
+                      _buildSortRadio('Oldest First'),
+                      _buildSortRadio('Amount: High to Low'),
+                      _buildSortRadio('Amount: Low to High'),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFEFF1F5)),
+
+              // Apply & Reset footer
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 16.0,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: OutlinedButton(
+                          onPressed: _handleReset,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                              color: Color(0xFFC3C6D6),
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Reset',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF00328A),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _handleApply,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00328A),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Apply Filters',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String value, String label) {
+    final isSelected = _status == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _status = value;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF00328A) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : const Color(0xFFC3C6D6),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.white : const Color(0xFF0B1C30),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortRadio(String optionName) {
+    final isSelected = _sortBy == optionName;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _sortBy = optionName;
+        });
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10.0),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected
+                      ? const Color(0xFF00328A)
+                      : const Color(0xFFC3C6D6),
+                  width: 2,
+                ),
+              ),
+              padding: const EdgeInsets.all(3.5),
+              child: isSelected
+                  ? Container(
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFF00328A),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              optionName,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF0B1C30),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleReset() {
+    setState(() {
+      _status = 'ALL';
+      _startDate = null;
+      _endDate = null;
+      _minController.clear();
+      _maxController.clear();
+      _sortBy = 'Newest First';
+      _amountRange = const RangeValues(0.0, 30000.0);
+    });
+  }
+
+  void _handleApply() {
+    final min = double.tryParse(_minController.text.trim());
+    final max = double.tryParse(_maxController.text.trim());
+    widget.onApply(_status, _startDate, _endDate, min, max, _sortBy);
+    Navigator.pop(context);
   }
 }

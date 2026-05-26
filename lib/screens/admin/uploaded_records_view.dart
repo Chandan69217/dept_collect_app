@@ -3,6 +3,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
+import '../../models/customer.dart';
+import '../agent/customer_details_screen.dart';
 import 'upload_data_screen.dart';
 
 class UploadedRecordsView extends StatefulWidget {
@@ -39,6 +41,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
   String _searchQuery = '';
   String _statusFilter = 'ALL'; // 'ALL', 'Unassigned', 'Assigned', 'In-Progress'
   String _sortBy = 'NEWEST'; // 'NEWEST', 'OLDEST', 'AMOUNT_DESC', 'AMOUNT_ASC'
+  final Set<String> _selectedRecordIds = {};
 
   // Local overrides for mock record modifications (assignments and statuses)
   final Map<String, String> _mockAssignments = {};
@@ -219,205 +222,320 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
               const SizedBox(width: 8),
             ],
           ),
-          body: Column(
-            children: [
-              // Header / Search & Filter Section
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Manage Records',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.onSurface,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Review and manage imported debt ledger entries',
-                      style: TextStyle(fontSize: 12, color: AppTheme.secondary),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            onChanged: (val) {
-                              setState(() {
-                                _searchQuery = val;
-                              });
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Search by ID or Customer Name...',
-                              prefixIcon: const Icon(
-                                LucideIcons.search, size: 20, color: AppTheme.outline),
-                              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                              fillColor: const Color(0xFFF1F3F9),
-                              filled: true,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+          body: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header / Search & Filter Section
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Manage Records',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.onSurface,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Review and manage imported debt ledger entries',
+                        style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              onChanged: (val) {
+                                setState(() {
+                                  _searchQuery = val;
+                                });
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'Search by ID or Customer Name...',
+                                prefixIcon: const Icon(
+                                  LucideIcons.search, size: 20, color: AppTheme.outline),
+                                contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                fillColor: const Color(0xFFF1F3F9),
+                                filled: true,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Filter Action Button
-                        _buildHeaderButton(
-                          icon: LucideIcons.filter,
-                          label: 'Filter${_statusFilter == 'ALL' ? '' : ': $_statusFilter'}',
-                          onPressed: () => _showFilterBottomSheet(context),
-                          backgroundColor: Colors.white,
-                          textColor: AppTheme.onSurfaceVariant,
-                          hasBorder: true,
-                        ),
-                        const SizedBox(width: 8),
-                        // Import Action Button
-                        _buildHeaderButton(
-                          icon: LucideIcons.upload,
-                          label: 'Import',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const UploadDataScreen()),
-                            );
-                          },
-                          backgroundColor: AppTheme.primary,
-                          textColor: Colors.white,
-                          hasBorder: false,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Bento-lite Stats Grid Row
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  shrinkWrap: true,
-                  childAspectRatio: 2.3,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _buildBentoStatCard('Total Records', '$totalCount', AppTheme.primary),
-                    _buildBentoStatCard('Unassigned', '$unassignedCount', AppTheme.error),
-                    _buildBentoStatCard('In-Progress', '$inProgressCount', const Color(0xFF3C475A)),
-                    _buildBentoStatCard('Total Value', '₹4.2M', AppTheme.primary),
-                  ],
-                ),
-              ),
-
-              // Quick Filter Chips Row for Unassigned / In-Progress / All
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: SizedBox(
-                  height: 38,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      _buildFilterChip('All Records', 'ALL', LucideIcons.inbox),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Unassigned', 'Unassigned', LucideIcons.userX),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('In-Progress', 'In-Progress', LucideIcons.timerReset),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Assigned', 'Assigned', LucideIcons.userCheck),
+                          const SizedBox(width: 8),
+                          // Filter Action Button
+                          _buildHeaderButton(
+                            icon: LucideIcons.filter,
+                            label: 'Filter${_statusFilter == 'ALL' ? '' : ': $_statusFilter'}',
+                            onPressed: () => _showFilterBottomSheet(context),
+                            backgroundColor: Colors.white,
+                            textColor: AppTheme.onSurfaceVariant,
+                            hasBorder: true,
+                          ),
+                          const SizedBox(width: 8),
+                          // Import Action Button
+                          _buildHeaderButton(
+                            icon: LucideIcons.upload,
+                            label: 'Import',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const UploadDataScreen()),
+                              );
+                            },
+                            backgroundColor: AppTheme.primary,
+                            textColor: Colors.white,
+                            hasBorder: false,
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
 
-              // List Header (Showing and Sort selection)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Showing ${filteredRecords.length} records',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.onSurfaceVariant,
+                // Bento-lite Stats Grid Row - Highly Compact Height with Colorful Icons
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    shrinkWrap: true,
+                    childAspectRatio: 3.1,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _buildBentoStatCard(
+                        label: 'Total Records',
+                        value: '$totalCount',
+                        valueColor: AppTheme.primary,
+                        icon: LucideIcons.database,
+                        iconColor: AppTheme.primary,
+                        iconBgColor: AppTheme.primary.withOpacity(0.08),
                       ),
-                    ),
-                    Row(
+                      _buildBentoStatCard(
+                        label: 'Unassigned',
+                        value: '$unassignedCount',
+                        valueColor: AppTheme.error,
+                        icon: LucideIcons.userX,
+                        iconColor: AppTheme.error,
+                        iconBgColor: AppTheme.error.withOpacity(0.08),
+                      ),
+                      _buildBentoStatCard(
+                        label: 'In-Progress',
+                        value: '$inProgressCount',
+                        valueColor: const Color(0xFF3C475A),
+                        icon: LucideIcons.timer,
+                        iconColor: const Color(0xFFE65100),
+                        iconBgColor: const Color(0xFFFFF3E0),
+                      ),
+                      _buildBentoStatCard(
+                        label: 'Total Value',
+                        value: '₹4.2M',
+                        valueColor: const Color(0xFF2E7D32),
+                        icon: LucideIcons.indianRupee,
+                        iconColor: const Color(0xFF2E7D32),
+                        iconBgColor: const Color(0xFFE8F5E9),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Quick Filter Chips Row for Unassigned / In-Progress / All
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: SizedBox(
+                    height: 38,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
                       children: [
-                        const Text('Sort: ', style: TextStyle(fontSize: 12, color: AppTheme.secondary)),
-                        DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _sortBy,
-                            icon: const Icon(LucideIcons.chevronDown, color: AppTheme.primary, size: 18),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primary,
-                            ),
-                            items: const [
-                              DropdownMenuItem(value: 'NEWEST', child: Text('Newest First')),
-                              DropdownMenuItem(value: 'OLDEST', child: Text('Oldest First')),
-                              DropdownMenuItem(value: 'AMOUNT_DESC', child: Text('Amount: High to Low')),
-                              DropdownMenuItem(value: 'AMOUNT_ASC', child: Text('Amount: Low to High')),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  _sortBy = val;
-                                });
-                              }
-                            },
-                          ),
-                        ),
+                        _buildFilterChip('All Records', 'ALL', LucideIcons.inbox),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Unassigned', 'Unassigned', LucideIcons.userX),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('In-Progress', 'In-Progress', LucideIcons.timerReset),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Assigned', 'Assigned', LucideIcons.userCheck),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
-              // Records Cards List
-              Expanded(
-                child: filteredRecords.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(LucideIcons.folderOpen, size: 64, color: AppTheme.outline.withOpacity(0.5)),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'No matching ledger entries found',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondary),
+                // List Header (Showing and Sort selection)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: filteredRecords.isNotEmpty && filteredRecords.every((r) => _selectedRecordIds.contains(r.id)),
+                            activeColor: AppTheme.primary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            onChanged: (val) {
+                              setState(() {
+                                if (val == true) {
+                                  _selectedRecordIds.addAll(filteredRecords.map((r) => r.id));
+                                } else {
+                                  _selectedRecordIds.removeAll(filteredRecords.map((r) => r.id));
+                                }
+                              });
+                            },
+                          ),
+                          Text(
+                            'Showing ${filteredRecords.length} records',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.onSurfaceVariant,
                             ),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                        itemCount: filteredRecords.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final record = filteredRecords[index];
-                          return _buildRecordCard(record);
-                        },
+                          ),
+                        ],
                       ),
-              ),
-            ],
+                      Row(
+                        children: [
+                          const Text('Sort: ', style: TextStyle(fontSize: 12, color: AppTheme.secondary)),
+                          DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _sortBy,
+                              icon: const Icon(LucideIcons.chevronDown, color: AppTheme.primary, size: 18),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primary,
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'NEWEST', child: Text('Newest First')),
+                                DropdownMenuItem(value: 'OLDEST', child: Text('Oldest First')),
+                                DropdownMenuItem(value: 'AMOUNT_DESC', child: Text('Amount: High to Low')),
+                                DropdownMenuItem(value: 'AMOUNT_ASC', child: Text('Amount: Low to High')),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _sortBy = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Bulk Actions Panel
+                if (_selectedRecordIds.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF0F0),
+                        border: Border.all(color: AppTheme.error.withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${_selectedRecordIds.length} records selected',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.error,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedRecordIds.clear();
+                                  });
+                                },
+                                child: const Text(
+                                  'Clear',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.secondary),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.error,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                onPressed: () => _confirmBulkDeleteRecords(filteredRecords),
+                                icon: const Icon(LucideIcons.trash2, size: 14),
+                                label: const Text(
+                                  'Delete',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
+                // Records Cards List - Scrolls with page fluidly
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: filteredRecords.isEmpty
+                      ? SizedBox(
+                          height: 250,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(LucideIcons.folderOpen, size: 48, color: AppTheme.outline.withOpacity(0.5)),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'No matching ledger entries found',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: const EdgeInsets.only(bottom: 32),
+                          itemCount: filteredRecords.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final record = filteredRecords[index];
+                            return _buildRecordCard(record);
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -467,30 +585,57 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
     );
   }
 
-  Widget _buildBentoStatCard(String label, String value, Color valueColor) {
+  Widget _buildBentoStatCard({
+    required String label,
+    required String value,
+    required Color valueColor,
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBgColor,
+  }) {
     return CustomBentoCard(
-      padding: 8.0,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+      padding: 10.0,
+      child: Row(
         children: [
-          Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.onSurfaceVariant,
-              letterSpacing: 0.6,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.onSurfaceVariant,
+                    letterSpacing: 0.6,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: valueColor,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: valueColor,
-              letterSpacing: -0.5,
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: 15,
+              color: iconColor,
             ),
           ),
         ],
@@ -538,139 +683,365 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
     );
   }
 
+  Customer _createMockCustomerFromRecord(RecordItem record) {
+    return Customer(
+      id: record.id,
+      name: record.name,
+      amountDue: record.amount,
+      dueDate: DateTime.now().subtract(const Duration(days: 15)),
+      overdueDays: 15,
+      address: record.address,
+      phone: record.phone,
+      priority: record.amount > 100000.0 ? 'HIGH' : 'MEDIUM',
+      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      lat: 19.0760,
+      lng: 72.8777,
+      assignedAgentId: record.assignedAgentName != null ? 'miller' : 'unassigned',
+      status: record.status == 'Paid' ? 'PAID' : (record.status == 'In-Progress' ? 'PENDING_VERIFICATION' : 'OVERDUE'),
+      notes: ['Uploaded record parsed from debt ledger.', 'Verification of address complete.'],
+    );
+  }
+
+  void _confirmDeleteRecord(RecordItem record) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(LucideIcons.triangleAlert, color: AppTheme.error),
+              SizedBox(width: 8),
+              Text(
+                'Delete Record?',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to delete ${record.name}\'s ledger record (${record.loanId})? This action is permanent.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.error,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                // Execute deletion
+                if (record.id.startsWith('cust_')) {
+                  _db.deleteCase(record.id);
+                } else {
+                  // Static mock record local removal
+                  setState(() {
+                    _staticMockRecords.removeWhere((r) => r.id == record.id);
+                  });
+                }
+                
+                setState(() {
+                  _selectedRecordIds.remove(record.id);
+                });
+                Navigator.pop(context);
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppTheme.error,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    content: Text('${record.name}\'s record was successfully deleted.'),
+                  ),
+                );
+              },
+              child: const Text('DELETE'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmBulkDeleteRecords(List<RecordItem> filteredRecords) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final count = _selectedRecordIds.length;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(LucideIcons.triangleAlert, color: AppTheme.error),
+              SizedBox(width: 8),
+              Text(
+                'Delete Selected Records?',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to delete all $count selected ledger records permanently? This cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.error,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                final List<String> selectedIds = _selectedRecordIds.toList();
+                
+                // Separate db cases and mock cases
+                final dbIds = selectedIds.where((id) => id.startsWith('cust_')).toList();
+                final mockIds = selectedIds.where((id) => !id.startsWith('cust_')).toList();
+
+                if (dbIds.isNotEmpty) {
+                  _db.deleteMultipleCases(dbIds);
+                }
+
+                if (mockIds.isNotEmpty) {
+                  setState(() {
+                    _staticMockRecords.removeWhere((r) => mockIds.contains(r.id));
+                  });
+                }
+
+                setState(() {
+                  _selectedRecordIds.clear();
+                });
+                Navigator.pop(context);
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppTheme.error,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    content: Text('Successfully deleted $count ledger records.'),
+                  ),
+                );
+              },
+              child: const Text('DELETE ALL'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildRecordCard(RecordItem record) {
-    // Styling attributes based on status
+    // Styling attributes based on status - Gorgeous vibrant HSL colors
     Color chipBg;
     Color chipText;
     if (record.status == 'Unassigned') {
-      chipBg = AppTheme.errorContainer;
-      chipText = AppTheme.error;
+      chipBg = const Color(0xFFFFDAD6);
+      chipText = const Color(0xFFBA1A1A);
     } else if (record.status == 'In-Progress') {
-      chipBg = AppTheme.surfaceContainer;
-      chipText = const Color(0xFF3C475A);
+      chipBg = const Color(0xFFFFF3E0);
+      chipText = const Color(0xFFE65100);
     } else if (record.status == 'Paid') {
-      chipBg = AppTheme.successContainer;
-      chipText = AppTheme.success;
+      chipBg = const Color(0xFFE8F5E9);
+      chipText = const Color(0xFF2E7D32);
     } else {
       // Assigned
-      chipBg = AppTheme.surfaceContainerHighest;
+      chipBg = const Color(0xFFEFF4FF);
       chipText = AppTheme.primary;
     }
 
+    final isChecked = _selectedRecordIds.contains(record.id);
+
     return CustomBentoCard(
       padding: 0,
-      onTap: () => _showReassignDialog(record),
+      onTap: () {
+        setState(() {
+          if (isChecked) {
+            _selectedRecordIds.remove(record.id);
+          } else {
+            _selectedRecordIds.add(record.id);
+          }
+        });
+      },
+      onLongPress: () => _showReassignDialog(record),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row (Loan ID + Status Chip)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Loan ID: ${record.loanId}',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.outline,
-                    letterSpacing: 0.5,
-                  ),
+            // Checkbox Container
+            Container(
+              margin: const EdgeInsets.only(top: 2.0),
+              width: 24,
+              height: 24,
+              child: Checkbox(
+                value: isChecked,
+                activeColor: AppTheme.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: chipBg,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    record.status,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: chipText,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-
-            // Customer Name
-            Text(
-              record.name,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.onSurface,
+                onChanged: (val) {
+                  setState(() {
+                    if (val == true) {
+                      _selectedRecordIds.add(record.id);
+                    } else {
+                      _selectedRecordIds.remove(record.id);
+                    }
+                  });
+                },
               ),
             ),
-            
-            // Subtitle address description
-            if (record.assignedAgentName != null) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(LucideIcons.headset, size: 14, color: AppTheme.secondary),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Assigned to: ${record.assignedAgentName}',
-                    style: const TextStyle(fontSize: 11, color: AppTheme.secondary),
-                  ),
-                ],
-              ),
-            ] else ...[
-              const SizedBox(height: 4),
-              const Row(
-                children: [
-                  Icon(LucideIcons.triangleAlert, size: 14, color: AppTheme.error),
-                  SizedBox(width: 4),
-                  Text(
-                    'Pending deployment assignment',
-                    style: TextStyle(fontSize: 11, color: AppTheme.error),
-                  ),
-                ],
-              ),
-            ],
-            
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: AppTheme.outlineVariant),
-            const SizedBox(height: 12),
+            const SizedBox(width: 12),
 
-            // Bottom Row (Principal Amount + Chevron Button)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Principal Amount',
-                      style: TextStyle(fontSize: 11, color: AppTheme.onSurfaceVariant),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '₹${record.amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.primary,
+            // Card Body content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Row (Loan ID + Status Chip)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Loan ID: ${record.loanId}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.outline,
+                          letterSpacing: 0.5,
+                        ),
                       ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: chipBg,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          record.status,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: chipText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Customer Name
+                  Text(
+                    record.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.onSurface,
+                    ),
+                  ),
+                  
+                  // Subtitle address description
+                  if (record.assignedAgentName != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(LucideIcons.headset, size: 14, color: AppTheme.secondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Assigned to: ${record.assignedAgentName}',
+                          style: const TextStyle(fontSize: 11, color: AppTheme.secondary),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 4),
+                    const Row(
+                      children: [
+                        Icon(LucideIcons.triangleAlert, size: 14, color: AppTheme.error),
+                        SizedBox(width: 4),
+                        Text(
+                          'Pending deployment assignment',
+                          style: TextStyle(fontSize: 11, color: AppTheme.error),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.outlineVariant),
+                  
+                  const SizedBox(height: 12),
+                  const Divider(height: 1, color: AppTheme.outlineVariant),
+                  const SizedBox(height: 12),
+
+                  // Bottom Row (Principal Amount + Chevron Button)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Principal Amount',
+                            style: TextStyle(fontSize: 11, color: AppTheme.onSurfaceVariant),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '₹${record.amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Single Record Delete Button
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const Icon(LucideIcons.trash2, size: 16, color: AppTheme.error),
+                            onPressed: () => _confirmDeleteRecord(record),
+                          ),
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: () {
+                              final customer = _db.customers.firstWhere(
+                                (c) => c.id == record.id,
+                                orElse: () => _createMockCustomerFromRecord(record),
+                              );
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CustomerDetailsScreen(customer: customer),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppTheme.outlineVariant),
+                                color: AppTheme.primary.withOpacity(0.04),
+                              ),
+                              child: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.primary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  child: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.primary),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

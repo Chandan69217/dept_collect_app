@@ -11,6 +11,7 @@ import 'customer_list_screen.dart';
 import 'customer_details_screen.dart';
 import 'collections_history_screen.dart';
 import 'agent_profile_screen.dart';
+import 'agent_edit_profile_screen.dart';
 import 'record_payment_sheet.dart';
 
 class AgentDashboard extends StatefulWidget {
@@ -431,33 +432,44 @@ class _AgentDashboardState extends State<AgentDashboard> {
       child: Column(
         children: [
           UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(color: AppTheme.primary),
-            currentAccountPicture: CircleAvatar(
-              backgroundImage: NetworkImage(agent.avatarUrl),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppTheme.primary, Color(0xFF0047BB)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            currentAccountPicture: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: CircleAvatar(
+                backgroundImage: NetworkImage(agent.avatarUrl),
+              ),
             ),
             accountName: Text(
               agent.name,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white, letterSpacing: -0.2),
             ),
             accountEmail: Text(
-              'Zone: ${agent.zone} (ID: ${agent.id})',
-              style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+              'Zone: ${agent.zone} (ID: ${agent.id.toUpperCase()})',
+              style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ),
+
+          // Recent Activity
           ListTile(
-            leading: const Icon(LucideIcons.arrowLeftRight, color: AppTheme.primary),
-            title: const Text('Switch to Admin Portal', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text('Test synchronizations live'),
-            onTap: () {
-              Navigator.pop(context); // close drawer
-              _db.switchPortal('ADMIN');
-              Navigator.of(context).pushReplacementNamed('/admin_dashboard');
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(LucideIcons.history),
-            title: const Text('Recent Activity'),
+            leading: const Icon(LucideIcons.history, color: AppTheme.primary, size: 20),
+            title: const Text(
+              'Recent Activity',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'View synced operations logs',
+              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+            ),
             onTap: () {
               Navigator.pop(context);
               setState(() {
@@ -465,19 +477,79 @@ class _AgentDashboardState extends State<AgentDashboard> {
               });
             },
           ),
+          const Divider(height: 1),
+
+          // Security & Privacy
           ListTile(
-            leading: const Icon(LucideIcons.shield),
-            title: const Text('Security & Privacy'),
+            leading: const Icon(LucideIcons.shield, color: AppTheme.primary, size: 20),
+            title: const Text(
+              'Security & Privacy',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Manage PIN & security settings',
+              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+            ),
             onTap: () {
               Navigator.pop(context);
               Navigator.of(context).pushNamed('/security_settings');
             },
           ),
-          const Spacer(),
-          const Divider(),
+          const Divider(height: 1),
+
+          // Edit Agent Profile settings
           ListTile(
-            leading: const Icon(LucideIcons.logOut, color: AppTheme.error),
-            title: const Text('Sign Out', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold)),
+            leading: const Icon(LucideIcons.userCog, color: AppTheme.primary, size: 20),
+            title: const Text(
+              'Edit Profile Settings',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Update name, contact & photo',
+              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AgentEditProfileScreen()),
+              );
+            },
+          ),
+          const Divider(height: 1),
+
+          const Spacer(),
+          const Divider(height: 1),
+
+          // Switch to Admin Portal
+          ListTile(
+            leading: const Icon(LucideIcons.arrowLeftRight, color: AppTheme.primary, size: 20),
+            title: const Text(
+              'Switch to Admin Portal',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Test synchronizations live',
+              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+            ),
+            onTap: () {
+              Navigator.pop(context); // close drawer
+              _db.switchPortal('ADMIN');
+              Navigator.of(context).pushReplacementNamed('/admin_dashboard');
+            },
+          ),
+          const Divider(height: 1),
+
+          ListTile(
+            leading: const Icon(LucideIcons.logOut, color: AppTheme.error, size: 20),
+            title: const Text(
+              'Sign Out',
+              style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Terminate secure agent session',
+              style: TextStyle(fontSize: 11, color: AppTheme.secondary),
+            ),
             onTap: () {
               _db.logout();
               Navigator.of(context).pushAndRemoveUntil(
