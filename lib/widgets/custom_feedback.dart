@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
 
 class CustomFeedback {
@@ -9,22 +10,22 @@ class CustomFeedback {
 
     switch (type) {
       case 'success':
-        icon = Icons.check_circle_outline_rounded;
+        icon = LucideIcons.circleCheck;
         color = const Color(0xFF1B5E20);
         bg = const Color(0xFFE8F5E9);
         break;
       case 'error':
-        icon = Icons.error_outline_rounded;
+        icon = LucideIcons.circleAlert;
         color = const Color(0xFFBA1A1A);
         bg = const Color(0xFFFFDAD6);
         break;
       case 'warning':
-        icon = Icons.warning_amber_rounded;
+        icon = LucideIcons.triangleAlert;
         color = const Color(0xFFE65100);
         bg = const Color(0xFFFFF3E0);
         break;
       default:
-        icon = Icons.info_outline_rounded;
+        icon = LucideIcons.info;
         color = AppTheme.primary;
         bg = AppTheme.surfaceContainerLow;
     }
@@ -88,22 +89,22 @@ class CustomFeedback {
 
     switch (type) {
       case 'success':
-        icon = Icons.check_circle_outline_rounded;
+        icon = LucideIcons.circleCheck;
         color = const Color(0xFF1B5E20);
         bg = const Color(0xFFE8F5E9);
         break;
       case 'error':
-        icon = Icons.gpp_maybe_outlined;
+        icon = LucideIcons.shieldAlert;
         color = const Color(0xFFBA1A1A);
         bg = const Color(0xFFFFDAD6);
         break;
       case 'warning':
-        icon = Icons.warning_amber_rounded;
+        icon = LucideIcons.triangleAlert;
         color = const Color(0xFFE65100);
         bg = const Color(0xFFFFF3E0);
         break;
       default:
-        icon = Icons.info_outline_rounded;
+        icon = LucideIcons.info;
         color = AppTheme.primary;
         bg = AppTheme.surfaceContainerLow;
     }

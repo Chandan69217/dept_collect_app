@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class AppTheme {
   // Global Configurations
   static const String appName = 'DebtCollect';
-  static const IconData appIcon = Icons.currency_rupee;
+  static const IconData appIcon = LucideIcons.indianRupee;
 
   // Brand Colors
   static const Color background = Color(0xFFF8F9FF);
@@ -64,64 +66,65 @@ class AppTheme {
         outlineVariant: outlineVariant,
       ),
       scaffoldBackgroundColor: background,
-      fontFamily: 'Inter',
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          height: 34 / 28,
-          letterSpacing: -0.56,
-          color: onSurface,
-        ),
-        headlineMedium: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          height: 28 / 22,
-          letterSpacing: -0.22,
-          color: onSurface,
-        ),
-        headlineSmall: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          height: 24 / 18,
-          color: onSurface,
-        ),
-        bodyLarge: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.normal,
-          height: 24 / 16,
-          color: onSurface,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.normal,
-          height: 20 / 14,
-          color: onSurfaceVariant,
-        ),
-        bodySmall: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.normal,
-          height: 16 / 12,
-          color: onSurfaceVariant,
-        ),
-        labelLarge: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          height: 20 / 14,
-          letterSpacing: 0.7,
-          color: onSurface,
-        ),
-        labelMedium: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          height: 16 / 12,
-          color: secondary,
-        ),
-        labelSmall: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          height: 12 / 10,
-          color: secondary,
+      textTheme: GoogleFonts.interTextTheme(
+        const TextTheme(
+          headlineLarge: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            height: 34 / 28,
+            letterSpacing: -0.56,
+            color: onSurface,
+          ),
+          headlineMedium: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            height: 28 / 22,
+            letterSpacing: -0.22,
+            color: onSurface,
+          ),
+          headlineSmall: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            height: 24 / 18,
+            color: onSurface,
+          ),
+          bodyLarge: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.normal,
+            height: 24 / 16,
+            color: onSurface,
+          ),
+          bodyMedium: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.normal,
+            height: 20 / 14,
+            color: onSurfaceVariant,
+          ),
+          bodySmall: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.normal,
+            height: 16 / 12,
+            color: onSurfaceVariant,
+          ),
+          labelLarge: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            height: 20 / 14,
+            letterSpacing: 0.7,
+            color: onSurface,
+          ),
+          labelMedium: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            height: 16 / 12,
+            color: secondary,
+          ),
+          labelSmall: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            height: 12 / 10,
+            color: secondary,
+          ),
         ),
       ),
       appBarTheme: const AppBarTheme(

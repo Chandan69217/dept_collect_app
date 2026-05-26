@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_feedback.dart';
 
@@ -155,7 +156,7 @@ class _OTPScreenState extends State<OTPScreen> {
                     ),
                   ),
                   child: const Icon(
-                    Icons.security_rounded,
+                    LucideIcons.shieldCheck,
                     color: AppTheme.primary,
                     size: 40,
                   ),
@@ -284,7 +285,7 @@ class _OTPScreenState extends State<OTPScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           ),
                           onPressed: _resendCode,
-                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          icon: const Icon(LucideIcons.refreshCw, size: 18),
                           label: const Text(
                             'Resend Verification Token',
                             style: TextStyle(
@@ -304,7 +305,7 @@ class _OTPScreenState extends State<OTPScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(
-                                Icons.access_time_rounded,
+                                LucideIcons.clock,
                                 size: 16,
                                 color: AppTheme.secondary,
                               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
@@ -140,7 +141,7 @@ class _CollectionsHistoryScreenState extends State<CollectionsHistoryScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
-                            Icons.account_balance_wallet_outlined,
+                            LucideIcons.wallet,
                             color: Colors.white,
                             size: 20,
                           ),
@@ -168,7 +169,7 @@ class _CollectionsHistoryScreenState extends State<CollectionsHistoryScreen> {
                     Row(
                       children: [
                         Icon(
-                          Icons.schedule_rounded,
+                          LucideIcons.clock,
                           size: 14,
                           color: Colors.white.withOpacity(0.7),
                         ),
@@ -225,10 +226,10 @@ class _CollectionsHistoryScreenState extends State<CollectionsHistoryScreen> {
                   },
                   style: const TextStyle(fontSize: 13, color: AppTheme.onSurface),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.secondary, size: 20),
+                    prefixIcon: const Icon(LucideIcons.search, color: AppTheme.secondary, size: 20),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.cancel_rounded, color: AppTheme.secondary, size: 18),
+                            icon: const Icon(LucideIcons.x, color: AppTheme.secondary, size: 18),
                             onPressed: () {
                               _searchController.clear();
                               setState(() {
@@ -296,7 +297,7 @@ class _CollectionsHistoryScreenState extends State<CollectionsHistoryScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.receipt_long_outlined,
+                              LucideIcons.scrollText,
                               size: 64,
                               color: AppTheme.secondary.withOpacity(0.25),
                             ),
@@ -337,15 +338,15 @@ class _CollectionsHistoryScreenState extends State<CollectionsHistoryScreen> {
 
                         switch (item.paymentMethod.toUpperCase()) {
                           case 'UPI':
-                            icon = Icons.qr_code_2_rounded;
+                            icon = LucideIcons.qrCode;
                             iconColor = AppTheme.primary;
                             break;
                           case 'CHEQUE':
-                            icon = Icons.receipt_long_rounded;
+                            icon = LucideIcons.fileText;
                             iconColor = Colors.purple;
                             break;
                           default:
-                            icon = Icons.payments_rounded;
+                            icon = LucideIcons.banknote;
                             iconColor = const Color(0xFF1B5E20);
                         }
 

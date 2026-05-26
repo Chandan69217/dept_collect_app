@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 
@@ -129,8 +130,8 @@ class _BiometricAuthState extends State<BiometricAuth>
                     scale: _isSuccess ? 1.0 : _pulseAnimation.value,
                     child: Icon(
                       _isSuccess
-                          ? Icons.check_circle
-                          : (isFaceId ? Icons.face : Icons.fingerprint_rounded),
+                          ? LucideIcons.circleCheck
+                          : (isFaceId ? LucideIcons.scanFace : LucideIcons.fingerprint),
                       size: 56,
                       color: _isSuccess ? AppTheme.success : AppTheme.primary,
                     ),

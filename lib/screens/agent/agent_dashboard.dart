@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
@@ -44,7 +45,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
           backgroundColor: AppTheme.background,
           appBar: AppBar(
             leading: IconButton(
-              icon: const Icon(Icons.menu, color: AppTheme.primary),
+              icon: const Icon(LucideIcons.menu, color: AppTheme.primary),
               onPressed: () => _scaffoldKey.currentState?.openDrawer(),
             ),
             title: Row(
@@ -71,7 +72,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
               IconButton(
                 icon: Badge(
                   isLabelVisible: _db.notifications.any((n) => !n.isRead),
-                  child: const Icon(Icons.notifications_outlined, color: AppTheme.primary),
+                  child: const Icon(LucideIcons.bell, color: AppTheme.primary),
                 ),
                 onPressed: () {
                   Navigator.push(
@@ -94,23 +95,23 @@ class _AgentDashboardState extends State<AgentDashboard> {
             },
             items: const [
               CustomBottomBarItem(
-                icon: Icons.dashboard_outlined,
-                activeIcon: Icons.dashboard,
+                icon: LucideIcons.layoutDashboard,
+                activeIcon: LucideIcons.layoutDashboard,
                 label: 'Dashboard',
               ),
               CustomBottomBarItem(
-                icon: Icons.person_search_outlined,
-                activeIcon: Icons.person_search,
+                icon: LucideIcons.userSearch,
+                activeIcon: LucideIcons.userSearch,
                 label: 'Customers',
               ),
               CustomBottomBarItem(
-                icon: Icons.receipt_long_outlined,
-                activeIcon: Icons.receipt_long,
+                icon: LucideIcons.scrollText,
+                activeIcon: LucideIcons.scrollText,
                 label: 'History',
               ),
               CustomBottomBarItem(
-                icon: Icons.account_circle_outlined,
-                activeIcon: Icons.account_circle,
+                icon: LucideIcons.circleUser,
+                activeIcon: LucideIcons.circleUser,
                 label: 'Profile',
               ),
             ],
@@ -130,7 +131,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                       ),
                     );
                   },
-                  child: const Icon(Icons.location_on),
+                  child: const Icon(LucideIcons.mapPin),
                 )
               : null,
         );
@@ -183,7 +184,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                       alignment: Alignment.bottomRight,
                       child: Transform.translate(
                         offset: const Offset(20, 20),
-                        child: const Icon(Icons.payments, size: 140, color: Colors.white),
+                        child: const Icon(LucideIcons.banknote, size: 140, color: Colors.white),
                       ),
                     ),
                   ),
@@ -209,7 +210,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        const Icon(Icons.trending_up, color: Colors.white, size: 16),
+                        const Icon(LucideIcons.trendingUp, color: Colors.white, size: 16),
                         const SizedBox(width: 6),
                         Text(
                           '$targetMetPercent% of Target Met (₹${agent.collectedAmount.toStringAsFixed(2)} collected)',
@@ -239,7 +240,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                               color: AppTheme.primaryContainer.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                             ),
-                            child: const Icon(Icons.group, color: AppTheme.primary, size: 20),
+                            child: const Icon(LucideIcons.users, color: AppTheme.primary, size: 20),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -269,7 +270,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                               color: AppTheme.errorContainer,
                               borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                             ),
-                            child: const Icon(Icons.pending_actions, color: AppTheme.error, size: 20),
+                            child: const Icon(LucideIcons.clipboardList, color: AppTheme.error, size: 20),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -322,7 +323,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                   ),
                   child: const Center(
-                    child: Icon(Icons.map, color: AppTheme.primary, size: 28),
+                    child: Icon(LucideIcons.map, color: AppTheme.primary, size: 28),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -339,7 +340,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.location_on, size: 14, color: AppTheme.secondary),
+                          const Icon(LucideIcons.mapPin, size: 14, color: AppTheme.secondary),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -365,7 +366,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: AppTheme.outline),
+                const Icon(LucideIcons.chevronRight, color: AppTheme.outline),
               ],
             ),
           ),
@@ -395,7 +396,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                         builder: (context) => RecordPaymentSheet(customer: priorityCustomer),
                       );
                     },
-                    icon: const Icon(Icons.receipt_long, size: 18),
+                    icon: const Icon(LucideIcons.scrollText, size: 18),
                     label: const Text('Scan Receipt', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
@@ -411,7 +412,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                         _currentIndex = 1;
                       });
                     },
-                    icon: const Icon(Icons.add_circle, size: 18),
+                    icon: const Icon(LucideIcons.circlePlus, size: 18),
                     label: const Text('New Collection', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
@@ -444,7 +445,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.swap_horiz, color: AppTheme.primary),
+            leading: const Icon(LucideIcons.arrowLeftRight, color: AppTheme.primary),
             title: const Text('Switch to Admin Portal', style: TextStyle(fontWeight: FontWeight.bold)),
             subtitle: const Text('Test synchronizations live'),
             onTap: () {
@@ -455,7 +456,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.history),
+            leading: const Icon(LucideIcons.history),
             title: const Text('Recent Activity'),
             onTap: () {
               Navigator.pop(context);
@@ -465,7 +466,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.security),
+            leading: const Icon(LucideIcons.shield),
             title: const Text('Security & Privacy'),
             onTap: () {
               Navigator.pop(context);
@@ -475,7 +476,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
           const Spacer(),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.logout, color: AppTheme.error),
+            leading: const Icon(LucideIcons.logOut, color: AppTheme.error),
             title: const Text('Sign Out', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold)),
             onTap: () {
               _db.logout();

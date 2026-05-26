@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import 'schedule_visit_sheet.dart';
@@ -243,7 +244,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
             // Form Section Title
             Row(
               children: const [
-                Icon(Icons.payments, color: AppTheme.primary, size: 20),
+                Icon(LucideIcons.banknote, color: AppTheme.primary, size: 20),
                 SizedBox(width: 8),
                 Text(
                   'RECORD COLLECTION',
@@ -315,19 +316,19 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
               children: [
                 _buildModeButton(
                   mode: 'Cash',
-                  icon: Icons.payments,
+                  icon: LucideIcons.banknote,
                   isSelected: _paymentMethod == 'Cash',
                 ),
                 const SizedBox(width: 8),
                 _buildModeButton(
                   mode: 'UPI',
-                  icon: Icons.qr_code_2,
+                  icon: LucideIcons.qrCode,
                   isSelected: _paymentMethod == 'UPI',
                 ),
                 const SizedBox(width: 8),
                 _buildModeButton(
                   mode: 'Cheque',
-                  icon: Icons.receipt_long,
+                  icon: LucideIcons.fileText,
                   isSelected: _paymentMethod == 'Cheque',
                 ),
               ],
@@ -400,7 +401,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        _receiptUploaded ? Icons.task_alt : Icons.photo_camera,
+                        _receiptUploaded ? LucideIcons.circleCheck : LucideIcons.camera,
                         color: _receiptUploaded ? AppTheme.success : AppTheme.secondary,
                         size: 32,
                       ),
@@ -433,7 +434,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
                   ),
                 ),
                 onPressed: _handleSubmit,
-                icon: const Icon(Icons.save, size: 18),
+                icon: const Icon(LucideIcons.save, size: 18),
                 label: const Text(
                   'SAVE COLLECTION',
                   style: TextStyle(fontWeight: FontWeight.bold),
@@ -453,7 +454,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
                   ),
                 ),
                 onPressed: _handleSchedule,
-                icon: const Icon(Icons.event_repeat, size: 18),
+                icon: const Icon(LucideIcons.calendarClock, size: 18),
                 label: const Text(
                   'SCHEDULE FOLLOW-UP',
                   style: TextStyle(fontWeight: FontWeight.bold),

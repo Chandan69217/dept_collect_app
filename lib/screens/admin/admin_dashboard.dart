@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
@@ -10,6 +11,7 @@ import 'case_assignment_screen.dart';
 import 'verification_queue_screen.dart';
 import 'upload_data_screen.dart';
 import 'uploaded_records_view.dart';
+import 'add_agent_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -46,7 +48,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           backgroundColor: AppTheme.background,
           appBar: AppBar(
             leading: IconButton(
-              icon: const Icon(Icons.menu, color: AppTheme.primary),
+              icon: const Icon(LucideIcons.menu, color: AppTheme.primary),
               onPressed: () => _scaffoldKey.currentState?.openDrawer(),
             ),
             title: const Text(
@@ -58,7 +60,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 icon: Badge(
                   label: Text('$pendingCount'),
                   isLabelVisible: pendingCount > 0,
-                  child: const Icon(Icons.notifications_outlined, color: AppTheme.primary),
+                  child: const Icon(LucideIcons.bell, color: AppTheme.primary),
                 ),
                 onPressed: () {
                   setState(() {
@@ -66,11 +68,41 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   });
                 },
               ),
-              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  margin: const EdgeInsets.only(right: 16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryContainer,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.outlineVariant, width: 1),
+                    image: DecorationImage(
+                      image: NetworkImage(admin.avatarUrl),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
           drawer: _buildDrawer(context, admin),
           body: pages[_currentIndex],
+          floatingActionButton: _currentIndex == 1
+              ? FloatingActionButton.extended(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AddAgentScreen()),
+                    );
+                  },
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  icon: const Icon(LucideIcons.userPlus),
+                  label: const Text('Add Agent', style: TextStyle(fontWeight: FontWeight.bold)),
+                )
+              : null,
           bottomNavigationBar: CustomBottomBar(
             currentIndex: _currentIndex,
             onTap: (index) {
@@ -80,23 +112,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
             },
             items: [
               const CustomBottomBarItem(
-                icon: Icons.dashboard_outlined,
-                activeIcon: Icons.dashboard,
+                icon: LucideIcons.layoutDashboard,
+                activeIcon: LucideIcons.layoutDashboard,
                 label: 'Dashboard',
               ),
               const CustomBottomBarItem(
-                icon: Icons.group_outlined,
-                activeIcon: Icons.group,
+                icon: LucideIcons.users,
+                activeIcon: LucideIcons.users,
                 label: 'Agents',
               ),
               const CustomBottomBarItem(
-                icon: Icons.folder_shared_outlined,
-                activeIcon: Icons.folder_shared,
+                icon: LucideIcons.folderHeart,
+                activeIcon: LucideIcons.folderHeart,
                 label: 'Cases',
               ),
               CustomBottomBarItem(
-                icon: Icons.verified_user_outlined,
-                activeIcon: Icons.verified_user,
+                icon: LucideIcons.userRoundCheck,
+                activeIcon: LucideIcons.userRoundCheck,
                 label: 'Approvals ($pendingCount)',
               ),
             ],
@@ -144,7 +176,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       alignment: Alignment.bottomRight,
                       child: Transform.translate(
                         offset: const Offset(10, 10),
-                        child: const Icon(Icons.account_balance_wallet, size: 120, color: AppTheme.primary),
+                        child: const Icon(LucideIcons.wallet, size: 120, color: AppTheme.primary),
                       ),
                     ),
                   ),
@@ -154,7 +186,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.payments_outlined, color: AppTheme.secondary, size: 18),
+                        const Icon(LucideIcons.banknote, color: AppTheme.secondary, size: 18),
                         const SizedBox(width: 8),
                         Text(
                           'Total Collected',
@@ -174,7 +206,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Icon(Icons.trending_up, color: Colors.green, size: 16),
+                        const Icon(LucideIcons.trendingUp, color: Colors.green, size: 16),
                         const SizedBox(width: 6),
                         Text(
                           '+12% from last month',
@@ -341,7 +373,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         MaterialPageRoute(builder: (context) => const UploadDataScreen()),
                       );
                     },
-                    icon: const Icon(Icons.upload, size: 18),
+                    icon: const Icon(LucideIcons.upload, size: 18),
                     label: const Text('Upload Data', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
@@ -356,7 +388,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         _currentIndex = 1; // jump to agents tracking map
                       });
                     },
-                    icon: const Icon(Icons.map, size: 18),
+                    icon: const Icon(LucideIcons.map, size: 18),
                     label: const Text('View Live Map', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
@@ -400,19 +432,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Color bg;
 
               if (act['type'] == 'success') {
-                icon = Icons.check_circle_outline;
+                icon = LucideIcons.circleCheck;
                 color = AppTheme.success;
                 bg = AppTheme.successContainer;
               } else if (act['type'] == 'warning') {
-                icon = Icons.hourglass_top;
+                icon = LucideIcons.hourglass;
                 color = AppTheme.warning;
                 bg = AppTheme.warningContainer;
               } else if (act['type'] == 'error') {
-                icon = Icons.error_outline;
+                icon = LucideIcons.circleAlert;
                 color = AppTheme.error;
                 bg = AppTheme.errorContainer;
               } else {
-                icon = Icons.login_outlined;
+                icon = LucideIcons.logIn;
                 color = AppTheme.primary;
                 bg = AppTheme.primaryContainer.withOpacity(0.1);
               }
@@ -487,7 +519,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        Icon(Icons.map, color: AppTheme.primary.withOpacity(0.2), size: 100),
+                        Icon(LucideIcons.map, color: AppTheme.primary.withOpacity(0.2), size: 100),
                         // pulsating dots
                         const Positioned(
                           left: 100,
@@ -564,7 +596,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.swap_horiz, color: AppTheme.primary),
+            leading: const Icon(LucideIcons.arrowLeftRight, color: AppTheme.primary),
             title: const Text('Switch to Agent Portal', style: TextStyle(fontWeight: FontWeight.bold)),
             subtitle: const Text('Simulate field updates'),
             onTap: () {
@@ -575,7 +607,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.upload_file),
+            leading: const Icon(LucideIcons.userPlus, color: AppTheme.primary),
+            title: const Text('Register New Agent', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text('Configure credentials & regions'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AddAgentScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(LucideIcons.fileUp),
             title: const Text('Import Debtors CSV'),
             onTap: () {
               Navigator.pop(context);
@@ -586,7 +630,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.table_chart, color: AppTheme.primary),
+            leading: const Icon(LucideIcons.layoutDashboard, color: AppTheme.primary),
             title: const Text('Manage Uploaded Records', style: TextStyle(fontWeight: FontWeight.bold)),
             subtitle: const Text('Review and deploy portfolios'),
             onTap: () {
@@ -598,7 +642,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.terminal),
+            leading: const Icon(LucideIcons.terminal),
             title: const Text('System Protocols Logs'),
             onTap: () {
               Navigator.pop(context);
@@ -610,7 +654,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           const Spacer(),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.logout, color: AppTheme.error),
+            leading: const Icon(LucideIcons.logOut, color: AppTheme.error),
             title: const Text('Sign Out', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold)),
             onTap: () {
               _db.logout();

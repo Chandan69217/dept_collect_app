@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
+import 'agent_profile_screen.dart';
 
 class AgentTrackingScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -75,7 +77,7 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                     },
                     decoration: InputDecoration(
                       hintText: 'Find agent by name or ID...',
-                      prefixIcon: const Icon(Icons.search, size: 20, color: AppTheme.outline),
+                      prefixIcon: const Icon(LucideIcons.search, size: 20, color: AppTheme.outline),
                       contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                       fillColor: const Color(0xFFF1F3F9),
                       filled: true,
@@ -120,7 +122,7 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 48.0),
                             child: Column(
                               children: [
-                                Icon(Icons.support_agent_outlined, size: 56, color: AppTheme.outline.withOpacity(0.4)),
+                                Icon(LucideIcons.headset, size: 56, color: AppTheme.outline.withOpacity(0.4)),
                                 const SizedBox(height: 12),
                                 const Text(
                                   'No field agents found matching filters.',
@@ -213,6 +215,14 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
 
     return CustomBentoCard(
       padding: 0,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AgentProfileScreen(agent: agent),
+          ),
+        );
+      },
       child: Opacity(
         opacity: agent.isOnline ? 1.0 : 0.75, // Lower opacity for offline state matching Stitch specs
         child: Padding(

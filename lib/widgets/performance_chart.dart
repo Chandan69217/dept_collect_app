@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
 
 enum ChartType { gauge, trend }
@@ -82,7 +83,7 @@ class _PerformanceChartState extends State<PerformanceChart>
                       ),
                     )
                   : const Icon(
-                      Icons.verified_user_outlined,
+                      LucideIcons.userRoundCheck,
                       color: Colors.white,
                       size: 20,
                     ),

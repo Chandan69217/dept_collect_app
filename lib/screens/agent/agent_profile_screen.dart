@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
@@ -123,7 +124,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
-                                    Icons.check,
+                                    LucideIcons.check,
                                     size: 14,
                                     color: Colors.white,
                                   ),
@@ -258,7 +259,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Icon(
-                              Icons.pin_drop_outlined,
+                              LucideIcons.pinOff,
                               color: AppTheme.primary,
                               size: 18,
                             ),
@@ -298,7 +299,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Icon(
-                              Icons.currency_rupee,
+                              LucideIcons.indianRupee,
                               color: Color(0xFF1B5E20),
                               size: 18,
                             ),
@@ -425,14 +426,14 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                           color: AppTheme.primary.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Icon(Icons.shield_outlined, color: AppTheme.primary, size: 20),
+                        child: const Icon(LucideIcons.shieldCheck, color: AppTheme.primary, size: 20),
                       ),
                       title: const Text(
                         'Security & Privacy',
                         style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
                       ),
                       subtitle: const Text('PIN setup, Face ID & encryption', style: TextStyle(fontSize: 12)),
-                      trailing: const Icon(Icons.chevron_right, size: 20, color: AppTheme.secondary),
+                      trailing: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.secondary),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -451,7 +452,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                           color: AppTheme.primary.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Icon(Icons.notifications_active_outlined, color: AppTheme.primary, size: 20),
+                        child: const Icon(LucideIcons.bellRing, color: AppTheme.primary, size: 20),
                       ),
                       title: const Text(
                         'Push Notifications',
@@ -485,14 +486,14 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                           color: AppTheme.primary.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Icon(Icons.headset_mic_outlined, color: AppTheme.primary, size: 20),
+                        child: const Icon(LucideIcons.headset, color: AppTheme.primary, size: 20),
                       ),
                       title: const Text(
                         'Protocol Support Helpdesk',
                         style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
                       ),
                       subtitle: const Text('Contact tech-ops support desk', style: TextStyle(fontSize: 12)),
-                      trailing: const Icon(Icons.chevron_right, size: 20, color: AppTheme.secondary),
+                      trailing: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.secondary),
                       onTap: () {
                         showDialog(
                           context: context,
@@ -564,7 +565,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                     ),
                   );
                 },
-                icon: const Icon(Icons.logout, size: 18),
+                icon: const Icon(LucideIcons.logOut, size: 18),
                 label: const Text(
                   'LOGOUT SECURE SESSION',
                   style: TextStyle(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import 'customer_details_screen.dart';
@@ -111,10 +112,10 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                             },
                             decoration: InputDecoration(
                               hintText: 'Search customers by name or ID...',
-                              prefixIcon: const Icon(Icons.search, color: AppTheme.outline),
+                              prefixIcon: const Icon(LucideIcons.search, color: AppTheme.outline),
                               suffixIcon: _searchQuery.isNotEmpty
                                   ? IconButton(
-                                      icon: const Icon(Icons.clear, size: 18, color: AppTheme.outline),
+                                      icon: const Icon(LucideIcons.x, size: 18, color: AppTheme.outline),
                                       onPressed: () {
                                         setState(() {
                                           _searchQuery = '';
@@ -210,7 +211,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.people_outline,
+                            LucideIcons.users,
                             size: 64,
                             color: AppTheme.secondary.withOpacity(0.3),
                           ),
@@ -282,7 +283,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                           Row(
                                             children: [
                                               Icon(
-                                                isPaid ? Icons.check_circle : Icons.location_on,
+                                                isPaid ? LucideIcons.circleCheck : LucideIcons.mapPin,
                                                 size: 14,
                                                 color: isPaid ? AppTheme.success : AppTheme.outline,
                                               ),
@@ -419,7 +420,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                               }
                                             },
                                             icon: Icon(
-                                              isPending ? Icons.edit_note : Icons.payments,
+                                              isPending ? LucideIcons.notebookPen : LucideIcons.banknote,
                                               size: 16,
                                             ),
                                             label: Text(
@@ -441,8 +442,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                           padding: EdgeInsets.zero,
                                           icon: Icon(
                                             customer.status == 'OVERDUE'
-                                                ? Icons.directions
-                                                : Icons.call,
+                                                ? LucideIcons.navigation
+                                                : LucideIcons.phone,
                                             color: AppTheme.primary,
                                             size: 20,
                                           ),
@@ -480,7 +481,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
             backgroundColor: Colors.white,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.menu, color: AppTheme.primary),
+              icon: const Icon(LucideIcons.menu, color: AppTheme.primary),
               onPressed: () {
                 // Can open drawer
               },

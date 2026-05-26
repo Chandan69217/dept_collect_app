@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../agent/agent_dashboard.dart';
@@ -241,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _idController,
                 decoration: const InputDecoration(
                   hintText: 'Enter your ID',
-                  prefixIcon: Icon(Icons.person_outline, size: 20),
+                   prefixIcon: const Icon(LucideIcons.user, size: 20),
                 ),
               ),
               const SizedBox(height: 24),
@@ -259,12 +260,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   hintText: 'Enter password',
-                  prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                   prefixIcon: const Icon(LucideIcons.lock, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
+                          ? LucideIcons.eyeOff
+                          : LucideIcons.eye,
                       size: 20,
                     ),
                     onPressed: () {
@@ -337,8 +338,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: Icon(
                           _db.faceIdEnabled
-                              ? Icons.face
-                              : Icons.fingerprint_rounded,
+                              ? LucideIcons.scanFace
+                              : LucideIcons.fingerprint,
                           color: AppTheme.primary,
                           size: 32,
                         ),

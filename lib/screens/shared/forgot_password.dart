@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_feedback.dart';
 import 'otp_screen.dart';
@@ -79,7 +80,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primary),
+          icon: const Icon(LucideIcons.arrowLeft, color: AppTheme.primary),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -180,7 +181,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ],
                           ),
                           child: const Icon(
-                            Icons.lock_reset_rounded,
+                            LucideIcons.lockKeyhole,
                             size: 44,
                             color: AppTheme.primary,
                           ),
@@ -207,7 +208,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                     decoration: InputDecoration(
                       hintText: 'Enter your registered email ID',
-                      prefixIcon: const Icon(Icons.alternate_email_rounded, size: 20, color: AppTheme.primary),
+                      prefixIcon: const Icon(LucideIcons.atSign, size: 20, color: AppTheme.primary),
                       fillColor: Colors.white,
                       filled: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -250,7 +251,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ),
                           ),
                           SizedBox(width: 8),
-                          Icon(Icons.send_rounded, size: 14),
+                          Icon(LucideIcons.send, size: 14),
                         ],
                       ),
                     ),

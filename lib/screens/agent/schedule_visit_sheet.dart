@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_feedback.dart';
@@ -34,21 +35,21 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
       'id': 'MORNING',
       'label': 'Morning',
       'window': '09:00 AM - 12:00 PM',
-      'icon': Icons.wb_twilight_rounded,
+      'icon': LucideIcons.sunrise,
       'color': Colors.orange,
     },
     {
       'id': 'AFTERNOON',
       'label': 'Afternoon',
       'window': '12:00 PM - 03:00 PM',
-      'icon': Icons.wb_sunny_rounded,
+      'icon': LucideIcons.sun,
       'color': Colors.amber,
     },
     {
       'id': 'EVENING',
       'label': 'Evening',
       'window': '03:00 PM - 06:00 PM',
-      'icon': Icons.nightlight_round,
+      'icon': LucideIcons.moon,
       'color': Colors.indigo,
     },
   ];
@@ -118,7 +119,7 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
                   color: AppTheme.primary.withOpacity(0.08),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.calendar_month, color: AppTheme.primary, size: 24),
+                child: const Icon(LucideIcons.calendarDays, color: AppTheme.primary, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -169,7 +170,7 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left, color: AppTheme.primary, size: 20),
+                  icon: const Icon(LucideIcons.chevronLeft, color: AppTheme.primary, size: 20),
                   onPressed: _focusedMonth.year == DateTime.now().year && _focusedMonth.month == DateTime.now().month
                       ? null
                       : () {
@@ -188,7 +189,7 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right, color: AppTheme.primary, size: 20),
+                  icon: const Icon(LucideIcons.chevronRight, color: AppTheme.primary, size: 20),
                   onPressed: () {
                     setState(() {
                       _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
@@ -388,7 +389,7 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
                         ),
                         if (isSel)
                           const Icon(
-                            Icons.check_circle_rounded,
+                            LucideIcons.circleCheck,
                             color: AppTheme.primary,
                             size: 20,
                           ),

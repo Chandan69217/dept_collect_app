@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
-import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
+import 'verify_uploaded_records_screen.dart';
 
 class UploadDataScreen extends StatefulWidget {
   const UploadDataScreen({super.key});
@@ -25,7 +26,6 @@ class RecentUploadItem {
 }
 
 class _UploadDataScreenState extends State<UploadDataScreen> {
-  final _db = DatabaseService();
   String? _selectedFileName;
   bool _isUploading = false;
   double _uploadProgress = 0.0;
@@ -85,7 +85,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
       'address': 'Penthouse 3, Galaxy Apartments, Bandra West, Mumbai',
       'phone': '+91 94444 33333',
       'priority': 'LOW',
-    }
+    },
   ];
 
   void _pickMockFile() {
@@ -125,43 +125,33 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
   }
 
   void _commitImport() {
-    // Commit to global database service
-    _db.uploadBankRecords(_mockImportRecords);
-
-    // Auto-populate to our local recent uploads log dynamically!
-    setState(() {
-      _recentUploads.insert(
-        0,
-        RecentUploadItem(
-          fileName: _selectedFileName ?? 'Imported_Ledger.csv',
-          date: 'Just now',
-          recordsCount: _mockImportRecords.length,
-          status: 'Completed',
-        ),
-      );
-      _uploadComplete = false;
-      _selectedFileName = null;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: AppTheme.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Import complete: ${_mockImportRecords.length} new debtor records committed to Mumbai Metro Zone!',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-            ),
-          ],
+    // Navigate to VerifyUploadedRecordsScreen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VerifyUploadedRecordsScreen(
+          fileName: _selectedFileName ?? 'Q3_SouthZone_Debtors.csv',
+          records: _mockImportRecords,
         ),
       ),
-    );
+    ).then((success) {
+      if (success == true) {
+        // If successfully committed from that screen, update local uploads log!
+        setState(() {
+          _recentUploads.insert(
+            0,
+            RecentUploadItem(
+              fileName: _selectedFileName ?? 'Imported_Ledger.csv',
+              date: 'Just now',
+              recordsCount: _mockImportRecords.length,
+              status: 'Completed',
+            ),
+          );
+          _uploadComplete = false;
+          _selectedFileName = null;
+        });
+      }
+    });
   }
 
   @override
@@ -172,12 +162,15 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.primary),
+          icon: const Icon(LucideIcons.arrowLeft, color: AppTheme.primary),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Agency Admin',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primary,
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -189,9 +182,9 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
             Text(
               'Upload Data',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.onSurface,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: AppTheme.onSurface,
+              ),
             ),
             const SizedBox(height: 4),
             const Text(
@@ -202,11 +195,11 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
 
             // Dynamic Interaction Block (Upload area, Loading progress, or Report analysis)
             if (_isUploading) ...[
-              _buildProgressCard()
+              _buildProgressCard(),
             ] else if (_uploadComplete) ...[
-              _buildReportCard()
+              _buildReportCard(),
             ] else ...[
-              _buildUploadDropZone()
+              _buildUploadDropZone(),
             ],
             const SizedBox(height: 28),
 
@@ -225,7 +218,9 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
                 TextButton(
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('All historical imports cataloged.')),
+                      const SnackBar(
+                        content: Text('All historical imports cataloged.'),
+                      ),
                     );
                   },
                   child: const Text(
@@ -264,7 +259,11 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info, color: AppTheme.primary, size: 20),
+                  const Icon(
+                    LucideIcons.info,
+                    color: AppTheme.primary,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -281,7 +280,10 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
                         const SizedBox(height: 2),
                         const Text(
                           "Ensure headers include 'DebtorID', 'Amount', and 'DueDate' for automatic mapping.",
-                          style: TextStyle(fontSize: 11, color: AppTheme.onSurfaceVariant),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
@@ -329,7 +331,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.cloud_upload,
+                LucideIcons.cloudUpload,
                 color: AppTheme.primary,
                 size: 32,
               ),
@@ -346,10 +348,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
             const SizedBox(height: 4),
             const Text(
               'Supports .xlsx and .csv formats',
-              style: TextStyle(
-                fontSize: 11,
-                color: AppTheme.onSurfaceVariant,
-              ),
+              style: TextStyle(fontSize: 11, color: AppTheme.onSurfaceVariant),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
@@ -360,7 +359,10 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 10,
+                ),
               ),
               onPressed: _pickMockFile,
               child: const Text(
@@ -382,7 +384,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
-              Icons.loop,
+              LucideIcons.refreshCw,
               color: AppTheme.primary,
               size: 44,
             ),
@@ -392,11 +394,19 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
               children: [
                 const Text(
                   'Parsing Ledger Structures...',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.onSurface),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: AppTheme.onSurface,
+                  ),
                 ),
                 Text(
                   '${(_uploadProgress * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.primary),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: AppTheme.primary,
+                  ),
                 ),
               ],
             ),
@@ -407,7 +417,9 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
                 value: _uploadProgress > 1.0 ? 1.0 : _uploadProgress,
                 minHeight: 8,
                 backgroundColor: AppTheme.surfaceContainerLow,
-                valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppTheme.primary,
+                ),
               ),
             ),
           ],
@@ -423,24 +435,47 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
         children: [
           const Row(
             children: [
-              Icon(Icons.check_circle, color: AppTheme.success, size: 20),
+              Icon(LucideIcons.checkCircle, color: AppTheme.success, size: 20),
               SizedBox(width: 8),
               Text(
                 'PARSING ANALYSIS COMPLETE',
-                style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.success, fontSize: 13),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.success,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
           const Divider(height: 24, color: AppTheme.outlineVariant),
-          _buildReportRow('File Selected', _selectedFileName ?? 'Q3_SouthZone_Debtors.csv', color: AppTheme.primary),
+          _buildReportRow(
+            'File Selected',
+            _selectedFileName ?? 'Q3_SouthZone_Debtors.csv',
+            color: AppTheme.primary,
+          ),
           const SizedBox(height: 10),
-          _buildReportRow('Total Rows Scanned', '${_mockImportRecords.length + 3}'),
+          _buildReportRow(
+            'Total Rows Scanned',
+            '${_mockImportRecords.length + 3}',
+          ),
           const SizedBox(height: 10),
-          _buildReportRow('New Debtor Accounts', '${_mockImportRecords.length}', color: AppTheme.primary),
+          _buildReportRow(
+            'New Debtor Accounts',
+            '${_mockImportRecords.length}',
+            color: AppTheme.primary,
+          ),
           const SizedBox(height: 10),
-          _buildReportRow('Duplicate Entries Skipped', '3', color: AppTheme.secondary),
+          _buildReportRow(
+            'Duplicate Entries Skipped',
+            '3',
+            color: AppTheme.secondary,
+          ),
           const SizedBox(height: 10),
-          _buildReportRow('Validation Syntax Errors', '0', color: AppTheme.success),
+          _buildReportRow(
+            'Validation Syntax Errors',
+            '0',
+            color: AppTheme.success,
+          ),
           const Divider(height: 24, color: AppTheme.outlineVariant),
           SizedBox(
             width: double.infinity,
@@ -448,10 +483,18 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.success,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               onPressed: _commitImport,
-              child: const Text('COMMIT IMPORT TO LEDGER', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+              child: const Text(
+                'COMMIT IMPORT TO LEDGER',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],
@@ -463,7 +506,13 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppTheme.onSurfaceVariant,
+          ),
+        ),
         Text(
           value,
           style: TextStyle(
@@ -491,7 +540,11 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
           const SizedBox(width: 6),
           Text(
             item.status,
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeText),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: badgeText,
+            ),
           ),
         ],
       );
@@ -500,7 +553,11 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
       badgeText = AppTheme.error;
       statusWidget = Text(
         item.status,
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeText),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: badgeText,
+        ),
       );
     } else {
       // Completed
@@ -508,7 +565,11 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
       badgeText = const Color(0xFF1B5E20);
       statusWidget = Text(
         item.status,
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeText),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: badgeText,
+        ),
       );
     }
 
@@ -530,7 +591,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
-              Icons.description,
+              LucideIcons.fileText,
               color: AppTheme.secondary,
               size: 22,
             ),
@@ -586,7 +647,8 @@ class _PulseIndicator extends StatefulWidget {
   State<_PulseIndicator> createState() => _PulseIndicatorState();
 }
 
-class _PulseIndicatorState extends State<_PulseIndicator> with SingleTickerProviderStateMixin {
+class _PulseIndicatorState extends State<_PulseIndicator>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override

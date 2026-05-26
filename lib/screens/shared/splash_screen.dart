@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -197,7 +198,7 @@ class _SplashScreenState extends State<SplashScreen>
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.lock_rounded,
+                    Icon(LucideIcons.lock,
                         size: 14, color: AppTheme.primary),
                     SizedBox(width: 8),
                     Text(

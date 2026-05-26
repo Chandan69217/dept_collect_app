@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_feedback.dart';
@@ -32,7 +33,7 @@ class NotificationsScreen extends StatelessWidget {
                         type: 'success',
                       );
                     },
-                    icon: const Icon(Icons.done_all, size: 16),
+                    icon: const Icon(LucideIcons.checkCheck, size: 16),
                     label: const Text(
                       'MARK ALL READ',
                       style: TextStyle(
@@ -51,7 +52,7 @@ class NotificationsScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.notifications_off_outlined,
+                        LucideIcons.bellOff,
                         size: 64,
                         color: AppTheme.secondary.withOpacity(0.3),
                       ),
@@ -85,17 +86,17 @@ class NotificationsScreen extends StatelessWidget {
 
                     switch (item.type) {
                       case 'approval':
-                        icon = Icons.check_circle_outline;
+                        icon = LucideIcons.circleCheck;
                         color = AppTheme.success;
                         bg = AppTheme.successContainer;
                         break;
                       case 'assignment':
-                        icon = Icons.assignment_outlined;
+                        icon = LucideIcons.clipboard;
                         color = AppTheme.primary;
                         bg = AppTheme.primaryContainer.withOpacity(0.1);
                         break;
                       default:
-                        icon = Icons.error_outline_rounded;
+                        icon = LucideIcons.circleAlert;
                         color = AppTheme.warning;
                         bg = AppTheme.warningContainer;
                     }

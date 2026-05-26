@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
@@ -68,7 +69,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                             color: AppTheme.primary.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Icon(Icons.key_outlined, color: AppTheme.primary, size: 20),
+                          child: const Icon(LucideIcons.keyRound, color: AppTheme.primary, size: 20),
                         ),
                         title: const Text(
                           'Change Security PIN',
@@ -105,7 +106,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                             color: AppTheme.primary.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Icon(Icons.fingerprint_outlined, color: AppTheme.primary, size: 20),
+                          child: const Icon(LucideIcons.fingerprint, color: AppTheme.primary, size: 20),
                         ),
                         title: const Text(
                           'Biometric Authentication',
@@ -182,7 +183,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                             const SizedBox(height: 12),
                             // Location Permission Status Row
                             _buildPermissionToggle(
-                              icon: Icons.location_on_outlined,
+                              icon: LucideIcons.mapPin,
                               label: 'Location',
                               value: _locationPermission,
                               onChanged: (val) {
@@ -194,7 +195,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                             const SizedBox(height: 10),
                             // Camera Permission Status Row
                             _buildPermissionToggle(
-                              icon: Icons.camera_alt_outlined,
+                              icon: LucideIcons.camera,
                               label: 'Camera',
                               value: _cameraPermission,
                               onChanged: (val) {
@@ -239,7 +240,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
-                                    Icons.lock_outline_rounded,
+                                    LucideIcons.lock,
                                     color: Colors.white,
                                     size: 18,
                                   ),
@@ -298,7 +299,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                           color: AppTheme.secondary.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Icon(Icons.storage_outlined, color: AppTheme.secondary, size: 20),
+                        child: const Icon(LucideIcons.database, color: AppTheme.secondary, size: 20),
                       ),
                       const SizedBox(width: 12),
                       const Expanded(
@@ -383,7 +384,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                           ),
                         ),
                         child: const Icon(
-                          Icons.phone_iphone_rounded,
+                          LucideIcons.smartphone,
                           color: AppTheme.primary,
                           size: 28,
                         ),
@@ -471,7 +472,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Column(
                     children: [
-                      Icon(Icons.gpp_maybe_outlined, color: AppTheme.secondary.withOpacity(0.5), size: 20),
+                      Icon(LucideIcons.shieldAlert, color: AppTheme.secondary.withOpacity(0.5), size: 20),
                       const SizedBox(height: 8),
                       Text(
                         'This terminal uses real-time locally encrypted vaults. Any modifications to biological signatures or access vectors will force a 2-minute recovery session lockout for security purposes.',

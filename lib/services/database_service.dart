@@ -103,7 +103,7 @@ class DatabaseService extends ChangeNotifier {
       const Agent(
         id: 'vance',
         name: 'Alexander Vance',
-        avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+        avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDBRx9r1cR-RQb8YjXwlBrDNww_q6yPcvL1U55Qh2Yl9AppZD8M1pD6LFz9X8hOAC5DaSNf1I-LLbjynUbailf1POhaR5Du84ro-go9UPHhTm0MvD_mN-WQE_A3VY7mc9gq2oJD4EJ-suFIO7f9iUy3gt4omfLfilmFyVOyOfqWu5cqtCG0we8amXFCaT9bkbl_tBlmKBdkeM8IZ2nIM3qXDMC0Sqksb66gR_uhYPHucAk80p-8hQXaB3KOT1Rr_IjfdqTwdJ1hjAxe',
         zone: 'All Zones',
         assignedTarget: 0.0,
         collectedAmount: 0.0,
@@ -555,6 +555,18 @@ class DatabaseService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Case Priority Operation (Admin)
+  void updateCasePriority(String customerId, String newPriority) {
+    _customers = _customers.map((c) {
+      if (c.id == customerId) {
+        return c.copyWith(priority: newPriority.toUpperCase());
+      }
+      return c;
+    }).toList();
+
+    notifyListeners();
+  }
+
   // CSV Data upload simulation
   void uploadBankRecords(List<Map<String, dynamic>> records) {
     int addedCount = 0;
@@ -620,6 +632,47 @@ class DatabaseService extends ChangeNotifier {
     _notifications = _notifications.map((n) {
       return n.copyWith(isRead: true);
     }).toList();
+    notifyListeners();
+  }
+
+  // Register New Field Agent
+  void registerAgent(Agent newAgent) {
+    _agents.add(newAgent);
+    
+    // Add to activity feed
+    _activityFeed.insert(0, {
+      'id': 'act_reg_${newAgent.id}',
+      'title': 'New Agent Registered',
+      'subtitle': 'Agent ${newAgent.name} assigned to ${newAgent.zone}',
+      'time': 'Just now',
+      'type': 'success',
+    });
+    
+    notifyListeners();
+  }
+
+  // Toggle Field Agent Status
+  void toggleAgentOnlineStatus(String agentId, bool isOnline) {
+    _agents = _agents.map((a) {
+      if (a.id == agentId) {
+        return a.copyWith(isOnline: isOnline);
+      }
+      return a;
+    }).toList();
+    
+    if (_currentUser?.id == agentId) {
+      _currentUser = _agents.firstWhere((a) => a.id == agentId);
+    }
+    
+    // Log in activity feed
+    _activityFeed.insert(0, {
+      'id': 'act_status_${agentId}_${DateTime.now().millisecondsSinceEpoch}',
+      'title': isOnline ? 'Agent Online' : 'Agent Offline',
+      'subtitle': 'Agent ID #${agentId.toUpperCase()} is now ${isOnline ? 'Online' : 'Offline'}',
+      'time': 'Just now',
+      'type': isOnline ? 'login' : 'warning',
+    });
+    
     notifyListeners();
   }
 }

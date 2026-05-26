@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
@@ -203,7 +204,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
             backgroundColor: Colors.white,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppTheme.primary),
+              icon: const Icon(LucideIcons.arrowLeft, color: AppTheme.primary),
               onPressed: () => Navigator.pop(context),
             ),
             title: const Text(
@@ -212,7 +213,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.refresh, color: AppTheme.primary),
+                icon: const Icon(LucideIcons.refreshCw, color: AppTheme.primary),
                 onPressed: () => setState(() {}),
               ),
               const SizedBox(width: 8),
@@ -251,7 +252,8 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                             },
                             decoration: InputDecoration(
                               hintText: 'Search by ID or Customer Name...',
-                              prefixIcon: const Icon(Icons.search, size: 20, color: AppTheme.outline),
+                              prefixIcon: const Icon(
+                                LucideIcons.search, size: 20, color: AppTheme.outline),
                               contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                               fillColor: const Color(0xFFF1F3F9),
                               filled: true,
@@ -273,7 +275,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                         const SizedBox(width: 8),
                         // Filter Action Button
                         _buildHeaderButton(
-                          icon: Icons.filter_list,
+                          icon: LucideIcons.filter,
                           label: 'Filter${_statusFilter == 'ALL' ? '' : ': $_statusFilter'}',
                           onPressed: () => _showFilterBottomSheet(context),
                           backgroundColor: Colors.white,
@@ -283,7 +285,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                         const SizedBox(width: 8),
                         // Import Action Button
                         _buildHeaderButton(
-                          icon: Icons.upload_file,
+                          icon: LucideIcons.upload,
                           label: 'Import',
                           onPressed: () {
                             Navigator.push(
@@ -328,13 +330,13 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: [
-                      _buildFilterChip('All Records', 'ALL', Icons.all_inbox),
+                      _buildFilterChip('All Records', 'ALL', LucideIcons.inbox),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Unassigned', 'Unassigned', Icons.person_add_disabled_outlined),
+                      _buildFilterChip('Unassigned', 'Unassigned', LucideIcons.userX),
                       const SizedBox(width: 8),
-                      _buildFilterChip('In-Progress', 'In-Progress', Icons.hourglass_empty),
+                      _buildFilterChip('In-Progress', 'In-Progress', LucideIcons.timerReset),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Assigned', 'Assigned', Icons.support_agent),
+                      _buildFilterChip('Assigned', 'Assigned', LucideIcons.userCheck),
                     ],
                   ),
                 ),
@@ -361,7 +363,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                         DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             value: _sortBy,
-                            icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primary, size: 18),
+                            icon: const Icon(LucideIcons.chevronDown, color: AppTheme.primary, size: 18),
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -396,7 +398,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.folder_open_outlined, size: 64, color: AppTheme.outline.withOpacity(0.5)),
+                            Icon(LucideIcons.folderOpen, size: 64, color: AppTheme.outline.withOpacity(0.5)),
                             const SizedBox(height: 12),
                             const Text(
                               'No matching ledger entries found',
@@ -610,7 +612,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.support_agent, size: 14, color: AppTheme.secondary),
+                  const Icon(LucideIcons.headset, size: 14, color: AppTheme.secondary),
                   const SizedBox(width: 4),
                   Text(
                     'Assigned to: ${record.assignedAgentName}',
@@ -622,7 +624,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
               const SizedBox(height: 4),
               const Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, size: 14, color: AppTheme.error),
+                  Icon(LucideIcons.triangleAlert, size: 14, color: AppTheme.error),
                   SizedBox(width: 4),
                   Text(
                     'Pending deployment assignment',
@@ -666,7 +668,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                     shape: BoxShape.circle,
                     border: Border.all(color: AppTheme.outlineVariant),
                   ),
-                  child: const Icon(Icons.chevron_right, size: 20, color: AppTheme.primary),
+                  child: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.primary),
                 ),
               ],
             ),
@@ -694,10 +696,10 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.onSurface),
               ),
               const SizedBox(height: 16),
-              _buildFilterOption('All Ledger Entries', 'ALL', Icons.all_inbox),
-              _buildFilterOption('Unassigned Cases', 'Unassigned', Icons.person_add_disabled_outlined),
-              _buildFilterOption('Assigned Portfolio', 'Assigned', Icons.support_agent),
-              _buildFilterOption('In-Progress Verification', 'In-Progress', Icons.hourglass_empty),
+              _buildFilterOption('All Ledger Entries', 'ALL', LucideIcons.inbox),
+              _buildFilterOption('Unassigned Cases', 'Unassigned', LucideIcons.userX),
+              _buildFilterOption('Assigned Portfolio', 'Assigned', LucideIcons.userCheck),
+              _buildFilterOption('In-Progress Verification', 'In-Progress', LucideIcons.timerReset),
             ],
           ),
         );
@@ -716,7 +718,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
           color: isSelected ? AppTheme.primary : AppTheme.onSurface,
         ),
       ),
-      trailing: isSelected ? const Icon(Icons.check, color: AppTheme.primary) : null,
+      trailing: isSelected ? const Icon(LucideIcons.check, color: AppTheme.primary) : null,
       onTap: () {
         setState(() {
           _statusFilter = value;
@@ -737,7 +739,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
           actionsPadding: const EdgeInsets.all(12),
           title: Row(
             children: [
-              const Icon(Icons.assignment_ind_outlined, color: AppTheme.primary),
+              const Icon(LucideIcons.userCog, color: AppTheme.primary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -828,7 +830,8 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                           style: const TextStyle(fontSize: 11, color: AppTheme.secondary),
                         ),
                         trailing: isCurrentlyAssigned
-                            ? const Icon(Icons.check_circle, color: AppTheme.primary)
+                            ? const Icon(
+                                LucideIcons.checkCircle, color: AppTheme.primary)
                             : Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
@@ -865,7 +868,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                               backgroundColor: AppTheme.success,
                               content: Row(
                                 children: [
-                                  const Icon(Icons.check_circle, color: Colors.white),
+                                  const Icon(LucideIcons.checkCircle, color: Colors.white),
                                   const SizedBox(width: 8),
                                   Text('${record.name} portfolio successfully deployed to ${agent.name}.'),
                                 ],

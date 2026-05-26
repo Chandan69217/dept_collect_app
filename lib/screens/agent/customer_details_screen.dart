@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
@@ -8,27 +9,31 @@ import 'schedule_visit_sheet.dart';
 class CustomerDetailsScreen extends StatelessWidget {
   final dynamic customer; // Customer model
 
-  const CustomerDetailsScreen({
-    super.key,
-    required this.customer,
-  });
+  const CustomerDetailsScreen({super.key, required this.customer});
 
   String _formatDate(DateTime date, String customerId) {
     if (customerId == 'cust_robert') {
       return '10 Oct 2023';
     }
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
   String _formatCurrency(double amount) {
-    return '₹${amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    )}';
+    return '₹${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
   }
 
   String _getTotalLoan(String customerId) {
@@ -89,15 +94,15 @@ class CustomerDetailsScreen extends StatelessWidget {
             backgroundColor: Colors.white,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppTheme.primary),
+              icon: const Icon(LucideIcons.arrowLeft, color: AppTheme.primary),
               onPressed: () => Navigator.pop(context),
             ),
             title: Text(
               AppTheme.appName,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppTheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: AppTheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             actions: [
               Padding(
@@ -107,15 +112,17 @@ class CustomerDetailsScreen extends StatelessWidget {
                     Text(
                       currentCust.name,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     CircleAvatar(
                       radius: 16,
                       backgroundColor: AppTheme.primaryContainer,
                       child: Text(
-                        initials.length > 2 ? initials.substring(0, 2) : initials,
+                        initials.length > 2
+                            ? initials.substring(0, 2)
+                            : initials,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -151,7 +158,10 @@ class CustomerDetailsScreen extends StatelessWidget {
                                   children: [
                                     // High Priority Tag
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: currentCust.priority == 'HIGH'
                                             ? AppTheme.errorContainer
@@ -162,9 +172,10 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Icon(
-                                            Icons.priority_high,
+                                            LucideIcons.alertTriangle,
                                             size: 12,
-                                            color: currentCust.priority == 'HIGH'
+                                            color:
+                                                currentCust.priority == 'HIGH'
                                                 ? AppTheme.error
                                                 : AppTheme.warning,
                                           ),
@@ -174,7 +185,8 @@ class CustomerDetailsScreen extends StatelessWidget {
                                             style: TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.bold,
-                                              color: currentCust.priority == 'HIGH'
+                                              color:
+                                                  currentCust.priority == 'HIGH'
                                                   ? AppTheme.error
                                                   : AppTheme.warning,
                                             ),
@@ -185,7 +197,10 @@ class CustomerDetailsScreen extends StatelessWidget {
                                     const SizedBox(height: 8),
                                     Text(
                                       currentCust.name,
-                                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineLarge
+                                          ?.copyWith(
                                             fontWeight: FontWeight.w700,
                                             fontSize: 28,
                                             letterSpacing: -0.5,
@@ -195,17 +210,23 @@ class CustomerDetailsScreen extends StatelessWidget {
                                     const SizedBox(height: 4),
                                     Text(
                                       'Loan ID: #L-8829-X01',
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                            color: AppTheme.secondary,
-                                          ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(color: AppTheme.secondary),
                                     ),
                                   ],
                                 ),
                               ),
                               CircleAvatar(
                                 radius: 28,
-                                backgroundColor: AppTheme.surfaceContainerHighest,
-                                child: const Icon(Icons.person, color: AppTheme.primary, size: 28),
+                                backgroundColor:
+                                    AppTheme.surfaceContainerHighest,
+                                child: const Icon(
+                                  LucideIcons.user,
+                                  color: AppTheme.primary,
+                                  size: 28,
+                                ),
                               ),
                             ],
                           ),
@@ -221,16 +242,32 @@ class CustomerDetailsScreen extends StatelessWidget {
                                       backgroundColor: AppTheme.primary,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderRadius: BorderRadius.circular(
+                                          8.0,
+                                        ),
                                       ),
                                     ),
                                     onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Calling ${currentCust.name} at ${currentCust.phone}...')),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Calling ${currentCust.name} at ${currentCust.phone}...',
+                                          ),
+                                        ),
                                       );
                                     },
-                                    icon: const Icon(Icons.call, size: 16),
-                                    label: const Text('Call', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    icon: const Icon(
+                                      LucideIcons.phone,
+                                      size: 16,
+                                    ),
+                                    label: const Text(
+                                      'Call',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -241,18 +278,36 @@ class CustomerDetailsScreen extends StatelessWidget {
                                   child: OutlinedButton.icon(
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: AppTheme.primary,
-                                      side: const BorderSide(color: AppTheme.outline),
+                                      side: const BorderSide(
+                                        color: AppTheme.outline,
+                                      ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderRadius: BorderRadius.circular(
+                                          8.0,
+                                        ),
                                       ),
                                     ),
                                     onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Opening WhatsApp chat for ${currentCust.name}...')),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Opening WhatsApp chat for ${currentCust.name}...',
+                                          ),
+                                        ),
                                       );
                                     },
-                                    icon: const Icon(Icons.chat, size: 16),
-                                    label: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    icon: const Icon(
+                                      LucideIcons.messageCircle,
+                                      size: 16,
+                                    ),
+                                    label: const Text(
+                                      'WhatsApp',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -268,7 +323,9 @@ class CustomerDetailsScreen extends StatelessWidget {
                       children: [
                         // Pending EMI (Wide Card)
                         CustomBentoCard(
-                          backgroundColor: isPaid ? AppTheme.success : AppTheme.primaryContainer,
+                          backgroundColor: isPaid
+                              ? AppTheme.success
+                              : AppTheme.primaryContainer,
                           borderSide: BorderSide.none,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,11 +340,16 @@ class CustomerDetailsScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    isPaid ? 'Fully Paid' : _formatCurrency(currentCust.amountDue),
+                                    isPaid
+                                        ? 'Fully Paid'
+                                        : _formatCurrency(
+                                            currentCust.amountDue,
+                                          ),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
@@ -305,7 +367,10 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         ),
                                       ),
                                       Text(
-                                        _formatDate(currentCust.dueDate, currentCust.id),
+                                        _formatDate(
+                                          currentCust.dueDate,
+                                          currentCust.id,
+                                        ),
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
@@ -331,7 +396,10 @@ class CustomerDetailsScreen extends StatelessWidget {
                                   children: [
                                     Text(
                                       'Total Loan',
-                                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
                                             color: AppTheme.secondary,
                                             fontSize: 10,
                                           ),
@@ -357,7 +425,10 @@ class CustomerDetailsScreen extends StatelessWidget {
                                   children: [
                                     Text(
                                       'Collection Status',
-                                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
                                             color: AppTheme.secondary,
                                             fontSize: 10,
                                           ),
@@ -370,7 +441,9 @@ class CustomerDetailsScreen extends StatelessWidget {
                                       style: TextStyle(
                                         color: isPaid
                                             ? AppTheme.success
-                                            : (isPending ? AppTheme.warning : AppTheme.error),
+                                            : (isPending
+                                                  ? AppTheme.warning
+                                                  : AppTheme.error),
                                         fontWeight: FontWeight.bold,
                                         fontSize: 18,
                                       ),
@@ -391,13 +464,16 @@ class CustomerDetailsScreen extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.directions_car, color: AppTheme.secondary, size: 20),
+                              const Icon(
+                                LucideIcons.car,
+                                color: AppTheme.secondary,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 'Asset Information',
-                                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                      color: AppTheme.onSurface,
-                                    ),
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(color: AppTheme.onSurface),
                               ),
                             ],
                           ),
@@ -408,10 +484,15 @@ class CustomerDetailsScreen extends StatelessWidget {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Model', style: TextStyle(color: AppTheme.secondary)),
+                                const Text(
+                                  'Model',
+                                  style: TextStyle(color: AppTheme.secondary),
+                                ),
                                 Text(
                                   _getAssetModel(currentCust),
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
@@ -422,10 +503,15 @@ class CustomerDetailsScreen extends StatelessWidget {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Reg No.', style: TextStyle(color: AppTheme.secondary)),
+                                const Text(
+                                  'Reg No.',
+                                  style: TextStyle(color: AppTheme.secondary),
+                                ),
                                 Text(
                                   _getAssetRegNo(currentCust),
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
@@ -448,20 +534,26 @@ class CustomerDetailsScreen extends StatelessWidget {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.location_on, color: AppTheme.secondary, size: 20),
+                                    const Icon(
+                                      LucideIcons.mapPin,
+                                      color: AppTheme.secondary,
+                                      size: 20,
+                                    ),
                                     const SizedBox(width: 8),
                                     Text(
                                       'Home Address',
-                                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                            color: AppTheme.onSurface,
-                                          ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(color: AppTheme.onSurface),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
                                   _getAddress(currentCust),
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
                                         color: AppTheme.onSurfaceVariant,
                                         height: 1.3,
                                       ),
@@ -475,14 +567,14 @@ class CustomerDetailsScreen extends StatelessWidget {
                             width: double.infinity,
                             decoration: const BoxDecoration(
                               color: AppTheme.surfaceContainerLow,
-                              borderRadius: BorderRadius.vertical(bottom: Radius.circular(AppTheme.radiusLarge)),
+                              borderRadius: BorderRadius.vertical(
+                                bottom: Radius.circular(AppTheme.radiusLarge),
+                              ),
                             ),
                             child: Stack(
                               children: [
                                 Positioned.fill(
-                                  child: CustomPaint(
-                                    painter: _MapPainter(),
-                                  ),
+                                  child: CustomPaint(painter: _MapPainter()),
                                 ),
                                 // Pulser dot on target location
                                 const Positioned(
@@ -499,18 +591,40 @@ class CustomerDetailsScreen extends StatelessWidget {
                                       foregroundColor: AppTheme.primary,
                                       elevation: 4,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(999),
-                                        side: const BorderSide(color: AppTheme.outlineVariant),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                        side: const BorderSide(
+                                          color: AppTheme.outlineVariant,
+                                        ),
                                       ),
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
                                     ),
                                     onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Opening turn-by-turn map routing direction...')),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Opening turn-by-turn map routing direction...',
+                                          ),
+                                        ),
                                       );
                                     },
-                                    icon: const Icon(Icons.near_me, size: 16),
-                                    label: const Text('Navigate', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                    icon: const Icon(
+                                      LucideIcons.navigation,
+                                      size: 16,
+                                    ),
+                                    label: const Text(
+                                      'Navigate',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -528,7 +642,8 @@ class CustomerDetailsScreen extends StatelessWidget {
                         children: [
                           Text(
                             'VISIT FEEDBACK HISTORY',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.0,
                                 ),
@@ -537,7 +652,10 @@ class CustomerDetailsScreen extends StatelessWidget {
                           if (currentCust.notes.isEmpty)
                             const Text(
                               'No comments logged for this case yet.',
-                              style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
+                              style: TextStyle(
+                                fontStyle: FontStyle.italic,
+                                fontSize: 12,
+                              ),
                             )
                           else
                             ListView.builder(
@@ -546,11 +664,20 @@ class CustomerDetailsScreen extends StatelessWidget {
                               itemCount: currentCust.notes.length,
                               itemBuilder: (context, index) {
                                 return Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                                      const Text(
+                                        '• ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primary,
+                                        ),
+                                      ),
                                       Expanded(
                                         child: Text(
                                           currentCust.notes[index],
@@ -577,7 +704,9 @@ class CustomerDetailsScreen extends StatelessWidget {
                 child: Container(
                   decoration: const BoxDecoration(
                     color: Colors.white,
-                    border: Border(top: BorderSide(color: AppTheme.outlineVariant, width: 1)),
+                    border: Border(
+                      top: BorderSide(color: AppTheme.outlineVariant, width: 1),
+                    ),
                   ),
                   padding: EdgeInsets.fromLTRB(
                     16,
@@ -595,10 +724,14 @@ class CustomerDetailsScreen extends StatelessWidget {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: isPaid
                                   ? AppTheme.success
-                                  : (isPending ? AppTheme.warning : AppTheme.primary),
+                                  : (isPending
+                                        ? AppTheme.warning
+                                        : AppTheme.primary),
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusLarge,
+                                ),
                               ),
                             ),
                             onPressed: () {
@@ -607,15 +740,25 @@ class CustomerDetailsScreen extends StatelessWidget {
                                 context: context,
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
-                                builder: (context) => RecordPaymentSheet(customer: currentCust),
+                                builder: (context) =>
+                                    RecordPaymentSheet(customer: currentCust),
                               );
                             },
-                            icon: Icon(isPaid ? Icons.check_circle : Icons.payments),
+                            icon: Icon(
+                              isPaid
+                                  ? LucideIcons.circleCheck
+                                  : LucideIcons.banknote,
+                            ),
                             label: Text(
                               isPaid
                                   ? 'EMI Settled'
-                                  : (isPending ? 'Approval Processing...' : 'Record Collection'),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  : (isPending
+                                        ? 'Approval Processing...'
+                                        : 'Record Collection'),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                         ),
@@ -629,9 +772,13 @@ class CustomerDetailsScreen extends StatelessWidget {
                           style: OutlinedButton.styleFrom(
                             backgroundColor: AppTheme.surfaceContainerHigh,
                             foregroundColor: AppTheme.primary,
-                            side: const BorderSide(color: AppTheme.outlineVariant),
+                            side: const BorderSide(
+                              color: AppTheme.outlineVariant,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusLarge,
+                              ),
                             ),
                             padding: EdgeInsets.zero,
                           ),
@@ -640,10 +787,11 @@ class CustomerDetailsScreen extends StatelessWidget {
                               context: context,
                               isScrollControlled: true,
                               backgroundColor: Colors.transparent,
-                              builder: (context) => ScheduleVisitSheet(customer: currentCust),
+                              builder: (context) =>
+                                  ScheduleVisitSheet(customer: currentCust),
                             );
                           },
-                          child: const Icon(Icons.event_repeat),
+                          child: const Icon(LucideIcons.calendarClock),
                         ),
                       ),
                     ],
@@ -682,7 +830,12 @@ class _MapPainter extends CustomPainter {
     // Draw main roads
     final path1 = Path()
       ..moveTo(0, size.height * 0.3)
-      ..quadraticBezierTo(size.width * 0.4, size.height * 0.1, size.width * 0.8, size.height * 0.6)
+      ..quadraticBezierTo(
+        size.width * 0.4,
+        size.height * 0.1,
+        size.width * 0.8,
+        size.height * 0.6,
+      )
       ..lineTo(size.width, size.height * 0.75);
 
     final path2 = Path()
@@ -720,7 +873,8 @@ class _PulseMarker extends StatefulWidget {
   State<_PulseMarker> createState() => _PulseMarkerState();
 }
 
-class _PulseMarkerState extends State<_PulseMarker> with SingleTickerProviderStateMixin {
+class _PulseMarkerState extends State<_PulseMarker>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
@@ -733,13 +887,15 @@ class _PulseMarkerState extends State<_PulseMarker> with SingleTickerProviderSta
       vsync: this,
     )..repeat();
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.8).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.5,
+      end: 1.8,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
-    _opacityAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _opacityAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
   }
 
   @override
@@ -770,11 +926,7 @@ class _PulseMarkerState extends State<_PulseMarker> with SingleTickerProviderSta
                 ),
               ),
             ),
-            const Icon(
-              Icons.location_on,
-              color: AppTheme.primary,
-              size: 24,
-            ),
+            const Icon(LucideIcons.mapPin, color: AppTheme.primary, size: 24),
           ],
         );
       },
