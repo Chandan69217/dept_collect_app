@@ -6,6 +6,7 @@ import '../../widgets/custom_bento_card.dart';
 import '../../models/customer.dart';
 import '../agent/customer_details_screen.dart';
 import 'upload_data_screen.dart';
+import '../../widgets/custom_feedback.dart';
 
 class UploadedRecordsView extends StatefulWidget {
   const UploadedRecordsView({super.key});
@@ -703,135 +704,69 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
   }
 
   void _confirmDeleteRecord(RecordItem record) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(LucideIcons.triangleAlert, color: AppTheme.error),
-              SizedBox(width: 8),
-              Text(
-                'Delete Record?',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ],
-          ),
-          content: Text(
-            'Are you sure you want to delete ${record.name}\'s ledger record (${record.loanId})? This action is permanent.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('CANCEL'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.error,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                // Execute deletion
-                if (record.id.startsWith('cust_')) {
-                  _db.deleteCase(record.id);
-                } else {
-                  // Static mock record local removal
-                  setState(() {
-                    _staticMockRecords.removeWhere((r) => r.id == record.id);
-                  });
-                }
-                
-                setState(() {
-                  _selectedRecordIds.remove(record.id);
-                });
-                Navigator.pop(context);
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppTheme.error,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    content: Text('${record.name}\'s record was successfully deleted.'),
-                  ),
-                );
-              },
-              child: const Text('DELETE'),
-            ),
-          ],
+    CustomFeedback.showFeedbackDialog(
+      context,
+      title: 'Delete Record?',
+      message: 'Are you sure you want to delete ${record.name}\'s ledger record (${record.loanId})? This action is permanent.',
+      type: 'error',
+      confirmLabel: 'DELETE',
+      onConfirm: () {
+        // Execute deletion
+        if (record.id.startsWith('cust_')) {
+          _db.deleteCase(record.id);
+        } else {
+          // Static mock record local removal
+          setState(() {
+            _staticMockRecords.removeWhere((r) => r.id == record.id);
+          });
+        }
+        
+        setState(() {
+          _selectedRecordIds.remove(record.id);
+        });
+        
+        CustomFeedback.showToast(
+          context,
+          '${record.name}\'s record was successfully deleted.',
+          type: 'error',
         );
       },
     );
   }
 
   void _confirmBulkDeleteRecords(List<RecordItem> filteredRecords) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final count = _selectedRecordIds.length;
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(LucideIcons.triangleAlert, color: AppTheme.error),
-              SizedBox(width: 8),
-              Text(
-                'Delete Selected Records?',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ],
-          ),
-          content: Text(
-            'Are you sure you want to delete all $count selected ledger records permanently? This cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('CANCEL'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.error,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                final List<String> selectedIds = _selectedRecordIds.toList();
-                
-                // Separate db cases and mock cases
-                final dbIds = selectedIds.where((id) => id.startsWith('cust_')).toList();
-                final mockIds = selectedIds.where((id) => !id.startsWith('cust_')).toList();
+    final count = _selectedRecordIds.length;
+    CustomFeedback.showFeedbackDialog(
+      context,
+      title: 'Delete Selected Records?',
+      message: 'Are you sure you want to delete all $count selected ledger records permanently? This cannot be undone.',
+      type: 'error',
+      confirmLabel: 'DELETE ALL',
+      onConfirm: () {
+        final List<String> selectedIds = _selectedRecordIds.toList();
+        
+        // Separate db cases and mock cases
+        final dbIds = selectedIds.where((id) => id.startsWith('cust_')).toList();
+        final mockIds = selectedIds.where((id) => !id.startsWith('cust_')).toList();
 
-                if (dbIds.isNotEmpty) {
-                  _db.deleteMultipleCases(dbIds);
-                }
+        if (dbIds.isNotEmpty) {
+          _db.deleteMultipleCases(dbIds);
+        }
 
-                if (mockIds.isNotEmpty) {
-                  setState(() {
-                    _staticMockRecords.removeWhere((r) => mockIds.contains(r.id));
-                  });
-                }
+        if (mockIds.isNotEmpty) {
+          setState(() {
+            _staticMockRecords.removeWhere((r) => mockIds.contains(r.id));
+          });
+        }
 
-                setState(() {
-                  _selectedRecordIds.clear();
-                });
-                Navigator.pop(context);
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppTheme.error,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    content: Text('Successfully deleted $count ledger records.'),
-                  ),
-                );
-              },
-              child: const Text('DELETE ALL'),
-            ),
-          ],
+        setState(() {
+          _selectedRecordIds.clear();
+        });
+        
+        CustomFeedback.showToast(
+          context,
+          'Successfully deleted $count ledger records.',
+          type: 'error',
         );
       },
     );
@@ -1100,168 +1035,137 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
   }
 
   void _showReassignDialog(RecordItem record) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          actionsPadding: const EdgeInsets.all(12),
-          title: Row(
-            children: [
-              const Icon(LucideIcons.userCog, color: AppTheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  record.status == 'Unassigned' ? 'Assign Debtor Portfolio' : 'Reassign Portfolio',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    CustomFeedback.showFeedbackDialog(
+      context,
+      title: record.status == 'Unassigned' ? 'Assign Debtor Portfolio' : 'Reassign Portfolio',
+      message: '',
+      type: 'info',
+      showCancel: false,
+      confirmLabel: 'CANCEL',
+      customBody: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Debtor Info Card
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
               children: [
-                // Debtor Info Card
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              record.name,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.onSurface),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Loan ID: ${record.loanId} • ₹${record.amount.toStringAsFixed(0)}',
-                              style: const TextStyle(fontSize: 11, color: AppTheme.secondary),
-                            ),
-                          ],
-                        ),
+                      Text(
+                        record.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.onSurface),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: record.status == 'Unassigned' ? AppTheme.errorContainer : AppTheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          record.status,
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: record.status == 'Unassigned' ? AppTheme.error : AppTheme.primary,
-                          ),
-                        ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Loan ID: ${record.loanId} • ₹${record.amount.toStringAsFixed(0)}',
+                        style: const TextStyle(fontSize: 11, color: AppTheme.secondary),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'SELECT ACTIVE AGENT TO DEPLOY:',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.outline, letterSpacing: 0.5),
-                ),
-                const SizedBox(height: 8),
-
-                // Active Agents list from Database
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: _db.agents.where((a) => !a.isAdmin).length,
-                    separatorBuilder: (context, index) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final agent = _db.agents.where((a) => !a.isAdmin).toList()[index];
-                      final isCurrentlyAssigned = record.assignedAgentName == agent.name;
-
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                          radius: 18,
-                          backgroundImage: NetworkImage(agent.avatarUrl),
-                        ),
-                        title: Text(
-                          agent.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        subtitle: Text(
-                          'Zone: ${agent.zone} • ${agent.casesCount} active cases',
-                          style: const TextStyle(fontSize: 11, color: AppTheme.secondary),
-                        ),
-                        trailing: isCurrentlyAssigned
-                            ? const Icon(
-                                LucideIcons.checkCircle, color: AppTheme.primary)
-                            : Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: AppTheme.outlineVariant),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Text(
-                                  'Deploy',
-                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primary),
-                                ),
-                              ),
-                        onTap: () {
-                          if (isCurrentlyAssigned) {
-                            Navigator.pop(context);
-                            return;
-                          }
-
-                          // Action reassign
-                          if (record.id.startsWith('cust_')) {
-                            // Reassign actual database customer!
-                            _db.assignCase(record.id, agent.id);
-                          } else {
-                            // Reassign static mock local override!
-                            setState(() {
-                              _mockAssignments[record.id] = agent.id;
-                              _mockStatuses[record.id] = 'Assigned';
-                            });
-                          }
-
-                          Navigator.pop(context);
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: AppTheme.success,
-                              content: Row(
-                                children: [
-                                  const Icon(LucideIcons.checkCircle, color: Colors.white),
-                                  const SizedBox(width: 8),
-                                  Text('${record.name} portfolio successfully deployed to ${agent.name}.'),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: record.status == 'Unassigned' ? AppTheme.errorContainer : AppTheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    record.status,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: record.status == 'Unassigned' ? AppTheme.error : AppTheme.primary,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: AppTheme.secondary, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          const Text(
+            'SELECT ACTIVE AGENT TO DEPLOY:',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.outline, letterSpacing: 0.5),
+          ),
+          const SizedBox(height: 8),
+
+          // Active Agents list from Database
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: _db.agents.where((a) => !a.isAdmin).length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final agent = _db.agents.where((a) => !a.isAdmin).toList()[index];
+                final isCurrentlyAssigned = record.assignedAgentName == agent.name;
+
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    radius: 18,
+                    backgroundImage: NetworkImage(agent.avatarUrl),
+                  ),
+                  title: Text(
+                    agent.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  subtitle: Text(
+                    'Zone: ${agent.zone} • ${agent.casesCount} active cases',
+                    style: const TextStyle(fontSize: 11, color: AppTheme.secondary),
+                  ),
+                  trailing: isCurrentlyAssigned
+                      ? const Icon(
+                          LucideIcons.checkCircle, color: AppTheme.primary)
+                      : Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppTheme.outlineVariant),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'Deploy',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                          ),
+                        ),
+                  onTap: () {
+                    if (isCurrentlyAssigned) {
+                      Navigator.pop(context);
+                      return;
+                    }
+
+                    // Action reassign
+                    if (record.id.startsWith('cust_')) {
+                      // Reassign actual database customer!
+                      _db.assignCase(record.id, agent.id);
+                    } else {
+                      // Reassign static mock local override!
+                      setState(() {
+                        _mockAssignments[record.id] = agent.id;
+                        _mockStatuses[record.id] = 'Assigned';
+                      });
+                    }
+
+                    Navigator.pop(context);
+
+                    CustomFeedback.showToast(
+                      context,
+                      '${record.name} portfolio successfully deployed to ${agent.name}.',
+                      type: 'success',
+                    );
+                  },
+                );
+              },
             ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 }

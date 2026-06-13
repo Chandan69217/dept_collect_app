@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
-import '../../widgets/custom_bento_card.dart';
+import '../../widgets/custom_feedback.dart';
 
 class VerifyUploadedRecordsScreen extends StatefulWidget {
   final String fileName;
@@ -31,6 +31,14 @@ class _VerifyUploadedRecordsScreenState
   bool _showAmount = true;
   bool _showLoanId = true;
   bool _showPhone = true;
+  bool _showAddress = true;
+  bool _showOverdueDays = true;
+  bool _showPriority = true;
+  bool _showAssetModel = true;
+  bool _showAssetRegNo = true;
+  bool _showAssetVariant = true;
+  bool _showEngineNo = true;
+  bool _showChassisNo = true;
 
   // Filter criteria
   String _selectedStatusFilter =
@@ -117,14 +125,44 @@ class _VerifyUploadedRecordsScreenState
           showAmount: _showAmount,
           showLoanId: _showLoanId,
           showPhone: _showPhone,
-          onSave: (name, amount, loanId, phone) {
-            setState(() {
-              _showName = name;
-              _showAmount = amount;
-              _showLoanId = loanId;
-              _showPhone = phone;
-            });
-          },
+          showAddress: _showAddress,
+          showOverdueDays: _showOverdueDays,
+          showPriority: _showPriority,
+          showAssetModel: _showAssetModel,
+          showAssetRegNo: _showAssetRegNo,
+          showAssetVariant: _showAssetVariant,
+          showEngineNo: _showEngineNo,
+          showChassisNo: _showChassisNo,
+          onSave:
+              (
+                name,
+                amount,
+                loanId,
+                phone,
+                address,
+                overdueDays,
+                priority,
+                assetModel,
+                assetRegNo,
+                assetVariant,
+                engineNo,
+                chassisNo,
+              ) {
+                setState(() {
+                  _showName = name;
+                  _showAmount = amount;
+                  _showLoanId = loanId;
+                  _showPhone = phone;
+                  _showAddress = address;
+                  _showOverdueDays = overdueDays;
+                  _showPriority = priority;
+                  _showAssetModel = assetModel;
+                  _showAssetRegNo = assetRegNo;
+                  _showAssetVariant = assetVariant;
+                  _showEngineNo = engineNo;
+                  _showChassisNo = chassisNo;
+                });
+              },
         );
       },
     );
@@ -140,21 +178,10 @@ class _VerifyUploadedRecordsScreenState
     }
 
     if (selectedRecords.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppTheme.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          content: const Row(
-            children: [
-              Icon(LucideIcons.refreshCwOff, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Please select at least one record to import.'),
-            ],
-          ),
-        ),
+      CustomFeedback.showToast(
+        context,
+        'Please select at least one record to import.',
+        type: 'error',
       );
       return;
     }
@@ -163,27 +190,10 @@ class _VerifyUploadedRecordsScreenState
     _db.uploadBankRecords(selectedRecords);
 
     // Dynamic zone SnackBar toast
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: AppTheme.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        content: Row(
-          children: [
-            const Icon(LucideIcons.checkCircle, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Import complete: ${selectedRecords.length} records committed to Mumbai Metro Zone!',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    CustomFeedback.showToast(
+      context,
+      'Import complete: ${selectedRecords.length} records committed to Mumbai Metro Zone!',
+      type: 'success',
     );
 
     // Pop screen back to dashboard/import hub cleanly with a success signal
@@ -244,7 +254,7 @@ class _VerifyUploadedRecordsScreenState
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Agency Admin',
+          'Verify Records',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.primary,
@@ -555,6 +565,54 @@ class _VerifyUploadedRecordsScreenState
                         _showPhone,
                         (val) => setState(() => _showPhone = val),
                       ),
+                      const SizedBox(width: 8),
+                      _buildVisibilityChip(
+                        'Address',
+                        _showAddress,
+                        (val) => setState(() => _showAddress = val),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildVisibilityChip(
+                        'Overdue',
+                        _showOverdueDays,
+                        (val) => setState(() => _showOverdueDays = val),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildVisibilityChip(
+                        'Priority',
+                        _showPriority,
+                        (val) => setState(() => _showPriority = val),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildVisibilityChip(
+                        'Asset Model',
+                        _showAssetModel,
+                        (val) => setState(() => _showAssetModel = val),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildVisibilityChip(
+                        'Asset Reg No',
+                        _showAssetRegNo,
+                        (val) => setState(() => _showAssetRegNo = val),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildVisibilityChip(
+                        'Asset Variant',
+                        _showAssetVariant,
+                        (val) => setState(() => _showAssetVariant = val),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildVisibilityChip(
+                        'Engine No',
+                        _showEngineNo,
+                        (val) => setState(() => _showEngineNo = val),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildVisibilityChip(
+                        'Chassis No',
+                        _showChassisNo,
+                        (val) => setState(() => _showChassisNo = val),
+                      ),
                     ],
                   ),
                 ),
@@ -719,155 +777,484 @@ class _VerifyUploadedRecordsScreenState
   ) {
     Color statusBgColor;
     Color statusTextColor;
+    Color statusDotColor;
 
     if (status == 'Matched') {
       statusBgColor = const Color(0xFFE8F5E9);
-      statusTextColor = const Color(0xFF1B5E20);
+      statusTextColor = const Color(0xFF2E7D32);
+      statusDotColor = const Color(0xFF4CAF50);
     } else if (status == 'Discrepancy') {
       statusBgColor = const Color(0xFFFFDAD6);
       statusTextColor = const Color(0xFFBA1A1A);
+      statusDotColor = const Color(0xFFF44336);
     } else {
       // New Record
       statusBgColor = const Color(0xFFEFF4FF);
       statusTextColor = AppTheme.primary;
+      statusDotColor = const Color(0xFF2196F3);
     }
 
     final double amount = record['amountDue'] as double? ?? 0.0;
+    final String name = record['name'] as String? ?? '';
+    final String initials = name.isNotEmpty
+        ? name.trim().split(' ').map((s) => s[0]).take(2).join('').toUpperCase()
+        : '?';
 
-    return CustomBentoCard(
-      padding: 0,
-      onTap: () {
-        setState(() {
-          if (isChecked) {
-            _selectedIndices.remove(origIndex);
-          } else {
-            _selectedIndices.add(origIndex);
-          }
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+    // Premium dynamic avatar colors
+    final List<Color> avatarColors = [
+      const Color(0xFFE8EAF6),
+      const Color(0xFFE8F5E9),
+      const Color(0xFFFFF3E0),
+      const Color(0xFFF3E5F5),
+      const Color(0xFFE0F2F1),
+      const Color(0xFFE1F5FE),
+    ];
+    final List<Color> avatarTextColors = [
+      const Color(0xFF283593),
+      const Color(0xFF2E7D32),
+      const Color(0xFFEF6C00),
+      const Color(0xFF6A1B9A),
+      const Color(0xFF00695C),
+      const Color(0xFF0277BD),
+    ];
+    final int colorIndex = name.hashCode.abs() % avatarColors.length;
+    final Color avatarBgColor = avatarColors[colorIndex];
+    final Color avatarTextColor = avatarTextColors[colorIndex];
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        color: isChecked ? const Color(0xFFF5F9FF) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isChecked ? AppTheme.primary : AppTheme.outlineVariant,
+          width: isChecked ? 1.5 : 1.0,
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Checkbox indicator
-            Container(
-              margin: const EdgeInsets.only(top: 2),
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                color: isChecked ? AppTheme.primary : Colors.white,
-                border: Border.all(
-                  color: isChecked ? AppTheme.primary : AppTheme.outline,
-                  width: 1.5,
-                ),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: isChecked
-                  ? const Icon(LucideIcons.check, size: 14, color: Colors.white)
-                  : null,
+        boxShadow: [
+          if (isChecked)
+            BoxShadow(
+              color: AppTheme.primary.withOpacity(0.06),
+              blurRadius: 8,
+              spreadRadius: 1,
+              offset: const Offset(0, 2),
+            )
+          else
+            BoxShadow(
+              color: Colors.black.withOpacity(0.015),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-            const SizedBox(width: 16),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              if (isChecked) {
+                _selectedIndices.remove(origIndex);
+              } else {
+                _selectedIndices.add(origIndex);
+              }
+            });
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12.0,
+              vertical: 10.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Avatar initials badge
+                    if (_showName) ...[
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: avatarBgColor,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          initials,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: avatarTextColor,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
 
-            // Card details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_showName)
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.onSurface,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                          if (_showAmount) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              '₹${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.primary,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Status capsule
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusBgColor,
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: statusDotColor,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                status,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusTextColor,
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Checkbox
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isChecked ? AppTheme.primary : Colors.white,
+                            border: Border.all(
+                              color: isChecked
+                                  ? AppTheme.primary
+                                  : const Color(0xFFC3C6D6),
+                              width: isChecked ? 2 : 1.5,
+                            ),
+                          ),
+                          child: isChecked
+                              ? const Icon(
+                                  LucideIcons.check,
+                                  size: 11,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                // Card details
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_showLoanId) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(
+                            LucideIcons.fingerprint,
+                            size: 10,
+                            color: AppTheme.secondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _getLoanId(record, origIndex),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppTheme.secondary,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (_showPhone) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            LucideIcons.phone,
+                            size: 10,
+                            color: AppTheme.secondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            record['phone'] as String? ?? '',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.onSurfaceVariant,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (_showAddress) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 1.5),
+                            child: Icon(
+                              LucideIcons.mapPin,
+                              size: 10,
+                              color: AppTheme.secondary,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              record['address'] as String? ?? 'No Address',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.onSurfaceVariant,
+                                fontFamily: 'Inter',
+                                height: 1.25,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (_showOverdueDays || _showPriority) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          if (_showOverdueDays)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.errorContainer,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    LucideIcons.calendarClock,
+                                    size: 9,
+                                    color: AppTheme.error,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${record['overdueDays'] ?? 10} Days Overdue',
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.error,
+                                      fontFamily: 'Inter',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (_showPriority)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF3E0),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    LucideIcons.alertTriangle,
+                                    size: 9,
+                                    color: Color(0xFFE65100),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Priority: ${record['priority'] ?? 'MEDIUM'}',
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFE65100),
+                                      fontFamily: 'Inter',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                    (() {
+                      final assetModel = record['assetModel']?.toString() ?? '';
+                      final assetRegNo = record['assetRegNo']?.toString() ?? '';
+                      final engineNo = record['engineNumber']?.toString() ?? '';
+                      final chasisNo = record['chasisNumber']?.toString() ?? '';
+                      final assetVariant =
+                          record['assetVariant']?.toString() ?? '';
+
+                      final showModel =
+                          _showAssetModel && assetModel.isNotEmpty;
+                      final showRegNo =
+                          _showAssetRegNo && assetRegNo.isNotEmpty;
+                      final showVariant =
+                          _showAssetVariant && assetVariant.isNotEmpty;
+                      final showEngine = _showEngineNo && engineNo.isNotEmpty;
+                      final showChassis = _showChassisNo && chasisNo.isNotEmpty;
+
+                      final hasAssetInfo =
+                          showModel ||
+                          showRegNo ||
+                          showVariant ||
+                          showEngine ||
+                          showChassis;
+
+                      if (!hasAssetInfo) return const SizedBox();
+
+                      return Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(top: 8),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF4FF).withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppTheme.outlineVariant.withOpacity(0.5),
+                          ),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (_showName)
-                              Text(
-                                record['name'] as String? ?? '',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.onSurface,
-                                  fontFamily: 'Inter',
+                            Row(
+                              children: [
+                                const Icon(
+                                  LucideIcons.car,
+                                  size: 10,
+                                  color: AppTheme.primary,
                                 ),
-                              ),
-                            if (_showLoanId) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                _getLoanId(record, origIndex),
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: AppTheme.secondary,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Inter',
+                                const SizedBox(width: 4),
+                                Text(
+                                  'ASSET INFORMATION (MAPPED)',
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primary.withOpacity(0.8),
+                                    letterSpacing: 0.3,
+                                  ),
                                 ),
-                              ),
-                            ],
-                            if (_showPhone) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                record['phone'] as String? ?? '',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: AppTheme.secondary,
-                                  fontFamily: 'Inter',
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 4,
+                              runSpacing: 4,
+                              children: [
+                                if (showModel)
+                                  _buildAssetBadge('Model', assetModel),
+                                if (showRegNo)
+                                  _buildAssetBadge('Reg No', assetRegNo),
+                                if (showVariant)
+                                  _buildAssetBadge('Variant', assetVariant),
+                                if (showEngine)
+                                  _buildAssetBadge('Engine', engineNo),
+                                if (showChassis)
+                                  _buildAssetBadge('Chassis', chasisNo),
+                              ],
+                            ),
                           ],
                         ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusBgColor,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          status,
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: statusTextColor,
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (_showAmount)
-                        Text(
-                          '₹${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.primary,
-                            fontFamily: 'Inter',
-                          ),
-                        )
-                      else
-                        const SizedBox(),
-                      const Icon(
-                        LucideIcons.chevronRight,
-                        size: 16,
-                        color: AppTheme.secondary,
-                      ),
-                    ],
-                  ),
-                ],
+                      );
+                    })(),
+
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAssetBadge(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: const Color(0xFFDCE9FF)),
+      ),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(
+            fontSize: 9,
+            fontFamily: 'Inter',
+            color: AppTheme.onSurfaceVariant,
+          ),
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.secondary,
               ),
+            ),
+            TextSpan(
+              text: value,
+              style: const TextStyle(fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -1740,13 +2127,43 @@ class _ManageImportFieldsSheet extends StatefulWidget {
   final bool showAmount;
   final bool showLoanId;
   final bool showPhone;
-  final Function(bool name, bool amount, bool loanId, bool phone) onSave;
+  final bool showAddress;
+  final bool showOverdueDays;
+  final bool showPriority;
+  final bool showAssetModel;
+  final bool showAssetRegNo;
+  final bool showAssetVariant;
+  final bool showEngineNo;
+  final bool showChassisNo;
+  final Function(
+    bool name,
+    bool amount,
+    bool loanId,
+    bool phone,
+    bool address,
+    bool overdueDays,
+    bool priority,
+    bool assetModel,
+    bool assetRegNo,
+    bool assetVariant,
+    bool engineNo,
+    bool chassisNo,
+  )
+  onSave;
 
   const _ManageImportFieldsSheet({
     required this.showName,
     required this.showAmount,
     required this.showLoanId,
     required this.showPhone,
+    required this.showAddress,
+    required this.showOverdueDays,
+    required this.showPriority,
+    required this.showAssetModel,
+    required this.showAssetRegNo,
+    required this.showAssetVariant,
+    required this.showEngineNo,
+    required this.showChassisNo,
     required this.onSave,
   });
 
@@ -1760,6 +2177,14 @@ class _ManageImportFieldsSheetState extends State<_ManageImportFieldsSheet> {
   late bool _amount;
   late bool _loanId;
   late bool _phone;
+  late bool _address;
+  late bool _overdueDays;
+  late bool _priority;
+  late bool _assetModel;
+  late bool _assetRegNo;
+  late bool _assetVariant;
+  late bool _engineNo;
+  late bool _chassisNo;
 
   @override
   void initState() {
@@ -1768,6 +2193,14 @@ class _ManageImportFieldsSheetState extends State<_ManageImportFieldsSheet> {
     _amount = widget.showAmount;
     _loanId = widget.showLoanId;
     _phone = widget.showPhone;
+    _address = widget.showAddress;
+    _overdueDays = widget.showOverdueDays;
+    _priority = widget.showPriority;
+    _assetModel = widget.showAssetModel;
+    _assetRegNo = widget.showAssetRegNo;
+    _assetVariant = widget.showAssetVariant;
+    _engineNo = widget.showEngineNo;
+    _chassisNo = widget.showChassisNo;
   }
 
   @override
@@ -1879,6 +2312,63 @@ class _ManageImportFieldsSheetState extends State<_ManageImportFieldsSheet> {
                     value: _phone,
                     onChanged: (val) => setState(() => _phone = val),
                   ),
+                  _buildToggleRow(
+                    title: 'Debtor Address',
+                    description: 'Location or residence of the debtor',
+                    icon: LucideIcons.mapPin,
+                    value: _address,
+                    onChanged: (val) => setState(() => _address = val),
+                  ),
+                  _buildToggleRow(
+                    title: 'Overdue Days',
+                    description: 'Number of days payment is overdue',
+                    icon: LucideIcons.calendarClock,
+                    value: _overdueDays,
+                    onChanged: (val) => setState(() => _overdueDays = val),
+                  ),
+                  _buildToggleRow(
+                    title: 'Priority',
+                    description: 'Assigned Urgency / Priority level',
+                    icon: LucideIcons.alertTriangle,
+                    value: _priority,
+                    onChanged: (val) => setState(() => _priority = val),
+                  ),
+                  _buildToggleRow(
+                    title: 'Asset Model',
+                    description: 'Mapped asset model reference info',
+                    icon: LucideIcons.car,
+                    value: _assetModel,
+                    onChanged: (val) => setState(() => _assetModel = val),
+                  ),
+                  _buildToggleRow(
+                    title: 'Asset Reg No',
+                    description: 'Mapped asset registration number details',
+                    icon: LucideIcons.hash,
+                    value: _assetRegNo,
+                    onChanged: (val) => setState(() => _assetRegNo = val),
+                  ),
+                  _buildToggleRow(
+                    title: 'Asset Variant',
+                    description:
+                        'Mapped asset specification variant configuration',
+                    icon: LucideIcons.layers,
+                    value: _assetVariant,
+                    onChanged: (val) => setState(() => _assetVariant = val),
+                  ),
+                  _buildToggleRow(
+                    title: 'Engine Number',
+                    description: 'Mapped asset engine block identifier key',
+                    icon: LucideIcons.activity,
+                    value: _engineNo,
+                    onChanged: (val) => setState(() => _engineNo = val),
+                  ),
+                  _buildToggleRow(
+                    title: 'Chassis Number',
+                    description: 'Mapped asset chassis serial structural ID',
+                    icon: LucideIcons.shieldAlert,
+                    value: _chassisNo,
+                    onChanged: (val) => setState(() => _chassisNo = val),
+                  ),
                 ],
               ),
             ),
@@ -1921,7 +2411,20 @@ class _ManageImportFieldsSheetState extends State<_ManageImportFieldsSheet> {
                       height: 48,
                       child: ElevatedButton(
                         onPressed: () {
-                          widget.onSave(_name, _amount, _loanId, _phone);
+                          widget.onSave(
+                            _name,
+                            _amount,
+                            _loanId,
+                            _phone,
+                            _address,
+                            _overdueDays,
+                            _priority,
+                            _assetModel,
+                            _assetRegNo,
+                            _assetVariant,
+                            _engineNo,
+                            _chassisNo,
+                          );
                           Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(

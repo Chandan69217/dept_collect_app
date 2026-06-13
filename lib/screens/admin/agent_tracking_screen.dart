@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
+import '../../widgets/custom_feedback.dart';
 import 'agent_profile_screen.dart';
 
 class AgentTrackingScreen extends StatefulWidget {
@@ -21,6 +22,37 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
   final _db = DatabaseService();
   String _searchQuery = '';
   String _selectedZoneFilter = 'ALL'; // 'ALL', 'Mumbai Metro Area', 'Mumbai South', 'Mumbai West'
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAgents();
+  }
+
+  Future<void> _fetchAgents() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      await _db.fetchAgentsFromApi();
+    } catch (e) {
+      if (mounted) {
+        CustomFeedback.showToast(
+          context,
+          'Failed to load live agents: ${e.toString().replaceAll('Exception: ', '')}',
+          type: 'error',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +76,12 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
 
         final scaffoldBody = Column(
           children: [
+            if (_isLoading)
+              const LinearProgressIndicator(
+                color: AppTheme.primary,
+                backgroundColor: Color(0xFFEFF4FF),
+                minHeight: 3,
+              ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
@@ -154,11 +192,10 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
         return Scaffold(
           backgroundColor: AppTheme.background,
           appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
+
             title: const Text(
               'Field Agents Productivity Cockpit',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary),
+
             ),
           ),
           body: scaffoldBody,

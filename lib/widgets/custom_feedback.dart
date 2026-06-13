@@ -82,6 +82,7 @@ class CustomFeedback {
     String cancelLabel = 'CANCEL',
     VoidCallback? onConfirm,
     bool showCancel = true,
+    Widget? customBody,
   }) {
     IconData icon;
     Color color;
@@ -141,15 +142,18 @@ class CustomFeedback {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.secondary,
-                height: 1.5,
+            if (customBody != null)
+              customBody
+            else
+              Text(
+                message,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.secondary,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
             const SizedBox(height: 24),
             Row(
               children: [

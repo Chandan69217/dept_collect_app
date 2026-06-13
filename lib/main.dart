@@ -6,9 +6,16 @@ import 'screens/agent/agent_dashboard.dart';
 import 'screens/admin/admin_dashboard.dart';
 import 'screens/agent/security_settings.dart';
 import 'screens/admin/upload_data_screen.dart';
+import 'services/shared_prefs_service.dart';
+import 'services/database_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SharedPrefsService.init();
+  
+  // Try restoring saved session
+  await DatabaseService().tryAutoLogin();
+  
   runApp(const MyApp());
 }
 

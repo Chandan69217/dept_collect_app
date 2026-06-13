@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
+import '../../constants/app_constants.dart';
 import '../../widgets/custom_bento_card.dart';
 import 'record_payment_sheet.dart';
 import 'schedule_visit_sheet.dart';
+import '../../widgets/custom_feedback.dart';
 
 class CustomerDetailsScreen extends StatelessWidget {
   final dynamic customer; // Customer model
@@ -78,10 +81,10 @@ class CustomerDetailsScreen extends StatelessWidget {
           orElse: () => customer,
         );
 
-        final bool isAdmin = db.currentRole == 'ADMIN';
+        final bool isAdmin = db.currentRole == AppConstants.roleAdmin;
 
-        final bool isPaid = currentCust.status == 'PAID';
-        final bool isPending = currentCust.status == 'PENDING_VERIFICATION';
+        final bool isPaid = currentCust.status == AppConstants.statusPaid;
+        final bool isPending = currentCust.status == AppConstants.statusPendingVerification;
 
         // Extract initials for the avatar
         final initials = currentCust.name
@@ -165,7 +168,7 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: currentCust.priority == 'HIGH'
+                                        color: currentCust.priority == AppConstants.priorityHigh
                                             ? AppTheme.errorContainer
                                             : AppTheme.warningContainer,
                                         borderRadius: BorderRadius.circular(99),
@@ -177,18 +180,18 @@ class CustomerDetailsScreen extends StatelessWidget {
                                             LucideIcons.alertTriangle,
                                             size: 12,
                                             color:
-                                                currentCust.priority == 'HIGH'
+                                                currentCust.priority == AppConstants.priorityHigh
                                                 ? AppTheme.error
                                                 : AppTheme.warning,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            '${currentCust.priority == 'HIGH' ? 'High' : 'Medium'} Priority',
+                                            '${currentCust.priority == AppConstants.priorityHigh ? 'High' : 'Medium'} Priority',
                                             style: TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.bold,
                                               color:
-                                                  currentCust.priority == 'HIGH'
+                                                  currentCust.priority == AppConstants.priorityHigh
                                                   ? AppTheme.error
                                                   : AppTheme.warning,
                                             ),
@@ -249,16 +252,39 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Calling ${currentCust.name} at ${currentCust.phone}...',
-                                          ),
-                                        ),
-                                      );
+                                    onPressed: () async {
+                                      final phone = currentCust.phone.trim();
+                                      if (phone.isEmpty) {
+                                        CustomFeedback.showToast(
+                                          context,
+                                          'Phone number not available for ${currentCust.name}',
+                                          type: 'warning',
+                                        );
+                                        return;
+                                      }
+
+                                      final Uri phoneUri = Uri(scheme: 'tel', path: phone);
+                                      try {
+                                        if (await canLaunchUrl(phoneUri)) {
+                                          await launchUrl(phoneUri);
+                                        } else {
+                                          if (context.mounted) {
+                                            CustomFeedback.showToast(
+                                              context,
+                                              'Could not launch dialer for $phone',
+                                              type: 'error',
+                                            );
+                                          }
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          CustomFeedback.showToast(
+                                            context,
+                                            'Error placing call: ${e.toString()}',
+                                            type: 'error',
+                                          );
+                                        }
+                                      }
                                     },
                                     icon: const Icon(
                                       LucideIcons.phone,
@@ -290,14 +316,9 @@ class CustomerDetailsScreen extends StatelessWidget {
                                       ),
                                     ),
                                     onPressed: () {
-                                      ScaffoldMessenger.of(
+                                      CustomFeedback.showToast(
                                         context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Opening WhatsApp chat for ${currentCust.name}...',
-                                          ),
-                                        ),
+                                        'Opening WhatsApp chat for ${currentCust.name}...',
                                       );
                                     },
                                     icon: const Icon(
@@ -606,14 +627,9 @@ class CustomerDetailsScreen extends StatelessWidget {
                                       ),
                                     ),
                                     onPressed: () {
-                                      ScaffoldMessenger.of(
+                                      CustomFeedback.showToast(
                                         context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Opening turn-by-turn map routing direction...',
-                                          ),
-                                        ),
+                                        'Opening turn-by-turn map routing direction...',
                                       );
                                     },
                                     icon: const Icon(

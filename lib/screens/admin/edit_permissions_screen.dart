@@ -4,6 +4,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/custom_bento_card.dart';
 import '../../models/agent.dart';
 import '../../services/database_service.dart';
+import '../../widgets/custom_feedback.dart';
 
 class EditPermissionsScreen extends StatefulWidget {
   final Agent agent;
@@ -452,25 +453,10 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
       });
 
       // Show a floating material toast
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppTheme.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          margin: const EdgeInsets.only(bottom: 100, left: 32, right: 32),
-          content: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(LucideIcons.circleCheck, color: Colors.white, size: 18),
-              SizedBox(width: 8),
-              Text(
-                'Permissions Updated Successfully',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13),
-              ),
-            ],
-          ),
-        ),
+      CustomFeedback.showToast(
+        context,
+        'Permissions Updated Successfully',
+        type: 'success',
       );
 
       // Return back to profile

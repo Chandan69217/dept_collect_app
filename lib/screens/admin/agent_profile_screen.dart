@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
 import '../../models/agent.dart';
 import 'edit_permissions_screen.dart';
+import '../../widgets/custom_feedback.dart';
 
 class AgentProfileScreen extends StatelessWidget {
   final Agent agent;
@@ -167,8 +169,25 @@ class AgentProfileScreen extends StatelessWidget {
                           activeColor: AppTheme.primary,
                           inactiveThumbColor: Colors.white,
                           inactiveTrackColor: AppTheme.outlineVariant,
-                          onChanged: (val) {
-                            db.toggleAgentOnlineStatus(agent.id, val);
+                          onChanged: (val) async {
+                            try {
+                              await db.toggleAgentOnlineStatus(agent.id, val);
+                              if (context.mounted) {
+                                CustomFeedback.showToast(
+                                  context,
+                                  'Agent status updated successfully',
+                                  type: 'success',
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                CustomFeedback.showToast(
+                                  context,
+                                  'Failed to update agent status: ${e.toString().replaceAll('Exception: ', '')}',
+                                  type: 'error',
+                                );
+                              }
+                            }
                           },
                         ),
                       ),
@@ -193,13 +212,39 @@ class AgentProfileScreen extends StatelessWidget {
                 color: AppTheme.primary,
                 size: 20,
               ),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppTheme.primary,
-                    content: Text('Initiating call to ${agent.name}...'),
-                  ),
-                );
+              onPressed: () async {
+                final phone = agent.phone.trim();
+                if (phone.isEmpty) {
+                  CustomFeedback.showToast(
+                    context,
+                    'Phone number not available for ${agent.name}',
+                    type: 'warning',
+                  );
+                  return;
+                }
+
+                final Uri phoneUri = Uri(scheme: 'tel', path: phone);
+                try {
+                  if (await canLaunchUrl(phoneUri)) {
+                    await launchUrl(phoneUri);
+                  } else {
+                    if (context.mounted) {
+                      CustomFeedback.showToast(
+                        context,
+                        'Could not launch dialer for $phone',
+                        type: 'error',
+                      );
+                    }
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    CustomFeedback.showToast(
+                      context,
+                      'Error placing call: ${e.toString()}',
+                      type: 'error',
+                    );
+                  }
+                }
               },
             ),
           ),
@@ -449,62 +494,85 @@ class AgentProfileScreen extends StatelessWidget {
     DatabaseService db,
     Agent agent,
   ) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: SizedBox(
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EditPermissionsScreen(agent: agent),
-                  ),
-                );
-              },
-              icon: const Icon(LucideIcons.squarePen, size: 16),
-              label: const Text(
-                'Edit Permissions',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton.icon(
+            onPressed: () => _showEditDetailsDialog(context, db, agent),
+            icon: const Icon(LucideIcons.userPen, size: 16),
+            label: const Text(
+              'Edit Agent Details',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: SizedBox(
-            height: 48,
-            child: OutlinedButton.icon(
-              onPressed: () => _showDeactivationDialog(context, db, agent),
-              icon: const Icon(
-                LucideIcons.userX,
-                size: 16,
-                color: AppTheme.error,
-              ),
-              label: const Text(
-                'Deactivate Agent',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: AppTheme.error,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppTheme.error, width: 1.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EditPermissionsScreen(agent: agent),
+                      ),
+                    );
+                  },
+                  icon: const Icon(LucideIcons.squarePen, size: 16),
+                  label: const Text(
+                    'Permissions',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppTheme.primary, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showDeactivationDialog(context, db, agent),
+                  icon: const Icon(
+                    LucideIcons.userX,
+                    size: 16,
+                    color: AppTheme.error,
+                  ),
+                  label: const Text(
+                    'Deactivate',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppTheme.error,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppTheme.error, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -516,64 +584,120 @@ class AgentProfileScreen extends StatelessWidget {
     DatabaseService db,
     Agent agent,
   ) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text(
-            'Deactivate Agent Profile?',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            'This action will mark ${agent.name} (#${agent.id.toUpperCase()}) as inactive. They will no longer be able to log in or sync local collection ledgers until reactivated.',
-            style: const TextStyle(fontSize: 13, height: 1.4),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'CANCEL',
-                style: TextStyle(
-                  color: AppTheme.secondary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                db.toggleAgentOnlineStatus(agent.id, false);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppTheme.error,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    content: Text(
-                      'Agent ${agent.name} is now Offline.',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                );
-              },
-              child: const Text(
-                'DEACTIVATE',
-                style: TextStyle(
-                  color: AppTheme.error,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
+    CustomFeedback.showFeedbackDialog(
+      context,
+      title: 'Deactivate Agent Profile?',
+      message: 'This action will mark ${agent.name} (#${agent.id.toUpperCase()}) as inactive. They will no longer be able to log in or sync local collection ledgers until reactivated.',
+      type: 'warning',
+      confirmLabel: 'DEACTIVATE',
+      onConfirm: () async {
+        try {
+          await db.toggleAgentOnlineStatus(agent.id, false);
+          if (context.mounted) {
+            CustomFeedback.showToast(
+              context,
+              'Agent ${agent.name} is now Offline.',
+              type: 'success',
+            );
+          }
+        } catch (e) {
+          if (context.mounted) {
+            CustomFeedback.showToast(
+              context,
+              'Failed to deactivate agent: ${e.toString().replaceAll('Exception: ', '')}',
+              type: 'error',
+            );
+          }
+        }
       },
+    );
+  }
+
+  // Edit details form dialog
+  void _showEditDetailsDialog(
+    BuildContext context,
+    DatabaseService db,
+    Agent agent,
+  ) {
+    final nameController = TextEditingController(text: agent.name);
+    final emailController = TextEditingController(text: agent.email);
+    final phoneController = TextEditingController(text: agent.phone);
+
+    CustomFeedback.showFeedbackDialog(
+      context,
+      title: 'Edit Agent Details',
+      message: '',
+      type: 'info',
+      confirmLabel: 'SAVE CHANGES',
+      onConfirm: () async {
+        final newName = nameController.text.trim();
+        final newEmail = emailController.text.trim();
+        final newPhone = phoneController.text.trim();
+
+        if (newName.isEmpty || newEmail.isEmpty || newPhone.isEmpty) {
+          CustomFeedback.showToast(
+            context,
+            'All fields are required.',
+            type: 'error',
+          );
+          return;
+        }
+
+        try {
+          await db.updateAgentOnBackend(
+            agentId: agent.id,
+            fullName: newName,
+            email: newEmail,
+            mobile: newPhone,
+          );
+          if (context.mounted) {
+            CustomFeedback.showToast(
+              context,
+              'Agent details updated successfully!',
+              type: 'success',
+            );
+          }
+        } catch (e) {
+          if (context.mounted) {
+            CustomFeedback.showToast(
+              context,
+              'Failed to update agent: ${e.toString().replaceAll('Exception: ', '')}',
+              type: 'error',
+            );
+          }
+        }
+      },
+      customBody: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: nameController,
+            decoration: const InputDecoration(
+              labelText: 'Full Name',
+              hintText: 'Enter agent full name',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: emailController,
+            decoration: const InputDecoration(
+              labelText: 'Email Address',
+              hintText: 'Enter agent email address',
+            ),
+            keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: phoneController,
+            decoration: const InputDecoration(
+              labelText: 'Mobile Number',
+              hintText: 'Enter agent mobile number',
+            ),
+            keyboardType: TextInputType.phone,
+          ),
+        ],
+      ),
     );
   }
 

@@ -14,6 +14,11 @@ class Customer {
   final String status; // 'PAID', 'OVERDUE', 'PENDING_VERIFICATION'
   final List<String> notes;
   final DateTime? scheduledVisit;
+  final String assetModel;
+  final String assetRegNo;
+  final String engineNumber;
+  final String chasisNumber;
+  final String assetVariant;
 
   const Customer({
     required this.id,
@@ -31,6 +36,11 @@ class Customer {
     required this.status,
     this.notes = const [],
     this.scheduledVisit,
+    this.assetModel = '',
+    this.assetRegNo = '',
+    this.engineNumber = '',
+    this.chasisNumber = '',
+    this.assetVariant = '',
   });
 
   Customer copyWith({
@@ -49,6 +59,11 @@ class Customer {
     String? status,
     List<String>? notes,
     DateTime? scheduledVisit,
+    String? assetModel,
+    String? assetRegNo,
+    String? engineNumber,
+    String? chasisNumber,
+    String? assetVariant,
   }) {
     return Customer(
       id: id ?? this.id,
@@ -66,6 +81,11 @@ class Customer {
       status: status ?? this.status,
       notes: notes ?? this.notes,
       scheduledVisit: scheduledVisit ?? this.scheduledVisit,
+      assetModel: assetModel ?? this.assetModel,
+      assetRegNo: assetRegNo ?? this.assetRegNo,
+      engineNumber: engineNumber ?? this.engineNumber,
+      chasisNumber: chasisNumber ?? this.chasisNumber,
+      assetVariant: assetVariant ?? this.assetVariant,
     );
   }
 }

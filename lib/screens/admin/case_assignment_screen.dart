@@ -5,6 +5,7 @@ import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
 import '../../models/customer.dart';
 import '../agent/customer_details_screen.dart';
+import '../../widgets/custom_feedback.dart';
 
 class CaseAssignmentScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -1066,165 +1067,122 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
   }
 
   void _showBulkDeployDialog(List<CaseItem> allCases) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              const Icon(LucideIcons.userPlus, color: AppTheme.primary),
-              const SizedBox(width: 8),
-              const Text(
-                'Deploy Active Agent',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+    CustomFeedback.showFeedbackDialog(
+      context,
+      title: 'Deploy Active Agent',
+      message: '',
+      type: 'info',
+      showCancel: false,
+      confirmLabel: 'CANCEL',
+      customBody: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              'Assigning ${_selectedCaseIds.length} Case${_selectedCaseIds.length > 1 ? 's' : ''} simultaneously.',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: AppTheme.primary,
               ),
-            ],
+            ),
           ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(10),
+          const SizedBox(height: 16),
+          const Text(
+            'SELECT AGENT PORTFOLIO TARGET:',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.outline,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: _db.agents.where((a) => !a.isAdmin).length,
+              separatorBuilder: (context, index) =>
+                  const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final agent = _db.agents
+                    .where((a) => !a.isAdmin)
+                    .toList()[index];
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    radius: 18,
+                    backgroundImage: NetworkImage(agent.avatarUrl),
                   ),
-                  child: Text(
-                    'Assigning ${_selectedCaseIds.length} Case${_selectedCaseIds.length > 1 ? 's' : ''} simultaneously.',
+                  title: Text(
+                    agent.name,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: AppTheme.primary,
+                      fontSize: 13,
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'SELECT AGENT PORTFOLIO TARGET:',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.outline,
-                    letterSpacing: 0.5,
+                  subtitle: Text(
+                    'Zone: ${agent.zone} • ${agent.casesCount} active cases',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.secondary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: _db.agents.where((a) => !a.isAdmin).length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final agent = _db.agents
-                          .where((a) => !a.isAdmin)
-                          .toList()[index];
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                          radius: 18,
-                          backgroundImage: NetworkImage(agent.avatarUrl),
-                        ),
-                        title: Text(
-                          agent.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Zone: ${agent.zone} • ${agent.casesCount} active cases',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.secondary,
-                          ),
-                        ),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppTheme.outlineVariant),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'Assign All',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primary,
-                            ),
-                          ),
-                        ),
-                        onTap: () {
-                          // Execute bulk migrations on database service loop!
-                          for (var id in _selectedCaseIds) {
-                            if (id.startsWith('cust_')) {
-                              _db.assignCase(id, agent.id);
-                            } else {
-                              // Static local override
-                              _mockAssignments[id] = agent.id;
-                            }
-                          }
-
-                          final count = _selectedCaseIds.length;
-                          setState(() {
-                            _selectedCaseIds.clear(); // Reset selections
-                          });
-
-                          Navigator.pop(context);
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: AppTheme.success,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              content: Row(
-                                children: [
-                                  const Icon(
-                                    LucideIcons.checkCircle,
-                                    color: Colors.white,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Successfully deployed $count case${count > 1 ? 's' : ''} to ${agent.name}.',
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppTheme.outlineVariant),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Assign All',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primary,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                  onTap: () {
+                    // Execute bulk migrations on database service loop!
+                    for (var id in _selectedCaseIds) {
+                      if (id.startsWith('cust_')) {
+                        _db.assignCase(id, agent.id);
+                      } else {
+                        // Static local override
+                        _mockAssignments[id] = agent.id;
+                      }
+                    }
+
+                    final count = _selectedCaseIds.length;
+                    setState(() {
+                      _selectedCaseIds.clear(); // Reset selections
+                    });
+
+                    Navigator.pop(context);
+
+                    CustomFeedback.showToast(
+                      context,
+                      'Successfully deployed $count case${count > 1 ? 's' : ''} to ${agent.name}.',
+                      type: 'success',
+                    );
+                  },
+                );
+              },
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  color: AppTheme.secondary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -1246,42 +1204,12 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                 }
               }
               _selectedCaseIds.clear(); // Reset selections
+              CustomFeedback.showToast(
+                context,
+                'Updated priority to $priority for ${selectedCases.length} case${selectedCases.length > 1 ? 's' : ''}.',
+                type: 'success',
+              );
             });
-
-            // Show custom dark toast SnackBar
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: const Color(0xFF0B1C30),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                margin: const EdgeInsets.only(bottom: 24, left: 32, right: 32),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                content: Row(
-                  children: [
-                    const Icon(
-                      LucideIcons.checkCircle,
-                      color: Color(0xFFB3C5FF),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      "Priority updated for ${selectedCases.length} case${selectedCases.length > 1 ? 's' : ''}",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
           },
         );
       },

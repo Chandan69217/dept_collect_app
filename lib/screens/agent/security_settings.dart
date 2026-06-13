@@ -542,54 +542,46 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
   void _showPinResetDialog() {
     final pinController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Security PIN'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter a new 4-digit PIN to authorize collection overrides on this device.',
-              style: TextStyle(fontSize: 13, color: AppTheme.secondary),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: pinController,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 4,
-              decoration: const InputDecoration(
-                labelText: 'NEW 4-DIGIT PIN',
-                counterText: '',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL'),
+    CustomFeedback.showFeedbackDialog(
+      context,
+      title: 'Reset Security PIN',
+      message: '',
+      type: 'info',
+      confirmLabel: 'UPDATE PIN',
+      onConfirm: () {
+        if (pinController.text.length == 4) {
+          CustomFeedback.showToast(
+            context,
+            'Security Passcode PIN successfully updated!',
+            type: 'success',
+          );
+        } else {
+          CustomFeedback.showToast(
+            context,
+            'PIN must be exactly 4 digits.',
+            type: 'error',
+          );
+        }
+      },
+      customBody: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Enter a new 4-digit PIN to authorize collection overrides on this device.',
+            style: TextStyle(fontSize: 12, color: AppTheme.secondary, height: 1.4),
+            textAlign: TextAlign.center,
           ),
-          ElevatedButton(
-            onPressed: () {
-              if (pinController.text.length == 4) {
-                Navigator.pop(context);
-                CustomFeedback.showToast(
-                  context,
-                  'Security Passcode PIN successfully updated!',
-                  type: 'success',
-                );
-              } else {
-                CustomFeedback.showToast(
-                  context,
-                  'PIN must be exactly 4 digits.',
-                  type: 'error',
-                );
-              }
-            },
-            child: const Text('UPDATE PIN'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: pinController,
+            keyboardType: TextInputType.number,
+            obscureText: true,
+            maxLength: 4,
+            decoration: const InputDecoration(
+              labelText: 'NEW 4-DIGIT PIN',
+              counterText: '',
+            ),
           ),
         ],
       ),

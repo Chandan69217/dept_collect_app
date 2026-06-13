@@ -1,8 +1,13 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import '../models/agent.dart';
 import '../models/customer.dart';
 import '../models/payment_record.dart';
 import '../models/notification.dart';
+import 'shared_prefs_service.dart';
+import 'api_service.dart';
+import '../constants/app_constants.dart';
 
 class DatabaseService extends ChangeNotifier {
   // Singleton Pattern
@@ -12,11 +17,13 @@ class DatabaseService extends ChangeNotifier {
     _initializeData();
   }
 
+  final ApiService _apiService = ApiService();
+
   // App Auth State
   bool _isLoggedIn = false;
   bool get isLoggedIn => _isLoggedIn;
 
-  String _currentRole = 'AGENT'; // 'AGENT' or 'ADMIN'
+  String _currentRole = AppConstants.roleAgent; // 'AGENT' or 'ADMIN'
   String get currentRole => _currentRole;
 
   Agent? _currentUser;
@@ -333,27 +340,125 @@ class DatabaseService extends ChangeNotifier {
   }
 
   // Auth Operations
-  bool login(String username, String password) {
-    if (username.toLowerCase().contains('admin') ||
-        password.toLowerCase().contains('admin')) {
-      _currentRole = 'ADMIN';
-      _currentUser = _agents.firstWhere((a) => a.isAdmin);
-    } else {
-      _currentRole = 'AGENT';
-      // Find matching agent or default to Miller
-      _currentUser = _agents.firstWhere(
-        (a) => a.id == 'miller',
-        orElse: () => _agents[0],
+  Future<bool> login(
+    String email,
+    String password, {
+    required bool isAdmin,
+  }) async {
+    try {
+      final response = await _apiService.login(
+        email,
+        password,
+        isAdmin: isAdmin,
       );
+
+
+      final dataList = response['data'];
+      if (dataList != null && dataList is List && dataList.isNotEmpty) {
+        final sessionData = dataList[0];
+        final token = sessionData['token'];
+
+        final isResponseAdmin = isAdmin;
+        // final userData = isResponseAdmin
+        //     ? sessionData[AppConstants.apiRoleAdmin]
+        //     : sessionData[AppConstants.apiRoleAgent];
+
+        if (token != null && sessionData != null) {
+          final status = sessionData['status']?.toString() ?? '';
+          if (status.toLowerCase() != AppConstants.statusActive) {
+            throw Exception('You are blocked or inactive');
+          }
+
+          final role = isAdmin ? AppConstants.apiRoleAdmin : AppConstants.apiRoleAgent;
+
+          // Store user details in prefs
+          final Map<String, dynamic> storedUser = Map<String, dynamic>.from(
+            sessionData,
+          );
+          storedUser['role'] = role;
+
+          await SharedPrefsService.saveToken(token);
+          await SharedPrefsService.saveUserData(storedUser);
+          await SharedPrefsService.saveIsLoggedIn(true);
+
+          _currentRole = isAdmin ? AppConstants.roleAdmin : AppConstants.roleAgent;
+
+          final fullName = sessionData['full_name'] ?? 'Unknown User';
+          final avatarUrl =
+              (sessionData['profile_pic']?.toString().isNotEmpty == true)
+              ? sessionData['profile_pic'].toString()
+              : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(fullName)}&background=00328A&color=fff&size=150';
+
+          _currentUser = Agent(
+            id:
+                (isAdmin ? sessionData['admin_id'] : sessionData['agent_id'])?.toString() ??
+                'unknown',
+            name: fullName,
+            avatarUrl: avatarUrl,
+            zone: 'Default Zone',
+            assignedTarget: isResponseAdmin ? 0.0 : 15000.0,
+            collectedAmount: 0.0,
+            casesCount: isResponseAdmin ? 0 : 5,
+            pendingVisitsCount: isResponseAdmin ? 0 : 3,
+            isAdmin: isResponseAdmin,
+            isOnline: true,
+            email: sessionData['email'] ?? '',
+            phone: sessionData['mobile'] ?? '',
+            address: sessionData['address'] ?? '',
+          );
+
+          _isLoggedIn = true;
+          notifyListeners();
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      rethrow;
     }
-    _isLoggedIn = true;
-    notifyListeners();
-    return true;
+  }
+
+  // Try AutoLogin
+  Future<void> tryAutoLogin() async {
+    final isLoggedInSaved = SharedPrefsService.isLoggedIn();
+    if (isLoggedInSaved) {
+      final token = SharedPrefsService.getToken();
+      final userData = SharedPrefsService.getUserData();
+      if (token != null && userData != null) {
+        _isLoggedIn = true;
+        final isAdmin = userData['role'] == AppConstants.apiRoleAdmin;
+        _currentRole = isAdmin ? AppConstants.roleAdmin : AppConstants.roleAgent;
+
+        final fullName = userData['full_name'] ?? 'Unknown User';
+        final avatarUrl =
+            (userData['profile_pic']?.toString().isNotEmpty == true)
+            ? userData['profile_pic'].toString()
+            : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(fullName)}&background=00328A&color=fff&size=150';
+
+        _currentUser = Agent(
+          id:
+              (userData['admin_id'] ?? userData['agent_id'])?.toString() ??
+              'unknown',
+          name: fullName,
+          avatarUrl: avatarUrl,
+          zone: 'Default Zone',
+          assignedTarget: isAdmin ? 0.0 : 15000.0,
+          collectedAmount: 0.0,
+          casesCount: isAdmin ? 0 : 5,
+          pendingVisitsCount: isAdmin ? 0 : 3,
+          isAdmin: isAdmin,
+          isOnline: true,
+          email: userData['email'] ?? '',
+          phone: userData['mobile'] ?? '',
+          address: userData['address'] ?? '',
+        );
+      }
+    }
   }
 
   void switchPortal(String role) {
     _currentRole = role;
-    if (role == 'ADMIN') {
+    if (role == AppConstants.roleAdmin) {
       _currentUser = _agents.firstWhere(
         (a) => a.isAdmin,
         orElse: () => _agents[3],
@@ -367,8 +472,11 @@ class DatabaseService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void logout() {
+  // Logout function
+  Future<void> logout() async {
     _isLoggedIn = false;
+    _currentUser = null;
+    await SharedPrefsService.clear();
     notifyListeners();
   }
 
@@ -396,7 +504,7 @@ class DatabaseService extends ChangeNotifier {
       transactionReference: reference,
       receiptImagePath: receiptPath,
       timestamp: DateTime.now(),
-      status: 'PENDING',
+      status: AppConstants.statusPending,
     );
 
     _payments.insert(0, newPayment);
@@ -404,7 +512,7 @@ class DatabaseService extends ChangeNotifier {
     // Update customer status to pending verification
     _customers = _customers.map((c) {
       if (c.id == customerId) {
-        return c.copyWith(status: 'PENDING_VERIFICATION');
+        return c.copyWith(status: AppConstants.statusPendingVerification);
       }
       return c;
     }).toList();
@@ -445,13 +553,13 @@ class DatabaseService extends ChangeNotifier {
     final record = _payments[recordIndex];
 
     // Update record status to APPROVED
-    _payments[recordIndex] = record.copyWith(status: 'APPROVED');
+    _payments[recordIndex] = record.copyWith(status: AppConstants.statusApproved);
 
     // Update customer status to PAID and clear due amount
     _customers = _customers.map((c) {
       if (c.id == record.customerId) {
         return c.copyWith(
-          status: 'PAID',
+          status: AppConstants.statusPaid,
           amountDue: c.amountDue - record.amount >= 0
               ? c.amountDue - record.amount
               : 0,
@@ -506,12 +614,12 @@ class DatabaseService extends ChangeNotifier {
     final record = _payments[recordIndex];
 
     // Update record status to REJECTED
-    _payments[recordIndex] = record.copyWith(status: 'REJECTED');
+    _payments[recordIndex] = record.copyWith(status: AppConstants.statusRejected);
 
     // Update customer status back to OVERDUE
     _customers = _customers.map((c) {
       if (c.id == record.customerId) {
-        return c.copyWith(status: 'OVERDUE');
+        return c.copyWith(status: AppConstants.statusOverdue);
       }
       return c;
     }).toList();
@@ -565,7 +673,7 @@ class DatabaseService extends ChangeNotifier {
             '$agentName scheduled a collection visit with ${customer.name} for ${date.day}/${date.month}/${date.year}.',
         timestamp: DateTime.now(),
         type: 'schedule',
-        recipientRole: 'ADMIN',
+        recipientRole: AppConstants.roleAdmin,
         customerId: customerId,
       ),
     );
@@ -638,7 +746,8 @@ class DatabaseService extends ChangeNotifier {
     _customers.removeWhere((c) => c.id == customerId);
 
     // Adjust agent case count if assigned
-    if (customer.assignedAgentId.isNotEmpty && customer.assignedAgentId != 'unassigned') {
+    if (customer.assignedAgentId.isNotEmpty &&
+        customer.assignedAgentId != 'unassigned') {
       _agents = _agents.map((a) {
         if (a.id == customer.assignedAgentId) {
           return a.copyWith(
@@ -668,7 +777,8 @@ class DatabaseService extends ChangeNotifier {
       if (customer == null) continue;
 
       // Adjust agent case count if assigned
-      if (customer.assignedAgentId.isNotEmpty && customer.assignedAgentId != 'unassigned') {
+      if (customer.assignedAgentId.isNotEmpty &&
+          customer.assignedAgentId != 'unassigned') {
         _agents = _agents.map((a) {
           if (a.id == customer.assignedAgentId) {
             return a.copyWith(
@@ -687,7 +797,8 @@ class DatabaseService extends ChangeNotifier {
     _activityFeed.insert(0, {
       'id': 'act_bulk_delete_${DateTime.now().millisecondsSinceEpoch}',
       'title': 'Bulk Cases Deleted',
-      'subtitle': 'Admin deleted ${customerIds.length} portfolio records simultaneously.',
+      'subtitle':
+          'Admin deleted ${customerIds.length} portfolio records simultaneously.',
       'time': 'Just now',
       'type': 'error',
     });
@@ -718,6 +829,11 @@ class DatabaseService extends ChangeNotifier {
         lng: 72.8777 + (addedCount * 0.01),
         assignedAgentId: 'miller', // auto assign to miller for test
         status: 'OVERDUE',
+        assetModel: r['assetModel'] ?? '',
+        assetRegNo: r['assetRegNo'] ?? '',
+        engineNumber: r['engineNumber'] ?? '',
+        chasisNumber: r['chasisNumber'] ?? '',
+        assetVariant: r['assetVariant'] ?? '',
       );
       _customers.add(newCust);
       addedCount++;
@@ -785,7 +901,26 @@ class DatabaseService extends ChangeNotifier {
   }
 
   // Toggle Field Agent Status
-  void toggleAgentOnlineStatus(String agentId, bool isOnline) {
+  Future<void> toggleAgentOnlineStatus(String agentId, bool isOnline) async {
+    final agentMatches = _agents.where((a) => a.id == agentId);
+
+    if (agentMatches.isEmpty) {
+      log('Agent not found: $agentId');
+      return;
+    }
+
+    final agent = agentMatches.first;
+
+    final statusString = isOnline ? 'Active' : 'Inactive';
+
+    await _apiService.updateAgent(
+      email: agent.email,
+      fullName: agent.name,
+      mobile: agent.phone,
+      agentId: agentId,
+      status: statusString,
+    );
+
     _agents = _agents.map((a) {
       if (a.id == agentId) {
         return a.copyWith(isOnline: isOnline);
@@ -794,18 +929,62 @@ class DatabaseService extends ChangeNotifier {
     }).toList();
 
     if (_currentUser?.id == agentId) {
-      _currentUser = _agents.firstWhere((a) => a.id == agentId);
+      final currentUserMatch = _agents.where((a) => a.id == agentId);
+
+      if (currentUserMatch.isNotEmpty) {
+        _currentUser = currentUserMatch.first;
+      }
     }
 
-    // Log in activity feed
     _activityFeed.insert(0, {
       'id': 'act_status_${agentId}_${DateTime.now().millisecondsSinceEpoch}',
       'title': isOnline ? 'Agent Online' : 'Agent Offline',
       'subtitle':
-          'Agent ID #${agentId.toUpperCase()} is now ${isOnline ? 'Online' : 'Offline'}',
+      'Agent ID #${agentId.toUpperCase()} is now ${isOnline ? 'Online' : 'Offline'}',
       'time': 'Just now',
       'type': isOnline ? 'login' : 'warning',
     });
+
+    notifyListeners();
+  }
+
+  // Update Agent details on the backend
+  Future<void> updateAgentOnBackend({
+    required String agentId,
+    String? fullName,
+    String? email,
+    String? mobile,
+    String? status,
+  }) async {
+    await _apiService.updateAgent(
+      agentId: agentId,
+      fullName: fullName,
+      email: email,
+      mobile: mobile,
+      status: status,
+    );
+
+    _agents = _agents.map((a) {
+      if (a.id == agentId) {
+        return a.copyWith(
+          name: fullName ?? a.name,
+          email: email ?? a.email,
+          phone: mobile ?? a.phone,
+          isOnline: status != null ? (status.toLowerCase() == AppConstants.statusActive) : a.isOnline,
+        );
+      }
+      return a;
+    }).toList();
+
+    if (_currentUser?.id == agentId) {
+      final matchingAgents = _agents.where((a) => a.id == agentId);
+
+      if (matchingAgents.isNotEmpty) {
+        _currentUser = matchingAgents.first;
+      } else {
+        log("Agent not found in _agents list: $agentId");
+      }
+    }
 
     notifyListeners();
   }
@@ -819,12 +998,17 @@ class DatabaseService extends ChangeNotifier {
     required String avatarUrl,
   }) {
     if (_currentUser == null) return;
+
+    final finalAvatarUrl = avatarUrl.isNotEmpty
+        ? avatarUrl
+        : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name.isNotEmpty ? name : "User")}&background=00328A&color=fff&size=150';
+
     final updatedAgent = _currentUser!.copyWith(
       name: name,
       email: email,
       phone: phone,
       address: address,
-      avatarUrl: avatarUrl,
+      avatarUrl: finalAvatarUrl,
     );
 
     // Update inside _agents list
@@ -836,6 +1020,17 @@ class DatabaseService extends ChangeNotifier {
     }).toList();
 
     _currentUser = updatedAgent;
+
+    // Update in SharedPreferences so it persists across restarts
+    final storedUser = SharedPrefsService.getUserData();
+    if (storedUser != null) {
+      storedUser['full_name'] = name;
+      storedUser['email'] = email;
+      storedUser['mobile'] = phone;
+      storedUser['address'] = address;
+      storedUser['profile_pic'] = finalAvatarUrl;
+      SharedPrefsService.saveUserData(storedUser);
+    }
 
     // Log update in activity feed
     _activityFeed.insert(0, {
@@ -866,7 +1061,8 @@ class DatabaseService extends ChangeNotifier {
 
     // Log update in activity feed
     _activityFeed.insert(0, {
-      'id': 'act_zone_update_${agentId}_${DateTime.now().millisecondsSinceEpoch}',
+      'id':
+          'act_zone_update_${agentId}_${DateTime.now().millisecondsSinceEpoch}',
       'title': 'Agent Region Updated',
       'subtitle': 'Agent ID #${agentId.toUpperCase()} reassigned to $newZone.',
       'time': 'Just now',
@@ -874,5 +1070,44 @@ class DatabaseService extends ChangeNotifier {
     });
 
     notifyListeners();
+  }
+
+  Future<void> fetchAgentsFromApi() async {
+    try {
+      final List<Map<String, dynamic>> agentsData = await _apiService.getAllAgents();
+      final List<Agent> apiAgents = [];
+      for (var data in agentsData) {
+        final id = (data['agent_id'] ?? data['id'])?.toString() ?? '';
+        final name = data['full_name'] ?? data['name'] ?? 'Agent';
+        final email = data['email'] ?? '';
+        final phone = data['mobile'] ?? data['phone'] ?? '';
+        final status = data['status'] ?? 'Active';
+        final isOnline = status.toLowerCase() == 'active';
+
+        final avatarUrl = 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=00328A&color=fff&size=150';
+
+        apiAgents.add(Agent(
+          id: id,
+          name: name,
+          avatarUrl: avatarUrl,
+          zone: 'Mumbai Metro Area',
+          assignedTarget: 15000.0,
+          collectedAmount: 0.0,
+          casesCount: 0,
+          pendingVisitsCount: 0,
+          isAdmin: false,
+          isOnline: isOnline,
+          email: email,
+          phone: phone,
+        ));
+      }
+
+      // final adminAgents = _agents.where((a) => a.isAdmin).toList();
+      _agents = [ ...apiAgents];
+      notifyListeners();
+    } catch (e,stackTrace) {
+      debugPrint('Error fetching agents: $e , StackTrace: ${stackTrace}');
+      rethrow;
+    }
   }
 }

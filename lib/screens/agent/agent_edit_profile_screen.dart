@@ -1,7 +1,11 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
+import '../../widgets/custom_feedback.dart';
+import '../../constants/app_constants.dart';
 
 class AgentEditProfileScreen extends StatefulWidget {
   const AgentEditProfileScreen({super.key});
@@ -19,6 +23,7 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
   late String _avatarUrl;
+  late String status;
 
   bool _isSaving = false;
   bool _isSaved = false;
@@ -44,6 +49,7 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
     _phoneController = TextEditingController(text: agent?.phone ?? '');
     _addressController = TextEditingController(text: agent?.address ?? '');
     _avatarUrl = agent?.avatarUrl ?? '';
+    status = agent?.isOnline == true ? AppConstants.statusActive : AppConstants.statusInActive;
   }
 
   @override
@@ -56,93 +62,84 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
   }
 
   void _showAvatarSelector() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+    CustomFeedback.showFeedbackDialog(
+      context,
+      title: 'Select Profile Photo',
+      message: '',
+      type: 'info',
+      showCancel: false,
+      confirmLabel: 'CLOSE',
+      customBody: SizedBox(
+        width: double.maxFinite,
+        child: GridView.builder(
+          shrinkWrap: true,
+          itemCount: _presetAvatars.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
           ),
-          title: const Row(
-            children: [
-              Icon(LucideIcons.camera, color: AppTheme.primary),
-              SizedBox(width: 10),
-              Text(
-                'Select Profile Photo',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ],
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: GridView.builder(
-              shrinkWrap: true,
-              itemCount: _presetAvatars.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemBuilder: (context, index) {
-                final url = _presetAvatars[index];
-                final isSelected = _avatarUrl == url;
+          itemBuilder: (context, index) {
+            final url = _presetAvatars[index];
+            final isSelected = _avatarUrl == url;
 
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _avatarUrl = url;
-                    });
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected ? AppTheme.primary : Colors.transparent,
-                        width: 3.5,
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(2),
-                    child: CircleAvatar(
-                      backgroundImage: NetworkImage(url),
-                      backgroundColor: AppTheme.surfaceContainerLow,
-                    ),
-                  ),
-                );
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _avatarUrl = url;
+                });
+                Navigator.pop(context);
               },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  color: AppTheme.secondary,
-                  fontWeight: FontWeight.bold,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected ? AppTheme.primary : Colors.transparent,
+                    width: 3.5,
+                  ),
+                ),
+                padding: const EdgeInsets.all(2),
+                child: CircleAvatar(
+                  backgroundImage: NetworkImage(url),
+                  backgroundColor: AppTheme.surfaceContainerLow,
                 ),
               ),
-            ),
-          ],
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 
-  void _saveProfile() {
+  void _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isSaving = true;
     });
 
-    // Simulate saving delay matching visual specifications
-    Future.delayed(const Duration(milliseconds: 1200), () {
+    try {
+      final agentId = _db.currentUser?.id ?? '';
+      final newName = _nameController.text.trim();
+      final newEmail = _emailController.text.trim();
+      final newPhone = _phoneController.text.trim();
+      final newAddress = _addressController.text.trim();
+
+      // Call the backend update API first
+      await _db.updateAgentOnBackend(
+        agentId: agentId,
+        fullName: newName,
+        email: newEmail,
+        mobile: newPhone,
+        status: status,
+      );
+
+      // Call the local update profile method to update state and save to SharedPreferences
       _db.updateAgentProfile(
-        name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        phone: _phoneController.text.trim(),
-        address: _addressController.text.trim(),
+        name: newName,
+        email: newEmail,
+        phone: newPhone,
+        address: newAddress,
         avatarUrl: _avatarUrl,
       );
 
@@ -152,6 +149,12 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
           _isSaved = true;
         });
 
+        CustomFeedback.showToast(
+          context,
+          'Profile updated successfully!',
+          type: 'success',
+        );
+
         // Show direct premium feedback bar before pop-out
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
@@ -159,7 +162,20 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
           }
         });
       }
-    });
+    } catch (e,stackTrace) {
+      log("Update Error: $e");
+      log("Stack Trace: $stackTrace");
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+        CustomFeedback.showToast(
+          context,
+          'Failed to update profile: ${e.toString().replaceAll('Exception: ', '')}',
+          type: 'error',
+        );
+      }
+    }
   }
 
   @override
@@ -170,18 +186,14 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
+
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft, color: AppTheme.primary),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Edit Profile',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppTheme.primary,
-          ),
+
         ),
       ),
       body: Column(
@@ -306,7 +318,10 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
 
                   // Inputs list
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 12.0,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -336,7 +351,7 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
                             if (val == null || val.trim().isEmpty) {
                               return 'Email is required';
                             }
-                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val.trim())) {
+                            if (!AppConstants.emailRegex.hasMatch(val.trim())) {
                               return 'Enter a valid email address';
                             }
                             return null;
@@ -349,23 +364,29 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
                         _buildInputField(
                           controller: _phoneController,
                           icon: LucideIcons.phone,
+                          maxLength: 10,
                           hintText: 'Enter phone number',
                           keyboardType: TextInputType.phone,
                           validator: (val) {
                             if (val == null || val.trim().isEmpty) {
                               return 'Phone number is required';
                             }
+                            if (!AppConstants.mobileRegex.hasMatch(
+                              val.trim(),
+                            )) {
+                              return 'Enter a valid 10-digit phone number';
+                            }
                             return null;
                           },
                         ),
                         const SizedBox(height: 20),
 
-                        // Office Address Input
-                        _buildInputLabel('Office Address'),
+                        // Permanent Address Input
+                        _buildInputLabel('Permanent Address'),
                         _buildInputField(
                           controller: _addressController,
                           icon: LucideIcons.mapPin,
-                          hintText: 'Enter office location',
+                          hintText: 'Enter permanent address',
                           maxLines: 3,
                           keyboardType: TextInputType.multiline,
                         ),
@@ -382,7 +403,8 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Agent Clearance',
@@ -414,7 +436,8 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
                               ),
                               const SizedBox(height: 12),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Region Support Area',
@@ -470,9 +493,13 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
                 child: ElevatedButton(
                   onPressed: _isSaving || _isSaved ? null : _saveProfile,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isSaved ? const Color(0xFF2E7D32) : const Color(0xFF00328A),
+                    backgroundColor: _isSaved
+                        ? const Color(0xFF2E7D32)
+                        : const Color(0xFF00328A),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: _isSaved ? const Color(0xFF2E7D32) : const Color(0xFF00328A).withOpacity(0.6),
+                    disabledBackgroundColor: _isSaved
+                        ? const Color(0xFF2E7D32)
+                        : const Color(0xFF00328A).withOpacity(0.6),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -552,66 +579,20 @@ class _AgentEditProfileScreenState extends State<AgentEditProfileScreen> {
     required IconData icon,
     required String hintText,
     int maxLines = 1,
+    int? maxLength,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.01),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: TextFormField(
-        controller: controller,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        validator: validator,
-        style: const TextStyle(
-          fontSize: 14.5,
-          fontWeight: FontWeight.w500,
-          color: AppTheme.onSurface,
-          fontFamily: 'Inter',
-        ),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(
-            color: AppTheme.secondary.withOpacity(0.5),
-            fontSize: 13.5,
-            fontWeight: FontWeight.normal,
-          ),
-          prefixIcon: Icon(
-            icon,
-            color: AppTheme.outline,
-            size: 20,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppTheme.outlineVariant, width: 1.0),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppTheme.outlineVariant, width: 1.0),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppTheme.primary, width: 2.0),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppTheme.error, width: 1.0),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppTheme.error, width: 2.0),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      maxLength: maxLength,
+      keyboardType: keyboardType,
+      validator: validator,
+      decoration: InputDecoration(
+        counterText: "",
+        hintText: hintText,
+        prefixIcon: Icon(icon, color: AppTheme.outline, size: 20),
       ),
     );
   }

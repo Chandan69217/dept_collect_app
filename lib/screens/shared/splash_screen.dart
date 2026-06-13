@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
+import '../../services/database_service.dart';
+import '../../constants/app_constants.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -48,7 +50,15 @@ class _SplashScreenState extends State<SplashScreen>
 
     Future.delayed(const Duration(milliseconds: 3000), () {
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
+        final db = DatabaseService();
+        if (db.isLoggedIn) {
+          final targetRoute = db.currentRole == AppConstants.roleAdmin
+              ? '/admin_dashboard'
+              : '/agent_dashboard';
+          Navigator.of(context).pushReplacementNamed(targetRoute);
+        } else {
+          Navigator.of(context).pushReplacementNamed('/login');
+        }
       }
     });
   }
@@ -81,22 +91,12 @@ class _SplashScreenState extends State<SplashScreen>
                 opacity: _iconFade,
                 child: Column(
                   children: [
-                    // Shield icon container
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppTheme.primary.withOpacity(0.2),
-                        ),
-                      ),
-                      child: const Icon(
-                        AppTheme.appIcon,
-                        color: AppTheme.primary,
-                        size: 32,
-                      ),
+                    // Company logo
+                    Image.asset(
+                      AppTheme.appLogo,
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 24),
                     // Logo text

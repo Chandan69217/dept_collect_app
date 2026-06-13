@@ -6,6 +6,7 @@ import '../../widgets/custom_bento_card.dart';
 import '../shared/login_screen.dart';
 import 'security_settings.dart';
 import 'agent_edit_profile_screen.dart';
+import '../../widgets/custom_feedback.dart';
 
 class AgentProfileScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -568,15 +569,12 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                         setState(() {
                           _pushNotificationsEnabled = val;
                         });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              _pushNotificationsEnabled
-                                  ? 'Push notifications activated.'
-                                  : 'Push notifications silenced.',
-                            ),
-                            duration: const Duration(seconds: 1),
-                          ),
+                        CustomFeedback.showToast(
+                          context,
+                          _pushNotificationsEnabled
+                              ? 'Push notifications activated.'
+                              : 'Push notifications silenced.',
+                          type: _pushNotificationsEnabled ? 'success' : 'info',
                         );
                       },
                     ),
@@ -599,29 +597,19 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                       subtitle: const Text('Contact tech-ops support desk', style: TextStyle(fontSize: 12)),
                       trailing: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.secondary),
                       onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Support Desk Contact'),
-                            content: const Text(
-                              'Establish encrypted voice call or direct ticket with Mumbai Tech-Ops Support Desk?',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('CANCEL'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Support ticket created. Tech-Ops will contact you.')),
-                                  );
-                                },
-                                child: const Text('ESTABLISH'),
-                              ),
-                            ],
-                          ),
+                        CustomFeedback.showFeedbackDialog(
+                          context,
+                          title: 'Support Desk Contact',
+                          message: 'Establish encrypted voice call or direct ticket with Mumbai Tech-Ops Support Desk?',
+                          type: 'info',
+                          confirmLabel: 'ESTABLISH',
+                          onConfirm: () {
+                            CustomFeedback.showToast(
+                              context,
+                              'Support ticket created. Tech-Ops will contact you.',
+                              type: 'success',
+                            );
+                          },
                         );
                       },
                     ),
@@ -641,32 +629,19 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                   ),
                 ),
                 onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Terminate Session?'),
-                      content: const Text(
-                        'This will terminate your secure offline data caching and log out Miller from this terminal.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('CANCEL'),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            db.logout();
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(builder: (context) => const LoginScreen()),
-                              (route) => false,
-                            );
-                          },
-                          child: const Text('TERMINATE SESSION'),
-                        ),
-                      ],
-                    ),
+                  CustomFeedback.showFeedbackDialog(
+                    context,
+                    title: 'Terminate Session?',
+                    message: 'This will terminate your secure offline data caching and log out ${db.currentUser?.name ?? 'user'} from this terminal.',
+                    type: 'error',
+                    confirmLabel: 'TERMINATE SESSION',
+                    onConfirm: () {
+                      db.logout();
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    },
                   );
                 },
                 icon: const Icon(LucideIcons.logOut, size: 18),

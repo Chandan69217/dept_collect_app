@@ -30,7 +30,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!emailRegex.hasMatch(email)) {
       CustomFeedback.showToast(
         context,
-        'Please enter a valid email format (e.g. agent@debtcollect.in).',
+        'Please enter a valid email format (e.g. agent@ramnandan.in).',
         type: 'error',
       );
       return;

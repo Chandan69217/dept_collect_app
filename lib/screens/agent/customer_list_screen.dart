@@ -5,6 +5,7 @@ import '../../services/database_service.dart';
 import 'customer_details_screen.dart';
 import 'record_payment_sheet.dart';
 import 'schedule_visit_sheet.dart';
+import '../../widgets/custom_feedback.dart';
 
 class CustomerListScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -529,12 +530,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                           ),
                                           onPressed: () {
                                             if (customer.status == 'OVERDUE') {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('Opening Navigation Route direction...')),
+                                              CustomFeedback.showToast(
+                                                context,
+                                                'Opening Navigation Route direction...',
                                               );
                                             } else {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(content: Text('Calling customer ${customer.name} at ${customer.phone}...')),
+                                              CustomFeedback.showToast(
+                                                context,
+                                                'Calling customer ${customer.name} at ${customer.phone}...',
                                               );
                                             }
                                           },

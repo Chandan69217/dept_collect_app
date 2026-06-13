@@ -4,8 +4,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class AppTheme {
   // Global Configurations
-  static const String appName = 'DebtCollect';
+  static const String appName = 'RNC Pvt Ltd';
   static const IconData appIcon = LucideIcons.indianRupee;
+  static const String appLogo = 'assets/logo/logo.png';
 
   // Brand Colors
   static const Color background = Color(0xFFF8F9FF);

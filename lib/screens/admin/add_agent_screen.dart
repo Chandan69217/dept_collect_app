@@ -4,6 +4,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_bento_card.dart';
 import '../../services/database_service.dart';
+import '../../services/api_service.dart';
+import '../../widgets/custom_feedback.dart';
+import '../../constants/app_constants.dart';
 import '../../models/agent.dart';
 
 class AddAgentScreen extends StatefulWidget {
@@ -19,9 +22,10 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
 
   // Controllers
   final _nameController = TextEditingController();
-  final _idController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   String? _selectedRegion;
 
@@ -30,29 +34,19 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
   bool _modifyLedgers = false;
   bool _accessSensitive = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Pre-populate with a random ID matching Stitch format (e.g. 8843-XC)
-    _idController.text = _generateRandomId();
-  }
+  // Form states
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _idController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
-  }
-
-  // ID generator engine
-  String _generateRandomId() {
-    final rand = Random();
-    final randomDigits = 1000 + rand.nextInt(9000);
-    final char1 = String.fromCharCode(65 + rand.nextInt(26));
-    final char2 = String.fromCharCode(65 + rand.nextInt(26));
-    return '$randomDigits-$char1$char2';
   }
 
   @override
@@ -123,51 +117,7 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                         color: AppTheme.onSurface,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'e.g. Marcus Thorne',
-                        hintStyle: TextStyle(
-                          color: AppTheme.secondary.withOpacity(0.5),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        fillColor: Colors.white,
-                        filled: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.primary,
-                            width: 2,
-                          ),
-                        ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.error,
-                            width: 1,
-                          ),
-                        ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.error,
-                            width: 2,
-                          ),
-                        ),
+                        hintText: 'Enter agent full name',
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -175,76 +125,6 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                         }
                         return null;
                       },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Agent ID card stacked vertically
-              CustomBentoCard(
-                padding: 16,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Agent ID',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _idController,
-                      readOnly: true,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.secondary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        fillColor: const Color(0xFFEFF4FF),
-                        filled: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: const Icon(
-                            LucideIcons.refreshCw,
-                            color: AppTheme.primary,
-                            size: 20,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _idController.text = _generateRandomId();
-                            });
-                          },
-                        ),
-                      ),
                     ),
                   ],
                 ),
@@ -259,10 +139,11 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                   children: [
                     Text(
                       'Contact Details',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.onSurface,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.onSurface,
+                          ),
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -282,57 +163,13 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                         color: AppTheme.onSurface,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'm.thorne@debtconnect.pro',
-                        hintStyle: TextStyle(
-                          color: AppTheme.secondary.withOpacity(0.5),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        fillColor: Colors.white,
-                        filled: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.primary,
-                            width: 2,
-                          ),
-                        ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.error,
-                            width: 1,
-                          ),
-                        ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.error,
-                            width: 2,
-                          ),
-                        ),
+                        hintText: 'Enter agent email',
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
                           return 'Email required';
                         }
-                        if (!val.contains('@')) {
+                        if (!AppConstants.emailRegex.hasMatch(val.trim())) {
                           return 'Invalid email format';
                         }
                         return null;
@@ -356,55 +193,123 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                         color: AppTheme.onSurface,
                       ),
                       decoration: InputDecoration(
-                        hintText: '+1 (555) 000-0000',
-                        hintStyle: TextStyle(
-                          color: AppTheme.secondary.withOpacity(0.5),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        fillColor: Colors.white,
-                        filled: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.primary,
-                            width: 2,
-                          ),
-                        ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.error,
-                            width: 1,
-                          ),
-                        ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.error,
-                            width: 2,
-                          ),
-                        ),
+                        hintText: 'Enter agent phone',
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
                           return 'Phone required';
+                        }
+                        if (!AppConstants.mobileRegex.hasMatch(val.trim())) {
+                          return 'Invalid phone format (must be 10 digits)';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Password and Confirm Password Card
+              CustomBentoCard(
+                padding: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Security Credentials',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.onSurface,
+                          ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Password',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.onSurface,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Enter password (min 6 characters)',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? LucideIcons.eyeOff
+                                : LucideIcons.eye,
+                            color: AppTheme.secondary,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.isEmpty) {
+                          return 'Password required';
+                        }
+                        if (!AppConstants.passwordRegex.hasMatch(val)) {
+                          return 'Password must be at least 6 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Confirm Password',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: _obscureConfirmPassword,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.onSurface,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Confirm password',
+
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? LucideIcons.eyeOff
+                                : LucideIcons.eye,
+                            color: AppTheme.secondary,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.isEmpty) {
+                          return 'Confirm password required';
+                        }
+                        if (val != _passwordController.text) {
+                          return 'Passwords do not match';
                         }
                         return null;
                       },
@@ -422,10 +327,11 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                   children: [
                     Text(
                       'Regional Assignment',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.onSurface,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.onSurface,
+                          ),
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -443,42 +349,7 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                         fontSize: 14,
                         color: AppTheme.onSurface,
                       ),
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        fillColor: Colors.white,
-                        filled: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.primary,
-                            width: 2,
-                          ),
-                        ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: const BorderSide(
-                            color: AppTheme.error,
-                            width: 1,
-                          ),
-                        ),
-                      ),
+
                       hint: Text(
                         'Select a region...',
                         style: TextStyle(
@@ -533,10 +404,11 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                       children: [
                         Text(
                           'Initial Permissions',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.onSurface,
-                          ),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.onSurface,
+                              ),
                         ),
                         TextButton(
                           onPressed: () {},
@@ -589,16 +461,33 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                 height: 52,
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _handleSubmit,
-                  icon: const Icon(LucideIcons.userPlus, size: 20, color: Colors.white),
-                  label: const Text(
-                    'Create Agent Profile',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: Colors.white,
-                    ),
-                  ),
+                  onPressed: _isLoading ? null : _handleSubmit,
+                  icon: _isLoading
+                      ? const SizedBox.shrink()
+                      : const Icon(
+                          LucideIcons.userPlus,
+                          size: 20,
+                          color: Colors.white,
+                        ),
+                  label: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : const Text(
+                          'Create Agent Profile',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.white,
+                          ),
+                        ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
@@ -655,10 +544,7 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FF),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: const Color(0xFFC3C6D6),
-          width: 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFC3C6D6), width: 1.0),
       ),
       child: Row(
         children: [
@@ -702,7 +588,9 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
             activeTrackColor: const Color(0xFFD3E4FE),
             inactiveThumbColor: AppTheme.secondary,
             inactiveTrackColor: Colors.white,
-            trackOutlineColor: MaterialStateProperty.all(const Color(0xFFC3C6D6)),
+            trackOutlineColor: MaterialStateProperty.all(
+              const Color(0xFFC3C6D6),
+            ),
             onChanged: onChanged,
           ),
         ],
@@ -711,65 +599,108 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
   }
 
   // Handle form submission and database registration
-  void _handleSubmit() {
+  void _handleSubmit() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // Pick a random default avatar image from existing agents to keep design high-fidelity
-      final List<String> avatars = [
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', // Rahul style
-        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', // Priya style
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-      ];
-      final String randAvatar = avatars[Random().nextInt(avatars.length)];
+      setState(() {
+        _isLoading = true;
+      });
 
       final String inputName = _nameController.text.trim();
-      final String generatedId = _idController.text.trim().toLowerCase();
+      final String email = _emailController.text.trim();
+      final String phone = _phoneController.text.trim();
+      final String password = _passwordController.text.trim();
       final String finalZone = _selectedRegion ?? 'Mumbai Metro Area';
 
-      // Create model object
-      final newAgent = Agent(
-        id: generatedId,
-        name: inputName,
-        avatarUrl: randAvatar,
-        zone: finalZone,
-        assignedTarget: 15000.0,
-        collectedAmount: 0.0,
-        casesCount: 0,
-        pendingVisitsCount: 0,
-        isAdmin: false,
-        isOnline: true,
-      );
+      // Fetch active admin ID
+      final int adminId = int.tryParse(_db.currentUser?.id ?? '') ?? 1;
 
-      // Save in state provider
-      _db.registerAgent(newAgent);
+      try {
+        final apiService = ApiService();
+        final response = await apiService.createAgent(
+          adminId: adminId,
+          fullName: inputName,
+          email: email,
+          mobile: phone,
+          password: password,
+        );
 
-      // Alert UI
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.green.shade700,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          content: Row(
-            children: [
-              const Icon(LucideIcons.circleCheck, color: Colors.white),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Profile Created Successfully: ${newAgent.name} (#${newAgent.id.toUpperCase()})',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+        // API Success. Extract ID from response details if available
+        String createdId = 'unknown';
+        final data = response['data'];
+        if (data != null && data is List && data.isNotEmpty) {
+          final agentData = data[0];
+          final agentObj = agentData['agent'];
+          if (agentObj != null) {
+            createdId =
+                (agentObj['agent_id'] ?? agentObj['id'])?.toString() ??
+                'unknown';
+          } else {
+            createdId =
+                (agentData['agent_id'] ?? agentData['id'])?.toString() ??
+                'unknown';
+          }
+        }
 
-      // Go back to the Cockpit
-      Navigator.pop(context);
+        // Fallback or custom avatar
+        final List<String> avatars = [
+          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+          'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+        ];
+        final String randAvatar = avatars[Random().nextInt(avatars.length)];
+
+        // Create local model object to sync inside local list provider
+        final newAgent = Agent(
+          id: createdId,
+          name: inputName,
+          avatarUrl: randAvatar,
+          zone: finalZone,
+          assignedTarget: 15000.0,
+          collectedAmount: 0.0,
+          casesCount: 0,
+          pendingVisitsCount: 0,
+          isAdmin: false,
+          isOnline: true,
+          email: email,
+          phone: phone,
+        );
+
+        // Save in state provider
+        _db.registerAgent(newAgent);
+
+        // Alert UI
+        if (mounted) {
+          CustomFeedback.showToast(
+            context,
+            'Profile Created Successfully: ${newAgent.name}',
+            type: 'success',
+          );
+
+          // Go back to the Cockpit
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          String errorMsg = e.toString();
+          if (errorMsg.startsWith('Exception: ')) {
+            errorMsg = errorMsg.substring(11);
+          }
+          CustomFeedback.showFeedbackDialog(
+            context,
+            title: 'Registration Error',
+            message: errorMsg,
+            type: 'error',
+            confirmLabel: 'OK',
+            showCancel: false,
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
     }
   }
 }

@@ -6,6 +6,7 @@ import '../../widgets/custom_bento_card.dart';
 import '../../models/payment_record.dart';
 import '../../models/customer.dart';
 import '../agent/customer_details_screen.dart';
+import '../../widgets/custom_feedback.dart';
 
 class VerificationQueueScreen extends StatelessWidget {
   final bool isEmbedded;
@@ -444,8 +445,10 @@ class VerificationQueueScreen extends StatelessWidget {
                           ),
                         );
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Customer details not found for ${item.customerName}')),
+                        CustomFeedback.showToast(
+                          context,
+                          'Customer details not found for ${item.customerName}',
+                          type: 'error',
                         );
                       }
                     },
@@ -982,21 +985,10 @@ class VerificationQueueScreen extends StatelessWidget {
 
   // Custom float SnackBar helper
   void _showSnackBar(BuildContext context, String message, bool isSuccess) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: isSuccess ? Colors.green.shade700 : AppTheme.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        content: Text(
-          message,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontSize: 13,
-          ),
-        ),
-      ),
+    CustomFeedback.showToast(
+      context,
+      message,
+      type: isSuccess ? 'success' : 'error',
     );
   }
 }

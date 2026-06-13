@@ -25,6 +25,14 @@ class _AgentDashboardState extends State<AgentDashboard> {
   int _currentIndex = 0;
   final _db = DatabaseService();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,100 +49,117 @@ class _AgentDashboardState extends State<AgentDashboard> {
           const AgentProfileScreen(isEmbedded: true),
         ];
 
-        return Scaffold(
-          key: _scaffoldKey,
-          backgroundColor: AppTheme.background,
-          appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(LucideIcons.menu, color: AppTheme.primary),
-              onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-            ),
-            title: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            FocusManager.instance.primaryFocus?.unfocus();
+          },
+          child: Scaffold(
+            key: _scaffoldKey,
+            backgroundColor: AppTheme.background,
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(LucideIcons.menu, color: AppTheme.primary),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              ),
+              titleSpacing: 0,
+              title: Row(
+                children: [
+                  Image.asset(
+                    AppTheme.appLogo,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.contain,
                   ),
-                  child: const Icon(AppTheme.appIcon, color: Colors.white, size: 16),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  AppTheme.appName,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: AppTheme.primary,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      AppTheme.appName,
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
+                        color: AppTheme.primary,
                       ),
-                ),
-              ],
-            ),
-            actions: [
-              IconButton(
-                icon: Badge(
-                  isLabelVisible: _db.notifications.any((n) => !n.isRead),
-                  child: const Icon(LucideIcons.bell, color: AppTheme.primary),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-                  );
-                },
+                      // style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      //   color: AppTheme.primary,
+                      //   fontWeight: FontWeight.w800,
+                      // ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-            ],
-          ),
-          drawer: _buildDrawer(context, agent),
-          body: pages[_currentIndex],
-          bottomNavigationBar: CustomBottomBar(
-            currentIndex: _currentIndex,
-            onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            items: const [
-              CustomBottomBarItem(
-                icon: LucideIcons.layoutDashboard,
-                activeIcon: LucideIcons.layoutDashboard,
-                label: 'Dashboard',
-              ),
-              CustomBottomBarItem(
-                icon: LucideIcons.userSearch,
-                activeIcon: LucideIcons.userSearch,
-                label: 'Customers',
-              ),
-              CustomBottomBarItem(
-                icon: LucideIcons.scrollText,
-                activeIcon: LucideIcons.scrollText,
-                label: 'History',
-              ),
-              CustomBottomBarItem(
-                icon: LucideIcons.circleUser,
-                activeIcon: LucideIcons.circleUser,
-                label: 'Profile',
-              ),
-            ],
-          ),
-          floatingActionButton: _currentIndex == 0
-              ? FloatingActionButton(
-                  backgroundColor: AppTheme.primaryContainer,
-                  foregroundColor: Colors.white,
-                  shape: const CircleBorder(),
+              actions: [
+                IconButton(
+                  icon: Badge(
+                    isLabelVisible: _db.notifications.any((n) => !n.isRead),
+                    child: const Icon(LucideIcons.bell, color: AppTheme.primary),
+                  ),
                   onPressed: () {
-                    // Navigate to priority visit customer details
-                    final robert = _db.customers.firstWhere((c) => c.id == 'cust_robert');
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => CustomerDetailsScreen(customer: robert),
+                        builder: (context) => const NotificationsScreen(),
                       ),
                     );
                   },
-                  child: const Icon(LucideIcons.mapPin),
-                )
-              : null,
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+            drawer: _buildDrawer(context, agent),
+            body: pages[_currentIndex],
+            bottomNavigationBar: CustomBottomBar(
+              currentIndex: _currentIndex,
+              onTap: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              items: const [
+                CustomBottomBarItem(
+                  icon: LucideIcons.layoutDashboard,
+                  activeIcon: LucideIcons.layoutDashboard,
+                  label: 'Dashboard',
+                ),
+                CustomBottomBarItem(
+                  icon: LucideIcons.userSearch,
+                  activeIcon: LucideIcons.userSearch,
+                  label: 'Customers',
+                ),
+                CustomBottomBarItem(
+                  icon: LucideIcons.scrollText,
+                  activeIcon: LucideIcons.scrollText,
+                  label: 'History',
+                ),
+                CustomBottomBarItem(
+                  icon: LucideIcons.circleUser,
+                  activeIcon: LucideIcons.circleUser,
+                  label: 'Profile',
+                ),
+              ],
+            ),
+            floatingActionButton: _currentIndex == 0
+                ? FloatingActionButton(
+                    backgroundColor: AppTheme.primaryContainer,
+                    foregroundColor: Colors.white,
+                    shape: const CircleBorder(),
+                    onPressed: () {
+                      // Navigate to priority visit customer details
+                      final robert = _db.customers.firstWhere(
+                        (c) => c.id == 'cust_robert',
+                      );
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              CustomerDetailsScreen(customer: robert),
+                        ),
+                      );
+                    },
+                    child: const Icon(LucideIcons.mapPin),
+                  )
+                : null,
+          ),
         );
       },
     );
@@ -147,283 +172,341 @@ class _AgentDashboardState extends State<AgentDashboard> {
       orElse: () => _db.customers[0],
     );
 
-    final targetMetPercent = (agent.collectedAmount / agent.assignedTarget * 100).toStringAsFixed(0);
+    final targetMetPercent =
+        (agent.collectedAmount / agent.assignedTarget * 100).toStringAsFixed(0);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Good Morning miller
-          Text(
-            'Good Morning, ${agent.name}',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Daily Overview',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 24),
-
-          // Bento Grid Asymmetric Layout
-          Column(
-            children: [
-              // Today's Collection Card
-              CustomBentoCard(
-                backgroundColor: AppTheme.primaryContainer,
-                borderSide: BorderSide.none,
-                backgroundDecoration: Positioned.fill(
-                  child: Opacity(
-                    opacity: 0.08,
-                    child: Align(
-                      alignment: Alignment.bottomRight,
-                      child: Transform.translate(
-                        offset: const Offset(20, 20),
-                        child: const Icon(LucideIcons.banknote, size: 140, color: Colors.white),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Good Morning miller
+            Text(
+              'Good Morning, ${agent.name}',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Daily Overview',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 16),
+            _buildQuickSearchBar(context),
+            const SizedBox(height: 24),
+            if (_searchQuery.isNotEmpty) ...[
+              _buildSearchResults(context),
+            ] else ...[
+              // Bento Grid Asymmetric Layout
+              Column(
+                children: [
+                  // Today's Collection Card
+                  CustomBentoCard(
+                    backgroundColor: AppTheme.primaryContainer,
+                    borderSide: BorderSide.none,
+                    backgroundDecoration: Positioned.fill(
+                      child: Opacity(
+                        opacity: 0.08,
+                        child: Align(
+                          alignment: Alignment.bottomRight,
+                          child: Transform.translate(
+                            offset: const Offset(20, 20),
+                            child: const Icon(
+                              LucideIcons.banknote,
+                              size: 140,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Today's Collection Target",
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: Colors.white.withOpacity(0.8),
-                          ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '₹${agent.assignedTarget.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(LucideIcons.trendingUp, color: Colors.white, size: 16),
-                        const SizedBox(width: 6),
                         Text(
-                          '$targetMetPercent% of Target Met (₹${agent.collectedAmount.toStringAsFixed(2)} collected)',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          "Today's Collection Target",
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: Colors.white.withOpacity(0.8)),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '₹${agent.assignedTarget.toStringAsFixed(2)}',
+                          style: Theme.of(context).textTheme.headlineLarge
+                              ?.copyWith(
                                 color: Colors.white,
+                                fontSize: 32,
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            const Icon(
+                              LucideIcons.trendingUp,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '$targetMetPercent% of Target Met (₹${agent.collectedAmount.toStringAsFixed(2)} collected)',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                          ],
+                        ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Two grid item
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomBentoCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryContainer.withOpacity(
+                                    0.08,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    AppTheme.radiusSmall,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  LucideIcons.users,
+                                  color: AppTheme.primary,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                '${agent.casesCount}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      color: AppTheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                              Text(
+                                'Assigned Today',
+                                style: Theme.of(context).textTheme.labelMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: CustomBentoCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.errorContainer,
+                                  borderRadius: BorderRadius.circular(
+                                    AppTheme.radiusSmall,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  LucideIcons.clipboardList,
+                                  color: AppTheme.error,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                '${agent.pendingVisitsCount}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      color: AppTheme.error,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                              Text(
+                                'Pending Visits',
+                                style: Theme.of(context).textTheme.labelMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Next Priority Visit Section
+              Text(
+                'NEXT PRIORITY VISIT',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 12),
+              CustomBentoCard(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          CustomerDetailsScreen(customer: priorityCustomer),
+                    ),
+                  );
+                },
+                child: Row(
+                  children: [
+                    // map route thumbnail
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          LucideIcons.map,
+                          color: AppTheme.primary,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            priorityCustomer.name,
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                LucideIcons.mapPin,
+                                size: 14,
+                                color: AppTheme.secondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  priorityCustomer.address,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const StatusChip(
+                                label: 'HIGH PRIORITY',
+                                type: 'HIGH',
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Due: 10:30 AM',
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      LucideIcons.chevronRight,
+                      color: AppTheme.outline,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-              // Two grid item
+              // Quick Field Actions
+              Text(
+                'FIELD ACTIONS',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    child: CustomBentoCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryContainer.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                            ),
-                            child: const Icon(LucideIcons.users, color: AppTheme.primary, size: 20),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            '${agent.casesCount}',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                  color: AppTheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          Text(
-                            'Assigned Today',
-                            style: Theme.of(context).textTheme.labelMedium,
-                          ),
-                        ],
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          // Trigger record payment sheet for Henderson
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) =>
+                                RecordPaymentSheet(customer: priorityCustomer),
+                          );
+                        },
+                        icon: const Icon(LucideIcons.scrollText, size: 18),
+                        label: const Text(
+                          'Scan Receipt',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: CustomBentoCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppTheme.errorContainer,
-                              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                            ),
-                            child: const Icon(LucideIcons.clipboardList, color: AppTheme.error, size: 20),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            '${agent.pendingVisitsCount}',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                  color: AppTheme.error,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          Text(
-                            'Pending Visits',
-                            style: Theme.of(context).textTheme.labelMedium,
-                          ),
-                        ],
+                    child: SizedBox(
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          // Navigate to customers tab to start selection
+                          setState(() {
+                            _currentIndex = 1;
+                          });
+                        },
+                        icon: const Icon(LucideIcons.circlePlus, size: 18),
+                        label: const Text(
+                          'New Collection',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 80),
             ],
-          ),
-          const SizedBox(height: 24),
-
-          // Next Priority Visit Section
-          Text(
-            'NEXT PRIORITY VISIT',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
-          ),
-          const SizedBox(height: 12),
-          CustomBentoCard(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CustomerDetailsScreen(customer: priorityCustomer),
-                ),
-              );
-            },
-            child: Row(
-              children: [
-                // map route thumbnail
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  ),
-                  child: const Center(
-                    child: Icon(LucideIcons.map, color: AppTheme.primary, size: 28),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        priorityCustomer.name,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(LucideIcons.mapPin, size: 14, color: AppTheme.secondary),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              priorityCustomer.address,
-                              style: Theme.of(context).textTheme.bodySmall,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const StatusChip(label: 'HIGH PRIORITY', type: 'HIGH'),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Due: 10:30 AM',
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(LucideIcons.chevronRight, color: AppTheme.outline),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Quick Field Actions
-          Text(
-            'FIELD ACTIONS',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      // Trigger record payment sheet for Henderson
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => RecordPaymentSheet(customer: priorityCustomer),
-                      );
-                    },
-                    icon: const Icon(LucideIcons.scrollText, size: 18),
-                    label: const Text('Scan Receipt', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Navigate to customers tab to start selection
-                      setState(() {
-                        _currentIndex = 1;
-                      });
-                    },
-                    icon: const Icon(LucideIcons.circlePlus, size: 18),
-                    label: const Text('New Collection', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 80),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
   }
 
   Widget _buildDrawer(BuildContext context, dynamic agent) {
@@ -451,20 +534,37 @@ class _AgentDashboardState extends State<AgentDashboard> {
             ),
             accountName: Text(
               agent.name,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white, letterSpacing: -0.2),
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                color: Colors.white,
+                letterSpacing: -0.2,
+              ),
             ),
             accountEmail: Text(
               'Zone: ${agent.zone} (ID: ${agent.id.toUpperCase()})',
-              style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.85),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
 
           // Recent Activity
           ListTile(
-            leading: const Icon(LucideIcons.history, color: AppTheme.primary, size: 20),
+            leading: const Icon(
+              LucideIcons.history,
+              color: AppTheme.primary,
+              size: 20,
+            ),
             title: const Text(
               'Recent Activity',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.onSurface,
+                fontSize: 14,
+              ),
             ),
             subtitle: const Text(
               'View synced operations logs',
@@ -481,10 +581,18 @@ class _AgentDashboardState extends State<AgentDashboard> {
 
           // Security & Privacy
           ListTile(
-            leading: const Icon(LucideIcons.shield, color: AppTheme.primary, size: 20),
+            leading: const Icon(
+              LucideIcons.shield,
+              color: AppTheme.primary,
+              size: 20,
+            ),
             title: const Text(
               'Security & Privacy',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.onSurface,
+                fontSize: 14,
+              ),
             ),
             subtitle: const Text(
               'Manage PIN & security settings',
@@ -499,10 +607,18 @@ class _AgentDashboardState extends State<AgentDashboard> {
 
           // Edit Agent Profile settings
           ListTile(
-            leading: const Icon(LucideIcons.userCog, color: AppTheme.primary, size: 20),
+            leading: const Icon(
+              LucideIcons.userCog,
+              color: AppTheme.primary,
+              size: 20,
+            ),
             title: const Text(
               'Edit Profile Settings',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.onSurface,
+                fontSize: 14,
+              ),
             ),
             subtitle: const Text(
               'Update name, contact & photo',
@@ -512,7 +628,9 @@ class _AgentDashboardState extends State<AgentDashboard> {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AgentEditProfileScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const AgentEditProfileScreen(),
+                ),
               );
             },
           ),
@@ -522,29 +640,44 @@ class _AgentDashboardState extends State<AgentDashboard> {
           const Divider(height: 1),
 
           // Switch to Admin Portal
+          // ListTile(
+          //   leading: const Icon(
+          //     LucideIcons.arrowLeftRight,
+          //     color: AppTheme.primary,
+          //     size: 20,
+          //   ),
+          //   title: const Text(
+          //     'Switch to Admin Portal',
+          //     style: TextStyle(
+          //       fontWeight: FontWeight.bold,
+          //       color: AppTheme.onSurface,
+          //       fontSize: 14,
+          //     ),
+          //   ),
+          //   subtitle: const Text(
+          //     'Test synchronizations live',
+          //     style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+          //   ),
+          //   onTap: () {
+          //     Navigator.pop(context); // close drawer
+          //     _db.switchPortal('ADMIN');
+          //     Navigator.of(context).pushReplacementNamed('/admin_dashboard');
+          //   },
+          // ),
+          // const Divider(height: 1),
           ListTile(
-            leading: const Icon(LucideIcons.arrowLeftRight, color: AppTheme.primary, size: 20),
-            title: const Text(
-              'Switch to Admin Portal',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+            leading: const Icon(
+              LucideIcons.logOut,
+              color: AppTheme.error,
+              size: 20,
             ),
-            subtitle: const Text(
-              'Test synchronizations live',
-              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
-            ),
-            onTap: () {
-              Navigator.pop(context); // close drawer
-              _db.switchPortal('ADMIN');
-              Navigator.of(context).pushReplacementNamed('/admin_dashboard');
-            },
-          ),
-          const Divider(height: 1),
-
-          ListTile(
-            leading: const Icon(LucideIcons.logOut, color: AppTheme.error, size: 20),
             title: const Text(
               'Sign Out',
-              style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold, fontSize: 14),
+              style: TextStyle(
+                color: AppTheme.error,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
             subtitle: const Text(
               'Terminate secure agent session',
@@ -561,6 +694,252 @@ class _AgentDashboardState extends State<AgentDashboard> {
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  Widget _buildQuickSearchBar(BuildContext context) {
+    return TextField(
+      controller: _searchController,
+      onChanged: (value) {
+        setState(() {
+          _searchQuery = value;
+        });
+      },
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+        color: AppTheme.onSurface,
+      ),
+      decoration: InputDecoration(
+        hintText: 'Search assigned cases (name, ID, address)...',
+        hintStyle: TextStyle(
+          color: AppTheme.secondary.withOpacity(0.6),
+          fontSize: 14,
+          fontWeight: FontWeight.normal,
+        ),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              LucideIcons.search,
+              color: AppTheme.primary,
+              size: 18,
+            ),
+          ),
+        ),
+        suffixIcon: _searchQuery.isNotEmpty
+            ? AnimatedOpacity(
+                opacity: 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.outlineVariant.withOpacity(0.4),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      LucideIcons.x,
+                      color: AppTheme.secondary,
+                      size: 14,
+                    ),
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = '';
+                    });
+                  },
+                ),
+              )
+            : null,
+        // border: InputBorder.none,
+        // enabledBorder: InputBorder.none,
+        // focusedBorder: InputBorder.none,
+        // contentPadding: const EdgeInsets.symmetric(
+        //   horizontal: 16,
+        //   vertical: 16,
+        // ),
+      ),
+    );
+  }
+
+  Widget _buildSearchResults(BuildContext context) {
+    final agentId = _db.currentUser?.id ?? 'miller';
+    final List<dynamic> matchingCustomers = _db.customers
+        .where(
+          (c) =>
+              c.assignedAgentId == agentId &&
+              (c.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                  c.id.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                  c.address.toLowerCase().contains(_searchQuery.toLowerCase())),
+        )
+        .toList();
+
+    if (matchingCustomers.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 16.0),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              LucideIcons.userSearch,
+              size: 48,
+              color: AppTheme.secondary.withOpacity(0.3),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No matching cases assigned to you',
+              style: TextStyle(
+                fontSize: 15,
+                color: AppTheme.secondary,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4.0, bottom: 12.0),
+          child: Text(
+            'SEARCH RESULTS (${matchingCustomers.length})',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
+            ),
+          ),
+        ),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: matchingCustomers.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final customer = matchingCustomers[index];
+            final bool isPaid = customer.status == 'PAID';
+            final bool isPending = customer.status == 'PENDING_VERIFICATION';
+
+            return CustomBentoCard(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        CustomerDetailsScreen(customer: customer),
+                  ),
+                );
+              },
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isPaid
+                          ? AppTheme.successContainer
+                          : (isPending
+                                ? AppTheme.warningContainer
+                                : AppTheme.errorContainer),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Icon(
+                        isPaid
+                            ? LucideIcons.circleCheck
+                            : (isPending
+                                  ? LucideIcons.hourglass
+                                  : LucideIcons.circleAlert),
+                        color: isPaid
+                            ? AppTheme.success
+                            : (isPending ? AppTheme.warning : AppTheme.error),
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          customer.name,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isPaid
+                                ? AppTheme.secondary
+                                : AppTheme.onSurface,
+                            decoration: isPaid
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              LucideIcons.mapPin,
+                              size: 12,
+                              color: AppTheme.secondary,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                customer.address,
+                                style: Theme.of(context).textTheme.bodySmall,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '₹${customer.amountDue.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isPaid ? AppTheme.secondary : AppTheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        customer.status,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isPaid
+                              ? AppTheme.success
+                              : (isPending ? AppTheme.warning : AppTheme.error),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
+import '../../constants/app_constants.dart';
 import '../../widgets/custom_bento_card.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import '../../widgets/performance_chart.dart';
@@ -14,6 +15,7 @@ import 'upload_data_screen.dart';
 import 'uploaded_records_view.dart';
 import 'add_agent_screen.dart';
 import '../agent/agent_edit_profile_screen.dart';
+import '../../widgets/custom_feedback.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -28,6 +30,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
+  void initState() {
+    super.initState();
+    _fetchAgents();
+  }
+
+  Future<void> _fetchAgents() async {
+    try {
+      await _db.fetchAgentsFromApi();
+    } catch (e) {
+      debugPrint('Error fetching agents on dashboard: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: _db,
@@ -36,9 +52,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
         if (admin == null) return const SizedBox();
 
         // Count pending approvals
-        final pendingCount = _db.payments.where((p) => p.status == 'PENDING').length;
+        final pendingCount = _db.payments
+            .where((p) => p.status == AppConstants.statusPending)
+            .length;
         final adminUnreadCount = _db.notifications
-            .where((n) => n.recipientRole == 'ADMIN' && !n.isRead)
+            .where((n) => n.recipientRole == AppConstants.roleAdmin && !n.isRead)
             .length;
 
         final List<Widget> pages = [
@@ -58,7 +76,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             title: const Text(
               'Agency Admin',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primary,
+              ),
             ),
             actions: [
               IconButton(
@@ -85,7 +106,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   decoration: BoxDecoration(
                     color: AppTheme.primaryContainer,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.outlineVariant, width: 1),
+                    border: Border.all(
+                      color: AppTheme.outlineVariant,
+                      width: 1,
+                    ),
                     image: DecorationImage(
                       image: NetworkImage(admin.avatarUrl),
                       fit: BoxFit.cover,
@@ -102,13 +126,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const AddAgentScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const AddAgentScreen(),
+                      ),
                     );
                   },
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
                   icon: const Icon(LucideIcons.userPlus),
-                  label: const Text('Add Agent', style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: const Text(
+                    'Add Agent',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 )
               : null,
           bottomNavigationBar: CustomBottomBar(
@@ -154,6 +183,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     final double displayedTotalRecovery = 45200.0 + sessionApprovedSum;
 
+    final fieldAgents = _db.agents.where((a) => !a.isAdmin).toList();
+    final totalAgentsCount = fieldAgents.length;
+    final activeAgentsCount = fieldAgents.where((a) => a.isOnline).length;
+    final activeAgentsRatio = totalAgentsCount > 0 ? activeAgentsCount / totalAgentsCount : 0.0;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -162,9 +196,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
           // Header
           Text(
             'Admin Dashboard',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           Text(
             'Performance summary for Q3 Recovery Cycle',
@@ -184,7 +218,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       alignment: Alignment.bottomRight,
                       child: Transform.translate(
                         offset: const Offset(10, 10),
-                        child: const Icon(LucideIcons.wallet, size: 120, color: AppTheme.primary),
+                        child: const Icon(
+                          LucideIcons.wallet,
+                          size: 120,
+                          color: AppTheme.primary,
+                        ),
                       ),
                     ),
                   ),
@@ -194,7 +232,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   children: [
                     Row(
                       children: [
-                        const Icon(LucideIcons.banknote, color: AppTheme.secondary, size: 18),
+                        const Icon(
+                          LucideIcons.banknote,
+                          color: AppTheme.secondary,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Total Collected',
@@ -205,7 +247,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     const SizedBox(height: 8),
                     Text(
                       '₹${displayedTotalRecovery.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      style: Theme.of(context).textTheme.headlineLarge
+                          ?.copyWith(
                             color: AppTheme.primary,
                             fontWeight: FontWeight.w800,
                             fontSize: 30,
@@ -214,11 +257,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Icon(LucideIcons.trendingUp, color: Colors.green, size: 16),
+                        const Icon(
+                          LucideIcons.trendingUp,
+                          color: Colors.green,
+                          size: 16,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           '+12% from last month',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
                                 color: Colors.green,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -241,23 +289,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Active Agents', style: Theme.of(context).textTheme.labelMedium),
+                            Text(
+                              'Active Agents',
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
                             const SizedBox(height: 8),
                             Text(
-                              '24/30',
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              '$activeAgentsCount/$totalAgentsCount',
+                              style: Theme.of(context).textTheme.headlineMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 12),
                             // Mini bar progress
                             ClipRRect(
                               borderRadius: BorderRadius.circular(99),
-                              child: const LinearProgressIndicator(
-                                value: 24 / 30,
+                              child: LinearProgressIndicator(
+                                value: activeAgentsRatio,
                                 minHeight: 6,
                                 backgroundColor: AppTheme.surfaceContainerLow,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  AppTheme.primary,
+                                ),
                               ),
                             ),
                           ],
@@ -271,12 +323,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Pending Approvals', style: Theme.of(context).textTheme.labelMedium),
+                            Text(
+                              'Pending Approvals',
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
                             const SizedBox(height: 8),
                             Text(
                               '$pendingCount',
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                    color: pendingCount > 0 ? AppTheme.error : AppTheme.secondary,
+                              style: Theme.of(context).textTheme.headlineMedium
+                                  ?.copyWith(
+                                    color: pendingCount > 0
+                                        ? AppTheme.error
+                                        : AppTheme.secondary,
                                     fontWeight: FontWeight.bold,
                                   ),
                             ),
@@ -284,23 +342,35 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             // Tiny Avatars stack
                             Row(
                               children: [
-                                ..._db.agents.take(3).map((a) => Padding(
-                                      padding: const EdgeInsets.only(right: 2.0),
-                                      child: CircleAvatar(
-                                        radius: 9,
-                                        backgroundImage: NetworkImage(a.avatarUrl),
+                                ...fieldAgents
+                                    .take(3)
+                                    .map(
+                                      (a) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 2.0,
+                                        ),
+                                        child: CircleAvatar(
+                                          radius: 9,
+                                          backgroundImage: NetworkImage(
+                                            a.avatarUrl,
+                                          ),
+                                        ),
                                       ),
-                                    )),
-                                if (_db.agents.length > 3)
+                                    ),
+                                if (totalAgentsCount > 3)
                                   Container(
                                     padding: const EdgeInsets.all(4),
                                     decoration: const BoxDecoration(
                                       color: AppTheme.primaryContainer,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Text(
-                                      '+2',
-                                      style: TextStyle(fontSize: 6, color: Colors.white, fontWeight: FontWeight.bold),
+                                    child: Text(
+                                      '+${totalAgentsCount - 3}',
+                                      style: const TextStyle(
+                                        fontSize: 6,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                               ],
@@ -327,14 +397,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         children: [
                           Text(
                             'Recovery Rate',
-                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(
                                   color: Colors.white.withOpacity(0.8),
                                 ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             '72% Success',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -342,7 +414,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           const SizedBox(height: 4),
                           Text(
                             'Q3 Recovery Cycle',
-                            style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.6)),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.white.withOpacity(0.6),
+                            ),
                           ),
                         ],
                       ),
@@ -364,9 +439,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
           Text(
             'QUICK ACTIONS',
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -378,11 +453,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const UploadDataScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const UploadDataScreen(),
+                        ),
                       );
                     },
                     icon: const Icon(LucideIcons.upload, size: 18),
-                    label: const Text('Upload Data', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'Upload Data',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ),
@@ -397,7 +477,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       });
                     },
                     icon: const Icon(LucideIcons.map, size: 18),
-                    label: const Text('View Live Map', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'View Live Map',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ),
@@ -412,14 +495,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Text(
                 'REAL-TIME ACTIVITY FEED',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                ),
               ),
               TextButton(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('See All Activities Logged.')),
+                  CustomFeedback.showToast(
+                    context,
+                    'See All Activities Logged.',
                   );
                 },
                 child: const Text('See All', style: TextStyle(fontSize: 12)),
@@ -481,19 +565,28 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         children: [
                           Text(
                             act['title'] ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             act['subtitle'] ?? '',
-                            style: const TextStyle(fontSize: 11, color: AppTheme.secondary),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.secondary,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     Text(
                       act['time'] ?? '',
-                      style: const TextStyle(fontSize: 10, color: AppTheme.secondary),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppTheme.secondary,
+                      ),
                     ),
                   ],
                 ),
@@ -506,9 +599,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
           Text(
             'GEOGRAPHIC RECOVERY FOCUS',
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
+            ),
           ),
           const SizedBox(height: 12),
           CustomBentoCard(
@@ -521,13 +614,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   width: double.infinity,
                   decoration: const BoxDecoration(
                     color: AppTheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLarge)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(AppTheme.radiusLarge),
+                    ),
                   ),
                   child: Center(
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        Icon(LucideIcons.map, color: AppTheme.primary.withOpacity(0.2), size: 100),
+                        Icon(
+                          LucideIcons.map,
+                          color: AppTheme.primary.withOpacity(0.2),
+                          size: 100,
+                        ),
                         // pulsating dots
                         const Positioned(
                           left: 100,
@@ -558,10 +657,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           Container(
                             width: 8,
                             height: 8,
-                            decoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle),
+                            decoration: const BoxDecoration(
+                              color: AppTheme.primary,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          Text('Mumbai Metro Live Tracking Active', style: Theme.of(context).textTheme.bodySmall),
+                          Text(
+                            'Mumbai Metro Live Tracking Active',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                         ],
                       ),
                       const Text(
@@ -609,20 +714,37 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             accountName: Text(
               admin.name,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white, letterSpacing: -0.2),
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                color: Colors.white,
+                letterSpacing: -0.2,
+              ),
             ),
             accountEmail: Text(
               'Senior Administrator (ID: ${admin.id.toUpperCase()})',
-              style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.85),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
 
           // Register New Agent
           ListTile(
-            leading: const Icon(LucideIcons.userPlus, color: AppTheme.primary, size: 20),
+            leading: const Icon(
+              LucideIcons.userPlus,
+              color: AppTheme.primary,
+              size: 20,
+            ),
             title: const Text(
               'Register New Agent',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.onSurface,
+                fontSize: 14,
+              ),
             ),
             subtitle: const Text(
               'Configure credentials & regions',
@@ -640,10 +762,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           // Import Debtors CSV
           ListTile(
-            leading: const Icon(LucideIcons.fileUp, color: AppTheme.primary, size: 20),
+            leading: const Icon(
+              LucideIcons.fileUp,
+              color: AppTheme.primary,
+              size: 20,
+            ),
             title: const Text(
               'Import Debtors CSV',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.onSurface,
+                fontSize: 14,
+              ),
             ),
             subtitle: const Text(
               'Parse external debt ledger sheets',
@@ -653,7 +783,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const UploadDataScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const UploadDataScreen(),
+                ),
               );
             },
           ),
@@ -661,10 +793,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           // Manage Uploaded Records
           ListTile(
-            leading: const Icon(LucideIcons.layoutDashboard, color: AppTheme.primary, size: 20),
+            leading: const Icon(
+              LucideIcons.layoutDashboard,
+              color: AppTheme.primary,
+              size: 20,
+            ),
             title: const Text(
               'Manage Uploaded Records',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.onSurface,
+                fontSize: 14,
+              ),
             ),
             subtitle: const Text(
               'Review and deploy portfolios',
@@ -674,7 +814,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const UploadedRecordsView()),
+                MaterialPageRoute(
+                  builder: (context) => const UploadedRecordsView(),
+                ),
               );
             },
           ),
@@ -682,10 +824,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           // Edit Admin Profile settings
           ListTile(
-            leading: const Icon(LucideIcons.userCog, color: AppTheme.primary, size: 20),
+            leading: const Icon(
+              LucideIcons.userCog,
+              color: AppTheme.primary,
+              size: 20,
+            ),
             title: const Text(
               'Edit Profile Settings',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.onSurface,
+                fontSize: 14,
+              ),
             ),
             subtitle: const Text(
               'Update name, contact & photo',
@@ -695,58 +845,49 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AgentEditProfileScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const AgentEditProfileScreen(),
+                ),
               );
             },
           ),
           const Divider(height: 1),
 
-          // System Protocols Logs
-          ListTile(
-            leading: const Icon(LucideIcons.terminal, color: AppTheme.primary, size: 20),
-            title: const Text(
-              'System Protocols Logs',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
-            ),
-            subtitle: const Text(
-              'Inspect techno-operational log stream',
-              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Opening System logs...')),
-              );
-            },
-          ),
-          
           const Spacer(),
-          const Divider(height: 1),
-          
-          // Switch to Agent Portal
-          ListTile(
-            leading: const Icon(LucideIcons.arrowLeftRight, color: AppTheme.primary, size: 20),
-            title: const Text(
-              'Switch to Agent Portal',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
-            ),
-            subtitle: const Text(
-              'Simulate field updates',
-              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
-            ),
-            onTap: () {
-              Navigator.pop(context); // close drawer
-              _db.switchPortal('AGENT');
-              Navigator.of(context).pushReplacementNamed('/agent_dashboard');
-            },
-          ),
-          const Divider(height: 1),
 
+          // const Divider(height: 1),
+
+          // Switch to Agent Portal
+          // ListTile(
+          //   leading: const Icon(LucideIcons.arrowLeftRight, color: AppTheme.primary, size: 20),
+          //   title: const Text(
+          //     'Switch to Agent Portal',
+          //     style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+          //   ),
+          //   subtitle: const Text(
+          //     'Simulate field updates',
+          //     style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+          //   ),
+          //   onTap: () {
+          //     Navigator.pop(context); // close drawer
+          //     _db.switchPortal('AGENT');
+          //     Navigator.of(context).pushReplacementNamed('/agent_dashboard');
+          //   },
+          // ),
+          // const Divider(height: 1),
           ListTile(
-            leading: const Icon(LucideIcons.logOut, color: AppTheme.error, size: 20),
+            leading: const Icon(
+              LucideIcons.logOut,
+              color: AppTheme.error,
+              size: 20,
+            ),
             title: const Text(
               'Sign Out',
-              style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold, fontSize: 14),
+              style: TextStyle(
+                color: AppTheme.error,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
             subtitle: const Text(
               'Terminate secure admin session',
@@ -776,7 +917,8 @@ class _PulseDot extends StatefulWidget {
   State<_PulseDot> createState() => _PulseDotState();
 }
 
-class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixin {
+class _PulseDotState extends State<_PulseDot>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
@@ -789,13 +931,15 @@ class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixi
       vsync: this,
     )..repeat();
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.8).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.5,
+      end: 1.8,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
-    _opacityAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _opacityAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
   }
 
   @override
@@ -819,14 +963,20 @@ class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixi
                 child: Container(
                   width: 16,
                   height: 16,
-                  decoration: BoxDecoration(color: widget.color.withOpacity(0.5), shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: widget.color.withOpacity(0.5),
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
             ),
             Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: widget.color,
+                shape: BoxShape.circle,
+              ),
             ),
           ],
         );
