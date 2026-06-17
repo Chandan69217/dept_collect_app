@@ -7,6 +7,7 @@ import '../shared/login_screen.dart';
 import 'security_settings.dart';
 import 'agent_edit_profile_screen.dart';
 import '../../widgets/custom_feedback.dart';
+import '../../config/field_mapping.dart';
 
 class AgentProfileScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -491,6 +492,99 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // 3.5 Security & Permission Clearance (Read-Only)
+              CustomBentoCard(
+                padding: 16.0,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(LucideIcons.shieldCheck, color: AppTheme.primary, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'SECURITY & DATA CLEARANCE',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.secondary,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'The following data access and operational clearances are set for your account by system administrators:',
+                      style: TextStyle(fontSize: 11, color: AppTheme.onSurfaceVariant, height: 1.4),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // General Capabilities
+                    const Text(
+                      'Operational Clearances',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.onSurface),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildClearanceRow('Access Collections History', agent.permissions['accessHistory'] ?? false),
+                    _buildClearanceRow('Edit Customer Details', agent.permissions['editDetails'] ?? false),
+                    _buildClearanceRow('Approve Partial Payments', agent.permissions['approvePartial'] ?? false),
+                    _buildClearanceRow('Export Data Logs', agent.permissions['exportData'] ?? false),
+                    _buildClearanceRow('Delete Local Records', agent.permissions['deleteRecords'] ?? false),
+                    
+                    const SizedBox(height: 16),
+                    const Divider(height: 1, color: AppTheme.outlineVariant),
+                    const SizedBox(height: 16),
+                    
+                    // Field Access Visibility
+                    const Text(
+                      'Field Visibility Clearance',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.onSurface),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: ExcelFieldMapping.mapping.keys.map((fieldKey) {
+                        final isGranted = agent.permissions[fieldKey] ?? false;
+                        final label = fieldKey[0].toUpperCase() + fieldKey.substring(1).replaceAllMapped(RegExp(r'[A-Z]'), (match) => ' ${match.group(0)}');
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isGranted ? const Color(0xFFE8F5E9) : const Color(0xFFECEFF1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isGranted ? const Color(0xFFC8E6C9) : const Color(0xFFCFD8DC),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isGranted ? LucideIcons.check : LucideIcons.lock,
+                                size: 12,
+                                color: isGranted ? const Color(0xFF2E7D32) : const Color(0xFF546E7A),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isGranted ? const Color(0xFF1B5E20) : const Color(0xFF37474F),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 24),
 
               // 4. Settings menu panel
@@ -669,6 +763,30 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
           body: content,
         );
       },
+    );
+  }
+
+  Widget _buildClearanceRow(String title, bool isCleared) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(
+            isCleared ? LucideIcons.check : LucideIcons.lock,
+            size: 16,
+            color: isCleared ? const Color(0xFF2E7D32) : AppTheme.secondary,
+          ),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: isCleared ? AppTheme.onSurface : AppTheme.secondary,
+              fontWeight: isCleared ? FontWeight.w500 : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

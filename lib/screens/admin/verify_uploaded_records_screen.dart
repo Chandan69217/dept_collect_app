@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_feedback.dart';
+import '../../config/field_mapping.dart';
 
 class VerifyUploadedRecordsScreen extends StatefulWidget {
   final String fileName;
@@ -26,19 +27,106 @@ class _VerifyUploadedRecordsScreenState
   final _searchController = TextEditingController();
   final Set<int> _selectedIndices = {};
 
+  // Cache structure for fast lookup and filtering
+  final List<_RecordCache> _cachedRecords = [];
+
   // Column visibility flags
-  bool _showName = true;
-  bool _showAmount = true;
+  final Map<String, bool> _fieldVisibility = {};
   bool _showLoanId = true;
-  bool _showPhone = true;
-  bool _showAddress = true;
-  bool _showOverdueDays = true;
-  bool _showPriority = true;
-  bool _showAssetModel = true;
-  bool _showAssetRegNo = true;
-  bool _showAssetVariant = true;
-  bool _showEngineNo = true;
-  bool _showChassisNo = true;
+
+  // Metadata mapping for known keys with dynamic camelCase fallback
+  Map<String, dynamic> _getFieldMetadata(String key) {
+    switch (key) {
+      case 'name':
+        return {
+          'title': 'Debtor Name',
+          'description': 'Full legal identity of the debtor',
+          'icon': LucideIcons.user,
+        };
+      case 'amountDue':
+        return {
+          'title': 'Amount',
+          'description': 'Total outstanding ledger balance',
+          'icon': LucideIcons.banknote,
+        };
+      case 'phone':
+        return {
+          'title': 'Contact Phone',
+          'description': 'Primary telephone notification digits',
+          'icon': LucideIcons.phone,
+        };
+      case 'address':
+        return {
+          'title': 'Debtor Address',
+          'description': 'Location or residence of the debtor',
+          'icon': LucideIcons.mapPin,
+        };
+      case 'overdueDays':
+        return {
+          'title': 'Overdue Days',
+          'description': 'Number of days payment is overdue',
+          'icon': LucideIcons.calendarClock,
+        };
+      case 'priority':
+        return {
+          'title': 'Priority',
+          'description': 'Assigned Urgency / Priority level',
+          'icon': LucideIcons.alertTriangle,
+        };
+      case 'assetModel':
+        return {
+          'title': 'Asset Model',
+          'description': 'Mapped asset model reference info',
+          'icon': LucideIcons.car,
+        };
+      case 'assetRegNo':
+        return {
+          'title': 'Asset Reg No',
+          'description': 'Mapped asset registration number details',
+          'icon': LucideIcons.hash,
+        };
+      case 'assetVariant':
+        return {
+          'title': 'Asset Variant',
+          'description': 'Mapped asset specification variant configuration',
+          'icon': LucideIcons.layers,
+        };
+      case 'engineNumber':
+        return {
+          'title': 'Engine Number',
+          'description': 'Mapped asset engine block identifier key',
+          'icon': LucideIcons.activity,
+        };
+      case 'chasisNumber':
+        return {
+          'title': 'Chassis Number',
+          'description': 'Mapped asset chassis serial structural ID',
+          'icon': LucideIcons.shieldAlert,
+        };
+      default:
+        final camelCaseRegex = RegExp(r'(^[a-z]+|[A-Z][a-z]*)');
+        final matches = camelCaseRegex.allMatches(key);
+        String label = key;
+        if (matches.isNotEmpty) {
+          label = matches
+              .map((m) {
+                final s = m.group(0) ?? '';
+                if (s.isEmpty) return s;
+                return s[0].toUpperCase() + s.substring(1);
+              })
+              .join(' ');
+        } else {
+          label = key.isNotEmpty
+              ? key[0].toUpperCase() + key.substring(1)
+              : key;
+        }
+        return {
+          'title': label,
+          'description': 'Mapped $label column from source file',
+          'icon': LucideIcons.hash,
+        };
+    }
+  }
 
   // Filter criteria
   String _selectedStatusFilter =
@@ -47,6 +135,7 @@ class _VerifyUploadedRecordsScreenState
   double? _maxAmount;
   String _selectedDateFilter =
       'Today'; // 'Today', 'Last 7 Days', 'Custom Range'
+  bool _isUploading = false;
 
   // Match mappings (1st item Ganesh Hegde is discrepancy, 2nd is matched, 3rd is new, 4th is new)
   final Set<int> _matchedIndices = {1};
@@ -55,8 +144,63 @@ class _VerifyUploadedRecordsScreenState
   @override
   void initState() {
     super.initState();
-    // Default select all
+    // Initialize visibility flags from global ExcelFieldMapping
+    for (final key in ExcelFieldMapping.mapping.keys) {
+      _fieldVisibility[key] = true;
+    }
+    _precomputeCache();
+  }
+
+  void _precomputeCache() {
+    _cachedRecords.clear();
+    _selectedIndices.clear();
+    
     for (int i = 0; i < widget.records.length; i++) {
+      final r = widget.records[i];
+      
+      // Safe name extraction
+      final String name = r['name']?.toString() ?? 'No Name';
+      final String nameLower = name.toLowerCase();
+      
+      // Safe phone extraction
+      final String phone = r['phone']?.toString() ?? '';
+      
+      // Safe loan ID calculation
+      final hashStr = name.hashCode.abs().toString();
+      final cleanHash = hashStr.length > 5 ? hashStr.substring(0, 5) : hashStr;
+      final loanIdDisplay = '#LN-88$cleanHash';
+      final loanIdLower = loanIdDisplay.toLowerCase();
+      
+      // Safe status calculation
+      String status;
+      if (_discrepancyIndices.contains(i)) {
+        status = 'Discrepancy';
+      } else if (_matchedIndices.contains(i)) {
+        status = 'Matched';
+      } else {
+        status = 'New Record';
+      }
+      
+      // Safe amountDue parsing
+      double amount = 0.0;
+      if (r['amountDue'] != null) {
+        if (r['amountDue'] is num) {
+          amount = (r['amountDue'] as num).toDouble();
+        } else {
+          amount = double.tryParse(r['amountDue'].toString().replaceAll(',', '')) ?? 0.0;
+        }
+      }
+      
+      _cachedRecords.add(_RecordCache(
+        record: r,
+        nameLower: nameLower,
+        phone: phone,
+        loanId: loanIdLower,
+        loanIdDisplay: loanIdDisplay,
+        status: status,
+        amountDue: amount,
+      ));
+      
       _selectedIndices.add(i);
     }
   }
@@ -69,7 +213,8 @@ class _VerifyUploadedRecordsScreenState
 
   String _getLoanId(Map<String, dynamic> record, int index) {
     // Generate stable Loan ID based on hash
-    final hashStr = record['name'].hashCode.abs().toString();
+    final name = record['name']?.toString() ?? 'Unknown debtor';
+    final hashStr = name.hashCode.abs().toString();
     final cleanHash = hashStr.length > 5 ? hashStr.substring(0, 5) : hashStr;
     return '#LN-88$cleanHash';
   }
@@ -121,63 +266,47 @@ class _VerifyUploadedRecordsScreenState
       ),
       builder: (context) {
         return _ManageImportFieldsSheet(
-          showName: _showName,
-          showAmount: _showAmount,
+          fieldVisibility: Map<String, bool>.from(_fieldVisibility),
           showLoanId: _showLoanId,
-          showPhone: _showPhone,
-          showAddress: _showAddress,
-          showOverdueDays: _showOverdueDays,
-          showPriority: _showPriority,
-          showAssetModel: _showAssetModel,
-          showAssetRegNo: _showAssetRegNo,
-          showAssetVariant: _showAssetVariant,
-          showEngineNo: _showEngineNo,
-          showChassisNo: _showChassisNo,
-          onSave:
-              (
-                name,
-                amount,
-                loanId,
-                phone,
-                address,
-                overdueDays,
-                priority,
-                assetModel,
-                assetRegNo,
-                assetVariant,
-                engineNo,
-                chassisNo,
-              ) {
-                setState(() {
-                  _showName = name;
-                  _showAmount = amount;
-                  _showLoanId = loanId;
-                  _showPhone = phone;
-                  _showAddress = address;
-                  _showOverdueDays = overdueDays;
-                  _showPriority = priority;
-                  _showAssetModel = assetModel;
-                  _showAssetRegNo = assetRegNo;
-                  _showAssetVariant = assetVariant;
-                  _showEngineNo = engineNo;
-                  _showChassisNo = chassisNo;
-                });
-              },
+          onSave: (updatedVisibility, loanId) {
+            setState(() {
+              _fieldVisibility.clear();
+              _fieldVisibility.addAll(updatedVisibility);
+              _showLoanId = loanId;
+            });
+          },
         );
       },
     );
   }
 
-  void _confirmAndImport() {
-    // Collect only the selected records to import
-    final List<Map<String, dynamic>> selectedRecords = [];
+  Future<void> _confirmAndImport() async {
+    if (_isUploading) return;
+
+    // Collect and filter records according to field visibility
+    final List<Map<String, dynamic>> processedRecords = [];
     for (int index in _selectedIndices) {
       if (index >= 0 && index < widget.records.length) {
-        selectedRecords.add(widget.records[index]);
+        final record = widget.records[index];
+        final copy = Map<String, dynamic>.from(record);
+
+        // Nullify fields whose visibility is turned off
+        for (final entry in _fieldVisibility.entries) {
+          final key = entry.key;
+          final isVisible = entry.value;
+          if (!isVisible) {
+            copy[key] = null;
+          }
+        }
+
+        // Handle Loan ID toggle - pass showLoanId preference in record Map
+        copy['showLoanId'] = _showLoanId;
+
+        processedRecords.add(copy);
       }
     }
 
-    if (selectedRecords.isEmpty) {
+    if (processedRecords.isEmpty) {
       CustomFeedback.showToast(
         context,
         'Please select at least one record to import.',
@@ -186,18 +315,47 @@ class _VerifyUploadedRecordsScreenState
       return;
     }
 
-    // Commit to global database service
-    _db.uploadBankRecords(selectedRecords);
+    setState(() {
+      _isUploading = true;
+    });
 
-    // Dynamic zone SnackBar toast
-    CustomFeedback.showToast(
-      context,
-      'Import complete: ${selectedRecords.length} records committed to Mumbai Metro Zone!',
-      type: 'success',
-    );
+    try {
+      // Commit to global database service (first saves to API then local db)
+      await _db.uploadBankRecords(widget.fileName, processedRecords);
 
-    // Pop screen back to dashboard/import hub cleanly with a success signal
-    Navigator.pop(context, true);
+      if (!mounted) return;
+
+      CustomFeedback.showFeedbackDialog(
+        context,
+        title: 'Import Successful',
+        message: 'Import complete: ${processedRecords.length} records committed successfully!',
+        type: 'success',
+        confirmLabel: 'OK',
+        showCancel: false,
+        onConfirm: () {
+          if (mounted) {
+            Navigator.pop(context, true);
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        CustomFeedback.showFeedbackDialog(
+          context,
+          title: 'Import Failed',
+          message: 'Failed to upload records: ${e.toString().replaceAll('Exception: ', '')}',
+          type: 'error',
+          confirmLabel: 'OK',
+          showCancel: false,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -206,43 +364,54 @@ class _VerifyUploadedRecordsScreenState
     final List<Map<String, dynamic>> filteredRecords = [];
     final List<int> originalIndices = [];
 
-    for (int i = 0; i < widget.records.length; i++) {
-      final r = widget.records[i];
-      final name = r['name'] as String? ?? '';
-      final phone = r['phone'] as String? ?? '';
-      final loanId = _getLoanId(r, i);
-      final status = _getStatus(i);
-      final amount = r['amountDue'] as double? ?? 0.0;
+    final hasSearch = _searchQuery.isNotEmpty;
+    final hasStatusFilter = _selectedStatusFilter != 'All';
+    final hasAmountFilter = _minAmount != null || _maxAmount != null;
 
-      // Match Search query
+    if (!hasSearch && !hasStatusFilter && !hasAmountFilter) {
+      // Direct assignment - no loop needed!
+      filteredRecords.addAll(widget.records);
+      originalIndices.addAll(Iterable<int>.generate(widget.records.length));
+    } else {
+      // Loop over cached records for fast matching
       final query = _searchQuery.toLowerCase();
-      final matchesSearch =
-          name.toLowerCase().contains(query) ||
-          phone.contains(query) ||
-          loanId.toLowerCase().contains(query);
+      final statusQuery = _selectedStatusFilter.toLowerCase();
+      
+      for (int i = 0; i < _cachedRecords.length; i++) {
+        final cache = _cachedRecords[i];
+        
+        // Match Search query
+        if (hasSearch) {
+          final matchesSearch =
+              cache.nameLower.contains(query) ||
+              cache.phone.contains(query) ||
+              cache.loanId.contains(query);
+          if (!matchesSearch) continue;
+        }
 
-      // Match Status Filter
-      final matchesStatus =
-          _selectedStatusFilter == 'All' ||
-          status.toLowerCase() == _selectedStatusFilter.toLowerCase();
+        // Match Status Filter
+        if (hasStatusFilter) {
+          final matchesStatus = cache.status.toLowerCase() == statusQuery;
+          if (!matchesStatus) continue;
+        }
 
-      // Match Amount Filters
-      bool matchesAmount = true;
-      if (_minAmount != null && amount < _minAmount!) matchesAmount = false;
-      if (_maxAmount != null && amount > _maxAmount!) matchesAmount = false;
+        // Match Amount Filters
+        if (_minAmount != null && cache.amountDue < _minAmount!) continue;
+        if (_maxAmount != null && cache.amountDue > _maxAmount!) continue;
 
-      if (matchesSearch && matchesStatus && matchesAmount) {
-        filteredRecords.add(r);
+        filteredRecords.add(cache.record);
         originalIndices.add(i);
       }
     }
 
-    final isAllSelected =
-        filteredRecords.isNotEmpty &&
-        filteredRecords.every((r) {
-          final idx = widget.records.indexOf(r);
-          return _selectedIndices.contains(idx);
-        });
+    bool isAllSelected = filteredRecords.isNotEmpty;
+    for (int i = 0; i < filteredRecords.length; i++) {
+      final origIdx = originalIndices[i];
+      if (!_selectedIndices.contains(origIdx)) {
+        isAllSelected = false;
+        break;
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -263,6 +432,7 @@ class _VerifyUploadedRecordsScreenState
       ),
       body: Column(
         children: [
+          if (_isUploading) CustomFeedback.showProgressIndicator(),
           // Header Summary Block
           Container(
             color: Colors.white,
@@ -391,13 +561,13 @@ class _VerifyUploadedRecordsScreenState
                   onTap: () {
                     setState(() {
                       if (isAllSelected) {
-                        for (var r in filteredRecords) {
-                          final idx = widget.records.indexOf(r);
+                        for (int k = 0; k < filteredRecords.length; k++) {
+                          final idx = originalIndices[k];
                           _selectedIndices.remove(idx);
                         }
                       } else {
-                        for (var r in filteredRecords) {
-                          final idx = widget.records.indexOf(r);
+                        for (int k = 0; k < filteredRecords.length; k++) {
+                          final idx = originalIndices[k];
                           _selectedIndices.add(idx);
                         }
                       }
@@ -543,76 +713,25 @@ class _VerifyUploadedRecordsScreenState
                     scrollDirection: Axis.horizontal,
                     children: [
                       _buildVisibilityChip(
-                        'Name',
-                        _showName,
-                        (val) => setState(() => _showName = val),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildVisibilityChip(
-                        'Amount',
-                        _showAmount,
-                        (val) => setState(() => _showAmount = val),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildVisibilityChip(
                         'Loan ID',
                         _showLoanId,
                         (val) => setState(() => _showLoanId = val),
                       ),
-                      const SizedBox(width: 8),
-                      _buildVisibilityChip(
-                        'Phone',
-                        _showPhone,
-                        (val) => setState(() => _showPhone = val),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildVisibilityChip(
-                        'Address',
-                        _showAddress,
-                        (val) => setState(() => _showAddress = val),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildVisibilityChip(
-                        'Overdue',
-                        _showOverdueDays,
-                        (val) => setState(() => _showOverdueDays = val),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildVisibilityChip(
-                        'Priority',
-                        _showPriority,
-                        (val) => setState(() => _showPriority = val),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildVisibilityChip(
-                        'Asset Model',
-                        _showAssetModel,
-                        (val) => setState(() => _showAssetModel = val),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildVisibilityChip(
-                        'Asset Reg No',
-                        _showAssetRegNo,
-                        (val) => setState(() => _showAssetRegNo = val),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildVisibilityChip(
-                        'Asset Variant',
-                        _showAssetVariant,
-                        (val) => setState(() => _showAssetVariant = val),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildVisibilityChip(
-                        'Engine No',
-                        _showEngineNo,
-                        (val) => setState(() => _showEngineNo = val),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildVisibilityChip(
-                        'Chassis No',
-                        _showChassisNo,
-                        (val) => setState(() => _showChassisNo = val),
-                      ),
+                      ..._fieldVisibility.entries.map((entry) {
+                        final key = entry.key;
+                        final isVisible = entry.value;
+                        final metadata = _getFieldMetadata(key);
+                        final label = metadata['title'] as String;
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: _buildVisibilityChip(
+                            label,
+                            isVisible,
+                            (val) =>
+                                setState(() => _fieldVisibility[key] = val),
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -692,12 +811,14 @@ class _VerifyUploadedRecordsScreenState
                     ),
                     elevation: 2,
                   ),
-                  onPressed: _confirmAndImport,
+                  onPressed: _isUploading ? null : _confirmAndImport,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Confirm & Import (${_selectedIndices.length})',
+                        _isUploading
+                            ? 'Importing...'
+                            : 'Confirm & Import (${_selectedIndices.length})',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -705,7 +826,16 @@ class _VerifyUploadedRecordsScreenState
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(LucideIcons.uploadCloud, size: 18),
+                      _isUploading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(LucideIcons.uploadCloud, size: 18),
                     ],
                   ),
                 ),
@@ -794,11 +924,22 @@ class _VerifyUploadedRecordsScreenState
       statusDotColor = const Color(0xFF2196F3);
     }
 
-    final double amount = record['amountDue'] as double? ?? 0.0;
-    final String name = record['name'] as String? ?? '';
-    final String initials = name.isNotEmpty
-        ? name.trim().split(' ').map((s) => s[0]).take(2).join('').toUpperCase()
+    // Safe extraction with fallback to cached values if available
+    final String name = origIndex < _cachedRecords.length
+        ? (_cachedRecords[origIndex].record['name']?.toString() ?? 'No Name')
+        : (record['name']?.toString() ?? 'No Name');
+        
+    final String initials = name.trim().isNotEmpty
+        ? name.trim().split(' ').where((s) => s.isNotEmpty).map((s) => s[0]).take(2).join('').toUpperCase()
         : '?';
+
+    final double amount = origIndex < _cachedRecords.length
+        ? _cachedRecords[origIndex].amountDue
+        : (() {
+            if (record['amountDue'] == null) return 0.0;
+            if (record['amountDue'] is num) return (record['amountDue'] as num).toDouble();
+            return double.tryParse(record['amountDue'].toString().replaceAll(',', '')) ?? 0.0;
+          })();
 
     // Premium dynamic avatar colors
     final List<Color> avatarColors = [
@@ -872,7 +1013,7 @@ class _VerifyUploadedRecordsScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Avatar initials badge
-                    if (_showName) ...[
+                    if (_fieldVisibility['name'] ?? true) ...[
                       Container(
                         width: 32,
                         height: 32,
@@ -898,7 +1039,7 @@ class _VerifyUploadedRecordsScreenState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (_showName)
+                          if (_fieldVisibility['name'] ?? true)
                             Text(
                               name,
                               style: const TextStyle(
@@ -908,7 +1049,7 @@ class _VerifyUploadedRecordsScreenState
                                 fontFamily: 'Inter',
                               ),
                             ),
-                          if (_showAmount) ...[
+                          if (_fieldVisibility['amountDue'] ?? true) ...[
                             const SizedBox(height: 2),
                             Text(
                               '₹${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
@@ -1005,7 +1146,9 @@ class _VerifyUploadedRecordsScreenState
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            _getLoanId(record, origIndex),
+                            origIndex < _cachedRecords.length
+                                ? _cachedRecords[origIndex].loanIdDisplay
+                                : _getLoanId(record, origIndex),
                             style: const TextStyle(
                               fontSize: 10,
                               color: AppTheme.secondary,
@@ -1016,7 +1159,7 @@ class _VerifyUploadedRecordsScreenState
                         ],
                       ),
                     ],
-                    if (_showPhone) ...[
+                    if (_fieldVisibility['phone'] ?? true) ...[
                       const SizedBox(height: 4),
                       Row(
                         children: [
@@ -1027,7 +1170,7 @@ class _VerifyUploadedRecordsScreenState
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            record['phone'] as String? ?? '',
+                            record['phone']?.toString() ?? '',
                             style: const TextStyle(
                               fontSize: 11,
                               color: AppTheme.onSurfaceVariant,
@@ -1037,7 +1180,7 @@ class _VerifyUploadedRecordsScreenState
                         ],
                       ),
                     ],
-                    if (_showAddress) ...[
+                    if (_fieldVisibility['address'] ?? true) ...[
                       const SizedBox(height: 4),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1053,27 +1196,28 @@ class _VerifyUploadedRecordsScreenState
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              record['address'] as String? ?? 'No Address',
+                              record['address']?.toString() ?? 'No Address',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.onSurfaceVariant,
-                                fontFamily: 'Inter',
-                                height: 1.25,
-                              ),
+                                  fontSize: 11,
+                                  color: AppTheme.onSurfaceVariant,
+                                  fontFamily: 'Inter',
+                                  height: 1.25,
+                                ),
                             ),
                           ),
                         ],
                       ),
                     ],
-                    if (_showOverdueDays || _showPriority) ...[
+                    if ((_fieldVisibility['overdueDays'] ?? true) ||
+                        (_fieldVisibility['priority'] ?? true)) ...[
                       const SizedBox(height: 6),
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
                         children: [
-                          if (_showOverdueDays)
+                          if (_fieldVisibility['overdueDays'] ?? true)
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
@@ -1093,7 +1237,12 @@ class _VerifyUploadedRecordsScreenState
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '${record['overdueDays'] ?? 10} Days Overdue',
+                                    '${(() {
+                                      final val = record['overdueDays'];
+                                      if (val == null) return 10;
+                                      if (val is num) return val.toInt();
+                                      return int.tryParse(val.toString()) ?? 10;
+                                    })()} Days Overdue',
                                     style: const TextStyle(
                                       fontSize: 9,
                                       fontWeight: FontWeight.bold,
@@ -1104,7 +1253,7 @@ class _VerifyUploadedRecordsScreenState
                                 ],
                               ),
                             ),
-                          if (_showPriority)
+                          if (_fieldVisibility['priority'] ?? true)
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
@@ -1124,7 +1273,7 @@ class _VerifyUploadedRecordsScreenState
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    'Priority: ${record['priority'] ?? 'MEDIUM'}',
+                                    'Priority: ${record['priority']?.toString() ?? 'MEDIUM'}',
                                     style: const TextStyle(
                                       fontSize: 9,
                                       fontWeight: FontWeight.bold,
@@ -1147,13 +1296,20 @@ class _VerifyUploadedRecordsScreenState
                           record['assetVariant']?.toString() ?? '';
 
                       final showModel =
-                          _showAssetModel && assetModel.isNotEmpty;
+                          (_fieldVisibility['assetModel'] ?? true) &&
+                          assetModel.isNotEmpty;
                       final showRegNo =
-                          _showAssetRegNo && assetRegNo.isNotEmpty;
+                          (_fieldVisibility['assetRegNo'] ?? true) &&
+                          assetRegNo.isNotEmpty;
                       final showVariant =
-                          _showAssetVariant && assetVariant.isNotEmpty;
-                      final showEngine = _showEngineNo && engineNo.isNotEmpty;
-                      final showChassis = _showChassisNo && chasisNo.isNotEmpty;
+                          (_fieldVisibility['assetVariant'] ?? true) &&
+                          assetVariant.isNotEmpty;
+                      final showEngine =
+                          (_fieldVisibility['engineNumber'] ?? true) &&
+                          engineNo.isNotEmpty;
+                      final showChassis =
+                          (_fieldVisibility['chasisNumber'] ?? true) &&
+                          chasisNo.isNotEmpty;
 
                       final hasAssetInfo =
                           showModel ||
@@ -1162,63 +1318,148 @@ class _VerifyUploadedRecordsScreenState
                           showEngine ||
                           showChassis;
 
-                      if (!hasAssetInfo) return const SizedBox();
-
-                      return Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(top: 8),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF4FF).withOpacity(0.4),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: AppTheme.outlineVariant.withOpacity(0.5),
+                      Widget? assetBox;
+                      if (hasAssetInfo) {
+                        assetBox = Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF4FF).withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppTheme.outlineVariant.withOpacity(0.5),
+                            ),
                           ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  LucideIcons.car,
-                                  size: 10,
-                                  color: AppTheme.primary,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'ASSET INFORMATION (MAPPED)',
-                                  style: TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primary.withOpacity(0.8),
-                                    letterSpacing: 0.3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    LucideIcons.car,
+                                    size: 10,
+                                    color: AppTheme.primary,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'ASSET INFORMATION (MAPPED)',
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primary.withOpacity(0.8),
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: [
+                                  if (showModel)
+                                    _buildAssetBadge('Model', assetModel),
+                                  if (showRegNo)
+                                    _buildAssetBadge('Reg No', assetRegNo),
+                                  if (showVariant)
+                                    _buildAssetBadge('Variant', assetVariant),
+                                  if (showEngine)
+                                    _buildAssetBadge('Engine', engineNo),
+                                  if (showChassis)
+                                    _buildAssetBadge('Chassis', chasisNo),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      // Render other custom added fields dynamically
+                      final List<Widget> dynamicFieldBadges = [];
+                      final coreKeys = {
+                        'name',
+                        'amountDue',
+                        'phone',
+                        'address',
+                        'overdueDays',
+                        'priority',
+                        'assetModel',
+                        'assetRegNo',
+                        'assetVariant',
+                        'engineNumber',
+                        'chasisNumber',
+                      };
+
+                      for (final key in _fieldVisibility.keys) {
+                        if (coreKeys.contains(key)) continue;
+                        if (!(_fieldVisibility[key] ?? true)) continue;
+                        final value = record[key]?.toString() ?? '';
+                        if (value.isNotEmpty) {
+                          final metadata = _getFieldMetadata(key);
+                          dynamicFieldBadges.add(
+                            _buildAssetBadge(
+                              metadata['title'] as String,
+                              value,
                             ),
-                            const SizedBox(height: 6),
-                            Wrap(
-                              spacing: 4,
-                              runSpacing: 4,
-                              children: [
-                                if (showModel)
-                                  _buildAssetBadge('Model', assetModel),
-                                if (showRegNo)
-                                  _buildAssetBadge('Reg No', assetRegNo),
-                                if (showVariant)
-                                  _buildAssetBadge('Variant', assetVariant),
-                                if (showEngine)
-                                  _buildAssetBadge('Engine', engineNo),
-                                if (showChassis)
-                                  _buildAssetBadge('Chassis', chasisNo),
-                              ],
+                          );
+                        }
+                      }
+
+                      Widget? customBox;
+                      if (dynamicFieldBadges.isNotEmpty) {
+                        customBox = Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF4FF).withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppTheme.outlineVariant.withOpacity(0.5),
                             ),
-                          ],
-                        ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    LucideIcons.listPlus,
+                                    size: 10,
+                                    color: AppTheme.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'ADDITIONAL INFORMATION',
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primary.withOpacity(0.8),
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: dynamicFieldBadges,
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (assetBox == null && customBox == null) {
+                        return const SizedBox();
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [?assetBox, ?customBox],
                       );
                     })(),
-
                   ],
                 ),
               ],
@@ -2123,47 +2364,13 @@ class CustomRangeThumbShape extends RangeSliderThumbShape {
 // MANAGE FIELDS visibility selection bottom sheet widget
 // ----------------------------------------------------------------------------
 class _ManageImportFieldsSheet extends StatefulWidget {
-  final bool showName;
-  final bool showAmount;
+  final Map<String, bool> fieldVisibility;
   final bool showLoanId;
-  final bool showPhone;
-  final bool showAddress;
-  final bool showOverdueDays;
-  final bool showPriority;
-  final bool showAssetModel;
-  final bool showAssetRegNo;
-  final bool showAssetVariant;
-  final bool showEngineNo;
-  final bool showChassisNo;
-  final Function(
-    bool name,
-    bool amount,
-    bool loanId,
-    bool phone,
-    bool address,
-    bool overdueDays,
-    bool priority,
-    bool assetModel,
-    bool assetRegNo,
-    bool assetVariant,
-    bool engineNo,
-    bool chassisNo,
-  )
-  onSave;
+  final Function(Map<String, bool> fieldVisibility, bool showLoanId) onSave;
 
   const _ManageImportFieldsSheet({
-    required this.showName,
-    required this.showAmount,
+    required this.fieldVisibility,
     required this.showLoanId,
-    required this.showPhone,
-    required this.showAddress,
-    required this.showOverdueDays,
-    required this.showPriority,
-    required this.showAssetModel,
-    required this.showAssetRegNo,
-    required this.showAssetVariant,
-    required this.showEngineNo,
-    required this.showChassisNo,
     required this.onSave,
   });
 
@@ -2173,34 +2380,107 @@ class _ManageImportFieldsSheet extends StatefulWidget {
 }
 
 class _ManageImportFieldsSheetState extends State<_ManageImportFieldsSheet> {
-  late bool _name;
-  late bool _amount;
-  late bool _loanId;
-  late bool _phone;
-  late bool _address;
-  late bool _overdueDays;
-  late bool _priority;
-  late bool _assetModel;
-  late bool _assetRegNo;
-  late bool _assetVariant;
-  late bool _engineNo;
-  late bool _chassisNo;
+  late Map<String, bool> _fieldVisibility;
+  late bool _showLoanId;
 
   @override
   void initState() {
     super.initState();
-    _name = widget.showName;
-    _amount = widget.showAmount;
-    _loanId = widget.showLoanId;
-    _phone = widget.showPhone;
-    _address = widget.showAddress;
-    _overdueDays = widget.showOverdueDays;
-    _priority = widget.showPriority;
-    _assetModel = widget.showAssetModel;
-    _assetRegNo = widget.showAssetRegNo;
-    _assetVariant = widget.showAssetVariant;
-    _engineNo = widget.showEngineNo;
-    _chassisNo = widget.showChassisNo;
+    _fieldVisibility = Map<String, bool>.from(widget.fieldVisibility);
+    _showLoanId = widget.showLoanId;
+  }
+
+  Map<String, dynamic> _getFieldMetadata(String key) {
+    switch (key) {
+      case 'name':
+        return {
+          'title': 'Debtor Name',
+          'description': 'Full legal identity of the debtor',
+          'icon': LucideIcons.user,
+        };
+      case 'amountDue':
+        return {
+          'title': 'Amount',
+          'description': 'Total outstanding ledger balance',
+          'icon': LucideIcons.banknote,
+        };
+      case 'phone':
+        return {
+          'title': 'Contact Phone',
+          'description': 'Primary telephone notification digits',
+          'icon': LucideIcons.phone,
+        };
+      case 'address':
+        return {
+          'title': 'Debtor Address',
+          'description': 'Location or residence of the debtor',
+          'icon': LucideIcons.mapPin,
+        };
+      case 'overdueDays':
+        return {
+          'title': 'Overdue Days',
+          'description': 'Number of days payment is overdue',
+          'icon': LucideIcons.calendarClock,
+        };
+      case 'priority':
+        return {
+          'title': 'Priority',
+          'description': 'Assigned Urgency / Priority level',
+          'icon': LucideIcons.alertTriangle,
+        };
+      case 'assetModel':
+        return {
+          'title': 'Asset Model',
+          'description': 'Mapped asset model reference info',
+          'icon': LucideIcons.car,
+        };
+      case 'assetRegNo':
+        return {
+          'title': 'Asset Reg No',
+          'description': 'Mapped asset registration number details',
+          'icon': LucideIcons.hash,
+        };
+      case 'assetVariant':
+        return {
+          'title': 'Asset Variant',
+          'description': 'Mapped asset specification variant configuration',
+          'icon': LucideIcons.layers,
+        };
+      case 'engineNumber':
+        return {
+          'title': 'Engine Number',
+          'description': 'Mapped asset engine block identifier key',
+          'icon': LucideIcons.activity,
+        };
+      case 'chasisNumber':
+        return {
+          'title': 'Chassis Number',
+          'description': 'Mapped asset chassis serial structural ID',
+          'icon': LucideIcons.shieldAlert,
+        };
+      default:
+        final camelCaseRegex = RegExp(r'(^[a-z]+|[A-Z][a-z]*)');
+        final matches = camelCaseRegex.allMatches(key);
+        String label = key;
+        if (matches.isNotEmpty) {
+          label = matches
+              .map((m) {
+                final s = m.group(0) ?? '';
+                if (s.isEmpty) return s;
+                return s[0].toUpperCase() + s.substring(1);
+              })
+              .join(' ');
+        } else {
+          label = key.isNotEmpty
+              ? key[0].toUpperCase() + key.substring(1)
+              : key;
+        }
+        return {
+          'title': label,
+          'description': 'Mapped $label column from source file',
+          'icon': LucideIcons.hash,
+        };
+    }
   }
 
   @override
@@ -2285,90 +2565,25 @@ class _ManageImportFieldsSheetState extends State<_ManageImportFieldsSheet> {
                 ),
                 children: [
                   _buildToggleRow(
-                    title: 'Debtor Name',
-                    description: 'Full legal identity of the debtor',
-                    icon: LucideIcons.user,
-                    value: _name,
-                    onChanged: (val) => setState(() => _name = val),
-                  ),
-                  _buildToggleRow(
-                    title: 'Amount',
-                    description: 'Total outstanding ledger balance',
-                    icon: LucideIcons.banknote,
-                    value: _amount,
-                    onChanged: (val) => setState(() => _amount = val),
-                  ),
-                  _buildToggleRow(
                     title: 'Loan ID',
                     description: 'Unique contract reference keys',
                     icon: LucideIcons.fingerprint,
-                    value: _loanId,
-                    onChanged: (val) => setState(() => _loanId = val),
+                    value: _showLoanId,
+                    onChanged: (val) => setState(() => _showLoanId = val),
                   ),
-                  _buildToggleRow(
-                    title: 'Contact Phone',
-                    description: 'Primary telephone notification digits',
-                    icon: LucideIcons.phone,
-                    value: _phone,
-                    onChanged: (val) => setState(() => _phone = val),
-                  ),
-                  _buildToggleRow(
-                    title: 'Debtor Address',
-                    description: 'Location or residence of the debtor',
-                    icon: LucideIcons.mapPin,
-                    value: _address,
-                    onChanged: (val) => setState(() => _address = val),
-                  ),
-                  _buildToggleRow(
-                    title: 'Overdue Days',
-                    description: 'Number of days payment is overdue',
-                    icon: LucideIcons.calendarClock,
-                    value: _overdueDays,
-                    onChanged: (val) => setState(() => _overdueDays = val),
-                  ),
-                  _buildToggleRow(
-                    title: 'Priority',
-                    description: 'Assigned Urgency / Priority level',
-                    icon: LucideIcons.alertTriangle,
-                    value: _priority,
-                    onChanged: (val) => setState(() => _priority = val),
-                  ),
-                  _buildToggleRow(
-                    title: 'Asset Model',
-                    description: 'Mapped asset model reference info',
-                    icon: LucideIcons.car,
-                    value: _assetModel,
-                    onChanged: (val) => setState(() => _assetModel = val),
-                  ),
-                  _buildToggleRow(
-                    title: 'Asset Reg No',
-                    description: 'Mapped asset registration number details',
-                    icon: LucideIcons.hash,
-                    value: _assetRegNo,
-                    onChanged: (val) => setState(() => _assetRegNo = val),
-                  ),
-                  _buildToggleRow(
-                    title: 'Asset Variant',
-                    description:
-                        'Mapped asset specification variant configuration',
-                    icon: LucideIcons.layers,
-                    value: _assetVariant,
-                    onChanged: (val) => setState(() => _assetVariant = val),
-                  ),
-                  _buildToggleRow(
-                    title: 'Engine Number',
-                    description: 'Mapped asset engine block identifier key',
-                    icon: LucideIcons.activity,
-                    value: _engineNo,
-                    onChanged: (val) => setState(() => _engineNo = val),
-                  ),
-                  _buildToggleRow(
-                    title: 'Chassis Number',
-                    description: 'Mapped asset chassis serial structural ID',
-                    icon: LucideIcons.shieldAlert,
-                    value: _chassisNo,
-                    onChanged: (val) => setState(() => _chassisNo = val),
-                  ),
+                  ..._fieldVisibility.entries.map((entry) {
+                    final key = entry.key;
+                    final isVisible = entry.value;
+                    final metadata = _getFieldMetadata(key);
+                    return _buildToggleRow(
+                      title: metadata['title'] as String,
+                      description: metadata['description'] as String,
+                      icon: metadata['icon'] as IconData,
+                      value: isVisible,
+                      onChanged: (val) =>
+                          setState(() => _fieldVisibility[key] = val),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -2411,20 +2626,7 @@ class _ManageImportFieldsSheetState extends State<_ManageImportFieldsSheet> {
                       height: 48,
                       child: ElevatedButton(
                         onPressed: () {
-                          widget.onSave(
-                            _name,
-                            _amount,
-                            _loanId,
-                            _phone,
-                            _address,
-                            _overdueDays,
-                            _priority,
-                            _assetModel,
-                            _assetRegNo,
-                            _assetVariant,
-                            _engineNo,
-                            _chassisNo,
-                          );
+                          widget.onSave(_fieldVisibility, _showLoanId);
                           Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
@@ -2515,4 +2717,24 @@ class _ManageImportFieldsSheetState extends State<_ManageImportFieldsSheet> {
       ),
     );
   }
+}
+
+class _RecordCache {
+  final Map<String, dynamic> record;
+  final String nameLower;
+  final String phone;
+  final String loanId;
+  final String loanIdDisplay;
+  final String status;
+  final double amountDue;
+
+  _RecordCache({
+    required this.record,
+    required this.nameLower,
+    required this.phone,
+    required this.loanId,
+    required this.loanIdDisplay,
+    required this.status,
+    required this.amountDue,
+  });
 }

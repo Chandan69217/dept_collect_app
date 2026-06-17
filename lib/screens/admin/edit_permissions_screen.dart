@@ -5,6 +5,7 @@ import '../../widgets/custom_bento_card.dart';
 import '../../models/agent.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_feedback.dart';
+import '../../config/field_mapping.dart';
 
 class EditPermissionsScreen extends StatefulWidget {
   final Agent agent;
@@ -29,10 +30,33 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
   bool _isSaving = false;
   String? _selectedRegion;
 
+  late Map<String, bool> _fieldPermissions;
+
   @override
   void initState() {
     super.initState();
     _selectedRegion = widget.agent.zone;
+    _fieldPermissions = Map<String, bool>.from(widget.agent.permissions);
+    
+    // Check if there are any permissions set for the agent
+    final hasPermissions = widget.agent.permissions.isNotEmpty;
+    
+    // Initialize general permissions: default to false if no permissions exist, otherwise pull previous value (fallback to false if key missing)
+    _accessHistory = hasPermissions ? (_fieldPermissions['accessHistory'] ?? false) : false;
+    _editDetails = hasPermissions ? (_fieldPermissions['editDetails'] ?? false) : false;
+    _approvePartial = hasPermissions ? (_fieldPermissions['approvePartial'] ?? false) : false;
+    _exportData = hasPermissions ? (_fieldPermissions['exportData'] ?? false) : false;
+    _deleteRecords = hasPermissions ? (_fieldPermissions['deleteRecords'] ?? false) : false;
+
+    // Use standard keys from global ExcelFieldMapping configuration
+    final standardKeys = ExcelFieldMapping.mapping.keys;
+    for (var key in standardKeys) {
+      if (!hasPermissions) {
+        _fieldPermissions[key] = false;
+      } else {
+        _fieldPermissions.putIfAbsent(key, () => false);
+      }
+    }
   }
 
   @override
@@ -178,29 +202,55 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
                           color: AppTheme.secondary,
                           size: 18,
                         ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Mumbai Metro Area',
-                            child: Text('Mumbai Metro Area (North Sector)'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Mumbai South',
-                            child: Text('Mumbai South (South Sector)'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Mumbai West',
-                            child: Text('Mumbai West (West Sector)'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Mumbai East',
-                            child: Text('Mumbai East (East Sector)'),
-                          ),
-                        ],
+                        items: DatabaseService.regionalDropdownValues.map((e) {
+                          return DropdownMenuItem(
+                            value: e['value'],
+                            child: Text(e['label'] ?? ''),
+                          );
+                        }).toList(),
                         onChanged: (val) {
                           setState(() {
                             _selectedRegion = val;
                           });
                         },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Field Access Permissions Card
+                CustomBentoCard(
+                  padding: 16,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'FIELD VISIBILITY PERMISSIONS',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.secondary,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: _showFieldPermissionsBottomSheet,
+                            icon: const Icon(LucideIcons.settings, size: 14),
+                            label: const Text(
+                              'Configure Toggles',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Agent currently has access to view ${_fieldPermissions.values.where((v) => v).length} of ${_fieldPermissions.length} fields.',
+                        style: const TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -433,20 +483,136 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
     );
   }
 
+  void _showFieldPermissionsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final fieldKeys = ExcelFieldMapping.mapping.keys.toList();
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                20,
+                16,
+                MediaQuery.of(context).viewInsets.bottom + 32,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Field Visibility Permissions',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primary,
+                            ),
+                      ),
+                      IconButton(
+                        icon: const Icon(LucideIcons.x),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Toggle which database fields the agent is allowed to view in their screens.',
+                    style: TextStyle(fontSize: 13, color: AppTheme.secondary),
+                  ),
+                  const SizedBox(height: 20),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.5,
+                    ),
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: fieldKeys.map((fieldKey) {
+                        // Create a user friendly label from key
+                        final label = fieldKey[0].toUpperCase() + fieldKey.substring(1).replaceAllMapped(RegExp(r'[A-Z]'), (match) => ' ${match.group(0)}');
+                        return SwitchListTile(
+                          title: Text(
+                            label,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14.5,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Access to view "$fieldKey" data',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          value: _fieldPermissions[fieldKey] ?? false,
+                          activeColor: AppTheme.primary,
+                          onChanged: (bool value) {
+                            setModalState(() {
+                              _fieldPermissions[fieldKey] = value;
+                            });
+                            setState(() {
+                              _fieldPermissions[fieldKey] = value;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Apply Changes',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   // Stateful save workflow
-  void _handleSaveChanges() {
+  void _handleSaveChanges() async {
     setState(() {
       _isSaving = true;
     });
 
-    // Simulate saving delay
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (!mounted) return;
+    try {
+      // Sync general permissions in the map
+      _fieldPermissions['accessHistory'] = _accessHistory;
+      _fieldPermissions['editDetails'] = _editDetails;
+      _fieldPermissions['approvePartial'] = _approvePartial;
+      _fieldPermissions['exportData'] = _exportData;
+      _fieldPermissions['deleteRecords'] = _deleteRecords;
 
-      // Update region assignment in shared DatabaseService
-      if (_selectedRegion != null) {
-        DatabaseService().updateAgentZone(widget.agent.id, _selectedRegion!);
-      }
+      // Update region assignment and permissions in backend database service
+      await DatabaseService().updateAgentOnBackend(
+        agentId: widget.agent.id,
+        region: _selectedRegion,
+        permissions: _fieldPermissions,
+      );
+
+      if (!mounted) return;
 
       setState(() {
         _isSaving = false;
@@ -465,6 +631,23 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
           Navigator.pop(context);
         }
       });
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+      });
+      String errorMsg = e.toString();
+      if (errorMsg.startsWith('Exception: ')) {
+        errorMsg = errorMsg.substring(11);
+      }
+      CustomFeedback.showFeedbackDialog(
+        context,
+        title: 'Error Saving Permissions',
+        message: errorMsg,
+        type: 'error',
+        confirmLabel: 'OK',
+        showCancel: false,
+      );
+    }
   }
 }

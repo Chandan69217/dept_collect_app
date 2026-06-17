@@ -138,8 +138,9 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
 
           // Generate stable Loan ID based on DB customer ID
           final String cleanId = c.id.replaceAll('cust_', '').toUpperCase();
-          final String loanId =
-              '#LN-${cleanId.length > 5 ? cleanId.substring(0, 5) : cleanId}';
+          final String loanId = c.showLoanId
+              ? '#LN-${cleanId.length > 5 ? cleanId.substring(0, 5) : cleanId}'
+              : 'N/A';
 
           // Get assigned agent details
           final agent = _db.agents

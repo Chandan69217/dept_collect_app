@@ -132,7 +132,13 @@ class AppTheme {
         backgroundColor: surfaceContainerLowest,
         foregroundColor: primary,
         elevation: 0,
+        titleSpacing: 0,
         scrolledUnderElevation: 0,
+        titleTextStyle:TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 20,
+        color: AppTheme.primary,
+      ),
         centerTitle: false,
         iconTheme: IconThemeData(color: primary),
       ),

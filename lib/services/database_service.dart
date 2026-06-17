@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:dept_collection_app/models/recent_upload_item.dart';
 import 'package:flutter/material.dart';
 import '../models/agent.dart';
 import '../models/customer.dart';
@@ -10,6 +11,13 @@ import 'api_service.dart';
 import '../constants/app_constants.dart';
 
 class DatabaseService extends ChangeNotifier {
+  static const List<Map<String, String>> regionalDropdownValues = [
+    {'value': 'Mumbai Metro Area', 'label': 'North Sector (Premium Accounts)'},
+    {'value': 'Mumbai South', 'label': 'South Sector (Standard Collections)'},
+    {'value': 'Mumbai West', 'label': 'West Sector (Commercial Hub)'},
+    {'value': 'Mumbai East', 'label': 'East Sector (Retail Debt)'},
+  ];
+
   // Singleton Pattern
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
@@ -45,6 +53,9 @@ class DatabaseService extends ChangeNotifier {
   List<Map<String, dynamic>> _activityFeed = [];
   List<Map<String, dynamic>> get activityFeed => _activityFeed;
 
+  final List<RecentUploadItem> _recentUploads = [];
+  List<RecentUploadItem> get recentUploadItem => _recentUploads;
+
   // Security Toggles
   bool biometricAuthEnabled = true;
   bool faceIdEnabled = true;
@@ -69,78 +80,6 @@ class DatabaseService extends ChangeNotifier {
 
   // Prefilled Data Setup
   void _initializeData() {
-    // 1. Initialize Agents
-    _agents = [
-      const Agent(
-        id: 'miller',
-        name: 'Agent Miller',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150',
-        zone: 'Mumbai Metro Area',
-        assignedTarget: 12450.0,
-        collectedAmount: 10209.0, // 82% of target met
-        casesCount: 14,
-        pendingVisitsCount: 6,
-        isAdmin: false,
-        isOnline: true,
-        email: 'miller@fieldprotocol.com',
-        phone: '+91 98765 43210',
-        address: 'Office 102, Skyline Plaza, Metro Sector 4, Mumbai',
-      ),
-      const Agent(
-        id: 'rahul',
-        name: 'Agent Rahul',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-        zone: 'Mumbai South',
-        assignedTarget: 15000.0,
-        collectedAmount: 12500.0,
-        casesCount: 18,
-        pendingVisitsCount: 8,
-        isAdmin: false,
-        isOnline: true,
-        email: 'rahul@fieldprotocol.com',
-        phone: '+91 99999 88888',
-        address: 'Worli Financial Tower B, Suite 120, Worli, Mumbai',
-      ),
-      const Agent(
-        id: 'priya',
-        name: 'Agent Priya',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-        zone: 'Mumbai West',
-        assignedTarget: 18000.0,
-        collectedAmount: 8500.0,
-        casesCount: 16,
-        pendingVisitsCount: 9,
-        isAdmin: false,
-        isOnline: true,
-        email: 'priya@fieldprotocol.com',
-        phone: '+91 98888 77777',
-        address: 'Apex Heights, Tower 4, Powai, Mumbai',
-      ),
-      const Agent(
-        id: 'vance',
-        name: 'Alexander Vance',
-        avatarUrl:
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuDBRx9r1cR-RQb8YjXwlBrDNww_q6yPcvL1U55Qh2Yl9AppZD8M1pD6LFz9X8hOAC5DaSNf1I-LLbjynUbailf1POhaR5Du84ro-go9UPHhTm0MvD_mN-WQE_A3VY7mc9gq2oJD4EJ-suFIO7f9iUy3gt4omfLfilmFyVOyOfqWu5cqtCG0we8amXFCaT9bkbl_tBlmKBdkeM8IZ2nIM3qXDMC0Sqksb66gR_uhYPHucAk80p-8hQXaB3KOT1Rr_IjfdqTwdJ1hjAxe',
-        zone: 'All Zones',
-        assignedTarget: 0.0,
-        collectedAmount: 0.0,
-        casesCount: 0,
-        pendingVisitsCount: 0,
-        isAdmin: true,
-        isOnline: true,
-        email: 'a.vance@fieldprotocol.com',
-        phone: '+1 (555) 024-9981',
-        address:
-            '882 Financial District, Plaza Tower, Suite 402, Metro City, 10001',
-      ),
-    ];
-
-    // Default current user to Agent Miller
-    _currentUser = _agents[0];
-
     // 2. Initialize Customers
     _customers = [
       Customer(
@@ -352,7 +291,6 @@ class DatabaseService extends ChangeNotifier {
         isAdmin: isAdmin,
       );
 
-
       final dataList = response['data'];
       if (dataList != null && dataList is List && dataList.isNotEmpty) {
         final sessionData = dataList[0];
@@ -369,7 +307,9 @@ class DatabaseService extends ChangeNotifier {
             throw Exception('You are blocked or inactive');
           }
 
-          final role = isAdmin ? AppConstants.apiRoleAdmin : AppConstants.apiRoleAgent;
+          final role = isAdmin
+              ? AppConstants.apiRoleAdmin
+              : AppConstants.apiRoleAgent;
 
           // Store user details in prefs
           final Map<String, dynamic> storedUser = Map<String, dynamic>.from(
@@ -381,7 +321,9 @@ class DatabaseService extends ChangeNotifier {
           await SharedPrefsService.saveUserData(storedUser);
           await SharedPrefsService.saveIsLoggedIn(true);
 
-          _currentRole = isAdmin ? AppConstants.roleAdmin : AppConstants.roleAgent;
+          _currentRole = isAdmin
+              ? AppConstants.roleAdmin
+              : AppConstants.roleAgent;
 
           final fullName = sessionData['full_name'] ?? 'Unknown User';
           final avatarUrl =
@@ -389,13 +331,27 @@ class DatabaseService extends ChangeNotifier {
               ? sessionData['profile_pic'].toString()
               : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(fullName)}&background=00328A&color=fff&size=150';
 
+          final rawPermission =
+              sessionData['permission'] ?? sessionData['permissions'];
+          final Map<String, bool> parsedPermissions = {};
+          if (rawPermission != null && rawPermission is Map) {
+            rawPermission.forEach((key, value) {
+              parsedPermissions[key.toString()] =
+                  value == true || value == 1 || value == 'true';
+            });
+          }
+
           _currentUser = Agent(
             id:
-                (isAdmin ? sessionData['admin_id'] : sessionData['agent_id'])?.toString() ??
+                (isAdmin ? sessionData['admin_id'] : sessionData['agent_id'])
+                    ?.toString() ??
                 'unknown',
             name: fullName,
             avatarUrl: avatarUrl,
-            zone: 'Default Zone',
+            zone:
+                sessionData['region']?.toString() ??
+                sessionData['zone']?.toString() ??
+                'Default Zone',
             assignedTarget: isResponseAdmin ? 0.0 : 15000.0,
             collectedAmount: 0.0,
             casesCount: isResponseAdmin ? 0 : 5,
@@ -405,6 +361,7 @@ class DatabaseService extends ChangeNotifier {
             email: sessionData['email'] ?? '',
             phone: sessionData['mobile'] ?? '',
             address: sessionData['address'] ?? '',
+            permissions: parsedPermissions,
           );
 
           _isLoggedIn = true;
@@ -427,7 +384,9 @@ class DatabaseService extends ChangeNotifier {
       if (token != null && userData != null) {
         _isLoggedIn = true;
         final isAdmin = userData['role'] == AppConstants.apiRoleAdmin;
-        _currentRole = isAdmin ? AppConstants.roleAdmin : AppConstants.roleAgent;
+        _currentRole = isAdmin
+            ? AppConstants.roleAdmin
+            : AppConstants.roleAgent;
 
         final fullName = userData['full_name'] ?? 'Unknown User';
         final avatarUrl =
@@ -435,13 +394,25 @@ class DatabaseService extends ChangeNotifier {
             ? userData['profile_pic'].toString()
             : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(fullName)}&background=00328A&color=fff&size=150';
 
+        final rawPermission = userData['permission'] ?? userData['permissions'];
+        final Map<String, bool> parsedPermissions = {};
+        if (rawPermission != null && rawPermission is Map) {
+          rawPermission.forEach((key, value) {
+            parsedPermissions[key.toString()] =
+                value == true || value == 1 || value == 'true';
+          });
+        }
+
         _currentUser = Agent(
           id:
               (userData['admin_id'] ?? userData['agent_id'])?.toString() ??
               'unknown',
           name: fullName,
           avatarUrl: avatarUrl,
-          zone: 'Default Zone',
+          zone:
+              userData['region']?.toString() ??
+              userData['zone']?.toString() ??
+              'Default Zone',
           assignedTarget: isAdmin ? 0.0 : 15000.0,
           collectedAmount: 0.0,
           casesCount: isAdmin ? 0 : 5,
@@ -451,6 +422,7 @@ class DatabaseService extends ChangeNotifier {
           email: userData['email'] ?? '',
           phone: userData['mobile'] ?? '',
           address: userData['address'] ?? '',
+          permissions: parsedPermissions,
         );
       }
     }
@@ -553,7 +525,9 @@ class DatabaseService extends ChangeNotifier {
     final record = _payments[recordIndex];
 
     // Update record status to APPROVED
-    _payments[recordIndex] = record.copyWith(status: AppConstants.statusApproved);
+    _payments[recordIndex] = record.copyWith(
+      status: AppConstants.statusApproved,
+    );
 
     // Update customer status to PAID and clear due amount
     _customers = _customers.map((c) {
@@ -614,7 +588,9 @@ class DatabaseService extends ChangeNotifier {
     final record = _payments[recordIndex];
 
     // Update record status to REJECTED
-    _payments[recordIndex] = record.copyWith(status: AppConstants.statusRejected);
+    _payments[recordIndex] = record.copyWith(
+      status: AppConstants.statusRejected,
+    );
 
     // Update customer status back to OVERDUE
     _customers = _customers.map((c) {
@@ -807,21 +783,27 @@ class DatabaseService extends ChangeNotifier {
   }
 
   // CSV Data upload simulation
-  void uploadBankRecords(List<Map<String, dynamic>> records) {
+  Future<void> uploadBankRecords(
+    String fileName,
+    List<Map<String, dynamic>> records,
+  ) async {
+    // First save the data into the api
+    await _apiService.uploadRecords(fileName, records);
+    await fetchRecentUploads();
     int addedCount = 0;
     for (var r in records) {
       final id =
           'cust_csv_${DateTime.now().millisecondsSinceEpoch}_$addedCount';
       final newCust = Customer(
         id: id,
-        name: r['name'] ?? 'Unknown debtor',
+        name: r['name'] ?? '',
         amountDue: (r['amountDue'] as num?)?.toDouble() ?? 0.0,
         dueDate: DateTime.now().subtract(
           Duration(days: r['overdueDays'] as int? ?? 10),
         ),
-        overdueDays: r['overdueDays'] as int? ?? 10,
-        address: r['address'] ?? 'No address provided',
-        phone: r['phone'] ?? '+91 99999 99999',
+        overdueDays: r['overdueDays'] as int? ?? 0,
+        address: r['address'] ?? '',
+        phone: r['phone'] ?? '',
         priority: r['priority'] ?? 'MEDIUM',
         avatarUrl:
             'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
@@ -834,6 +816,7 @@ class DatabaseService extends ChangeNotifier {
         engineNumber: r['engineNumber'] ?? '',
         chasisNumber: r['chasisNumber'] ?? '',
         assetVariant: r['assetVariant'] ?? '',
+        showLoanId: r['showLoanId'] ?? true,
       );
       _customers.add(newCust);
       addedCount++;
@@ -910,7 +893,6 @@ class DatabaseService extends ChangeNotifier {
     }
 
     final agent = agentMatches.first;
-
     final statusString = isOnline ? 'Active' : 'Inactive';
 
     await _apiService.updateAgent(
@@ -919,6 +901,8 @@ class DatabaseService extends ChangeNotifier {
       mobile: agent.phone,
       agentId: agentId,
       status: statusString,
+      region: agent.zone,
+      permissions: agent.permissions,
     );
 
     _agents = _agents.map((a) {
@@ -940,7 +924,7 @@ class DatabaseService extends ChangeNotifier {
       'id': 'act_status_${agentId}_${DateTime.now().millisecondsSinceEpoch}',
       'title': isOnline ? 'Agent Online' : 'Agent Offline',
       'subtitle':
-      'Agent ID #${agentId.toUpperCase()} is now ${isOnline ? 'Online' : 'Offline'}',
+          'Agent ID #${agentId.toUpperCase()} is now ${isOnline ? 'Online' : 'Offline'}',
       'time': 'Just now',
       'type': isOnline ? 'login' : 'warning',
     });
@@ -948,42 +932,59 @@ class DatabaseService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Update Agent details on the backend
   Future<void> updateAgentOnBackend({
     required String agentId,
     String? fullName,
     String? email,
     String? mobile,
     String? status,
+    String? region,
+    Map<String, bool>? permissions,
   }) async {
+    Agent? agent;
+    int agentIndex = _agents.indexWhere((a) => a.id == agentId);
+    if (agentIndex != -1) {
+      agent = _agents[agentIndex];
+    } else if (_currentUser != null && _currentUser!.id == agentId) {
+      agent = _currentUser;
+    }
+
+    if (agent == null) {
+      throw Exception('User not found');
+    }
+
+    final finalFullName = fullName ?? agent.name;
+    final finalEmail = email ?? agent.email;
+    final finalMobile = mobile ?? agent.phone;
+    final finalStatus = status ?? (agent.isOnline ? 'Active' : 'Inactive');
+    final finalRegion = region ?? agent.zone;
+    final finalPermissions = permissions ?? agent.permissions;
+
     await _apiService.updateAgent(
       agentId: agentId,
-      fullName: fullName,
-      email: email,
-      mobile: mobile,
-      status: status,
+      fullName: finalFullName,
+      email: finalEmail,
+      mobile: finalMobile,
+      status: finalStatus,
+      region: finalRegion,
+      permissions: finalPermissions,
     );
 
-    _agents = _agents.map((a) {
-      if (a.id == agentId) {
-        return a.copyWith(
-          name: fullName ?? a.name,
-          email: email ?? a.email,
-          phone: mobile ?? a.phone,
-          isOnline: status != null ? (status.toLowerCase() == AppConstants.statusActive) : a.isOnline,
-        );
-      }
-      return a;
-    }).toList();
+    final updatedAgent = agent.copyWith(
+      name: finalFullName,
+      email: finalEmail,
+      phone: finalMobile,
+      isOnline: finalStatus.toLowerCase() == AppConstants.statusActive,
+      zone: finalRegion,
+      permissions: finalPermissions,
+    );
+
+    if (agentIndex != -1) {
+      _agents[agentIndex] = updatedAgent;
+    }
 
     if (_currentUser?.id == agentId) {
-      final matchingAgents = _agents.where((a) => a.id == agentId);
-
-      if (matchingAgents.isNotEmpty) {
-        _currentUser = matchingAgents.first;
-      } else {
-        log("Agent not found in _agents list: $agentId");
-      }
+      _currentUser = updatedAgent;
     }
 
     notifyListeners();
@@ -1072,9 +1073,35 @@ class DatabaseService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // recent uploads from api
+
+  Future<void> fetchRecentUploads() async {
+    try {
+      final List<Map<String, dynamic>> recentUploadsData = await _apiService
+          .getRecentUploads();
+
+      List<RecentUploadItem> recentUploads = [];
+
+      for (var data in recentUploadsData) {
+        recentUploads.add(RecentUploadItem.fromJson(data));
+      }
+
+      _recentUploads.clear();
+      _recentUploads.addAll(recentUploads);
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      debugPrint(
+        'Error fetching recent uploads files: $e , StackTrace: ${stackTrace}',
+      );
+      rethrow;
+    }
+  }
+
   Future<void> fetchAgentsFromApi() async {
     try {
-      final List<Map<String, dynamic>> agentsData = await _apiService.getAllAgents();
+      final List<Map<String, dynamic>> agentsData = await _apiService
+          .getAllAgents();
       final List<Agent> apiAgents = [];
       for (var data in agentsData) {
         final id = (data['agent_id'] ?? data['id'])?.toString() ?? '';
@@ -1083,29 +1110,45 @@ class DatabaseService extends ChangeNotifier {
         final phone = data['mobile'] ?? data['phone'] ?? '';
         final status = data['status'] ?? 'Active';
         final isOnline = status.toLowerCase() == 'active';
+        final avatarUrl =
+            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=00328A&color=fff&size=150';
 
-        final avatarUrl = 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=00328A&color=fff&size=150';
+        final region =
+            data['region']?.toString() ??
+            data['zone']?.toString() ??
+            'Patna,Bihar';
+        final rawPermission = data['permission'] ?? data['permissions'];
+        final Map<String, bool> parsedPermissions = {};
+        if (rawPermission != null && rawPermission is Map) {
+          rawPermission.forEach((key, value) {
+            parsedPermissions[key.toString()] =
+                value == true || value == 1 || value == 'true';
+          });
+        }
 
-        apiAgents.add(Agent(
-          id: id,
-          name: name,
-          avatarUrl: avatarUrl,
-          zone: 'Mumbai Metro Area',
-          assignedTarget: 15000.0,
-          collectedAmount: 0.0,
-          casesCount: 0,
-          pendingVisitsCount: 0,
-          isAdmin: false,
-          isOnline: isOnline,
-          email: email,
-          phone: phone,
-        ));
+        apiAgents.add(
+          Agent(
+            id: id,
+            name: name,
+            avatarUrl: avatarUrl,
+            zone: region,
+            assignedTarget: 15000.0,
+            collectedAmount: 0.0,
+            casesCount: 0,
+            pendingVisitsCount: 0,
+            isAdmin: false,
+            isOnline: isOnline,
+            email: email,
+            phone: phone,
+            permissions: parsedPermissions,
+          ),
+        );
       }
 
       // final adminAgents = _agents.where((a) => a.isAdmin).toList();
-      _agents = [ ...apiAgents];
+      _agents = [...apiAgents];
       notifyListeners();
-    } catch (e,stackTrace) {
+    } catch (e, stackTrace) {
       debugPrint('Error fetching agents: $e , StackTrace: ${stackTrace}');
       rethrow;
     }

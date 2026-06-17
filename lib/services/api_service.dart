@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:dept_collection_app/constants/app_constants.dart';
 import 'package:dept_collection_app/services/database_service.dart';
 import 'package:dept_collection_app/services/shared_prefs_service.dart';
@@ -42,7 +43,6 @@ class ApiService {
           isSuccess) {
         return responseData;
       } else if (response.statusCode == 200 && !isSuccess) {
-
         final message = responseData['message'] == "Invalid Password"
             ? "Incorrect password. Please try again."
             : responseData['message'] == "Invalid Email"
@@ -68,6 +68,8 @@ class ApiService {
     required String email,
     required String mobile,
     required String password,
+    required String region,
+    required Map<String, bool> permissions,
   }) async {
     final url = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.createAgent}');
 
@@ -85,6 +87,8 @@ class ApiService {
           'email': email,
           'mobile': mobile,
           'password': password,
+          'region': region,
+          'permission': permissions,
         }),
       );
 
@@ -95,7 +99,7 @@ class ApiService {
         responseData = {};
       }
 
-      final isSuccess = responseData['success'] == true;
+      final isSuccess = responseData['isSuccess'] ?? false;
       if ((response.statusCode == 200 || response.statusCode == 201) &&
           isSuccess) {
         return responseData;
@@ -132,7 +136,7 @@ class ApiService {
         responseData = {};
       }
 
-      final isSuccess = responseData['isSuccess']??false;
+      final isSuccess = responseData['isSuccess'] ?? false;
       if (response.statusCode == 200 && isSuccess) {
         final List<dynamic> data = responseData['data'] ?? [];
         return data.map((e) => e as Map<String, dynamic>).toList();
@@ -154,18 +158,29 @@ class ApiService {
     String? email,
     String? mobile,
     String? status,
+    String? region,
+    Map<String, bool>? permissions,
   }) async {
+    final db = DatabaseService();
+    final isUpdatingOwnAdminProfile =
+        (db.currentUser != null &&
+        db.currentUser!.id == agentId &&
+        db.currentRole.toUpperCase() == AppConstants.roleAdmin);
+
     final url = Uri.parse(
-      DatabaseService().currentRole.toUpperCase() == AppConstants.roleAdmin ?'${ApiConstants.baseUrl}${ApiConstants.updateAdminProfile}${agentId}' :'${ApiConstants.baseUrl}${ApiConstants.updateAgentProfile}${agentId}',
+      isUpdatingOwnAdminProfile
+          ? '${ApiConstants.baseUrl}${ApiConstants.updateAdminProfile}$agentId'
+          : '${ApiConstants.baseUrl}${ApiConstants.updateAgentProfile}$agentId',
     );
 
     try {
-
       final Map<String, dynamic> body = {};
       if (fullName != null) body['full_name'] = fullName;
       if (email != null) body['email'] = email;
       if (mobile != null) body['mobile'] = mobile;
       if (status != null) body['status'] = status;
+      if (region != null) body['region'] = region;
+      if (permissions != null) body['permission'] = permissions;
 
       final response = await _client.put(
         url,
@@ -179,9 +194,9 @@ class ApiService {
 
       Map<String, dynamic> responseData;
 
-
       try {
         responseData = jsonDecode(response.body);
+        log("Body: ${responseData}");
       } catch (_) {
         responseData = {
           "isSuccess": false,
@@ -189,14 +204,96 @@ class ApiService {
         };
       }
 
-
-      final isSuccess = responseData['isSuccess']??false;
+      final isSuccess =
+          responseData['isSuccess'] == true || responseData['success'] == true;
       if ((response.statusCode == 200 || response.statusCode == 201) &&
           isSuccess) {
         return responseData;
       } else {
         final message =
             responseData['message'] ?? 'Failed to update agent profile.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
+
+  // File uploads related
+
+  Future<List<Map<String, dynamic>>> getRecentUploads() async {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.getAllExcelFiles}',
+    );
+
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Accept': 'application/json',
+        },
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess = responseData['success'] ?? false;
+      if (response.statusCode == 200 && isSuccess) {
+        final List<dynamic> data = responseData['data'] ?? [];
+        return data.map((e) => e as Map<String, dynamic>).toList();
+      } else {
+        final message =
+            responseData['message'] ?? 'Failed to load agents list.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadRecords(
+    String fileName,
+    List<Map<String, dynamic>> records,
+  ) async {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.uploadFileRecords}',
+    );
+
+    try {
+      final response = await _client.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'fileName': fileName, 'records': records}),
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess =
+          responseData['success'] == true || responseData['isSuccess'] == true;
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          isSuccess) {
+        return responseData;
+      } else {
+        final message =
+            responseData['message'] ?? 'Failed to upload records to API.';
         throw Exception(message);
       }
     } on Exception {

@@ -34,6 +34,20 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
   bool _modifyLedgers = false;
   bool _accessSensitive = false;
 
+  final Map<String, bool> _fieldPermissions = {
+    'name': true,
+    'assetRegNo': true,
+    'engineNumber': true,
+    'chasisNumber': true,
+    'assetVariant': true,
+    'assetModel': true,
+    'amountDue': true,
+    'overdueDays': true,
+    'address': true,
+    'phone': true,
+    'priority': true,
+  };
+
   // Form states
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -158,11 +172,13 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
+
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppTheme.onSurface,
                       ),
                       decoration: InputDecoration(
+                        counterText: "",
                         hintText: 'Enter agent email',
                       ),
                       validator: (val) {
@@ -187,12 +203,14 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _phoneController,
+                      maxLength: 10,
                       keyboardType: TextInputType.phone,
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppTheme.onSurface,
                       ),
                       decoration: InputDecoration(
+                        counterText: "",
                         hintText: 'Enter agent phone',
                       ),
                       validator: (val) {
@@ -360,24 +378,12 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                         LucideIcons.chevronDown,
                         color: AppTheme.secondary,
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Mumbai Metro Area',
-                          child: Text('North Sector (Premium Accounts)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Mumbai South',
-                          child: Text('South Sector (Standard Collections)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Mumbai West',
-                          child: Text('West Sector (Commercial Hub)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Mumbai East',
-                          child: Text('East Sector (Retail Debt)'),
-                        ),
-                      ],
+                      items: DatabaseService.regionalDropdownValues.map((e) {
+                        return DropdownMenuItem(
+                          value: e['value'],
+                          child: Text(e['label'] ?? ''),
+                        );
+                      }).toList(),
                       onChanged: (val) {
                         setState(() {
                           _selectedRegion = val;
@@ -411,7 +417,7 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                               ),
                         ),
                         TextButton(
-                          onPressed: () {},
+                          onPressed: _showAllRolesBottomSheet,
                           child: const Text(
                             'View All Roles',
                             style: TextStyle(
@@ -616,12 +622,17 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
 
       try {
         final apiService = ApiService();
+        _fieldPermissions['recordPayments'] = _recordPayments;
+        _fieldPermissions['modifyLedgers'] = _modifyLedgers;
+        _fieldPermissions['accessSensitive'] = _accessSensitive;
         final response = await apiService.createAgent(
           adminId: adminId,
           fullName: inputName,
           email: email,
           mobile: phone,
           password: password,
+          region: finalZone,
+          permissions: _fieldPermissions,
         );
 
         // API Success. Extract ID from response details if available
@@ -663,6 +674,7 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
           isOnline: true,
           email: email,
           phone: phone,
+          permissions: _fieldPermissions,
         );
 
         // Save in state provider
@@ -702,5 +714,112 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
         }
       }
     }
+  }
+
+  void _showAllRolesBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                20,
+                16,
+                MediaQuery.of(context).viewInsets.bottom + 32,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Field Visibility Permissions',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primary,
+                            ),
+                      ),
+                      IconButton(
+                        icon: const Icon(LucideIcons.x),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Toggle which database fields the agent is allowed to view in their screens.',
+                    style: TextStyle(fontSize: 13, color: AppTheme.secondary),
+                  ),
+                  const SizedBox(height: 20),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.5,
+                    ),
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: _fieldPermissions.keys.map((fieldKey) {
+                        // Create a user friendly label from key
+                        final label = fieldKey[0].toUpperCase() + fieldKey.substring(1).replaceAllMapped(RegExp(r'[A-Z]'), (match) => ' ${match.group(0)}');
+                        return SwitchListTile(
+                          title: Text(
+                            label,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14.5,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Access to view "$fieldKey" data',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          value: _fieldPermissions[fieldKey] ?? false,
+                          activeColor: AppTheme.primary,
+                          onChanged: (bool value) {
+                            setModalState(() {
+                              _fieldPermissions[fieldKey] = value;
+                            });
+                            setState(() {
+                              _fieldPermissions[fieldKey] = value;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Apply Changes',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

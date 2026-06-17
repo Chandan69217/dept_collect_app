@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class AppConstants {
   // Roles
   static const String roleAdmin = 'ADMIN';
@@ -24,14 +26,14 @@ class AppConstants {
   static const String statusApproved = 'APPROVED';
   static const String statusRejected = 'REJECTED';
 
+  // DateFormater
+
+  static final DateFormat dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
+
   // Validation Regex Expressions
   static final RegExp emailRegex = RegExp(
     r"^[a-zA-Z0-9_+&*-]+(?:\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,7}$",
   );
-  static final RegExp mobileRegex = RegExp(
-    r"^(?:\+?\d{1,3}[- ]?)?[0-9]{10}$",
-  );
-  static final RegExp passwordRegex = RegExp(
-    r"^.{6,}$",
-  );
+  static final RegExp mobileRegex = RegExp(r"^(?:\+?\d{1,3}[- ]?)?[0-9]{10}$");
+  static final RegExp passwordRegex = RegExp(r"^.{6,}$");
 }

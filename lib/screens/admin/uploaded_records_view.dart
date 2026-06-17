@@ -129,7 +129,9 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
 
           // Generate stable Loan ID based on DB customer ID
           final String cleanId = c.id.replaceAll('cust_', '').toUpperCase();
-          final String loanId = 'DC-${cleanId.length > 4 ? cleanId.substring(0, 4) : cleanId}-X';
+          final String loanId = c.showLoanId
+              ? 'DC-${cleanId.length > 4 ? cleanId.substring(0, 4) : cleanId}-X'
+              : 'N/A';
 
           // Get assigned agent name
           final agent = _db.agents.where((a) => a.id == c.assignedAgentId).firstOrNull;

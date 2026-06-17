@@ -42,7 +42,25 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
+  bool _hasPermission(String fieldKey) {
+    final user = _db.currentUser;
+    if (user != null && !user.isAdmin) {
+      return user.permissions[fieldKey] ?? true;
+    }
+    return true;
+  }
+
+  String _getMaskedText(String fieldKey, String value) {
+    if (!_hasPermission(fieldKey)) {
+      return '••••••••';
+    }
+    return value;
+  }
+
   String _formatCurrency(double amount) {
+    if (!_hasPermission('amountDue')) {
+      return '••••';
+    }
     return '₹${amount.toStringAsFixed(0).replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]},',
@@ -50,10 +68,17 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   }
 
   String _getLocationSub(dynamic customer) {
-    if (customer.id == 'cust_robert') return '0.8 km • West Hills Park';
-    if (customer.id == 'cust_jenkins') return '2.4 km • Downtown Plaza';
+    final bool hasAddr = _hasPermission('address');
+    final String locName = hasAddr
+        ? (customer.id == 'cust_robert'
+            ? 'West Hills Park'
+            : (customer.id == 'cust_jenkins' ? 'Downtown Plaza' : 'North Industrial'))
+        : '••••••••';
+
+    if (customer.id == 'cust_robert') return '0.8 km • $locName';
+    if (customer.id == 'cust_jenkins') return '2.4 km • $locName';
     if (customer.status == 'PAID') return 'Paid on Oct 20';
-    return '5.1 km • North Industrial';
+    return '5.1 km • $locName';
   }
 
   String _getTxnId(String customerId) {
@@ -352,7 +377,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            customer.name,
+                                            _getMaskedText('name', customer.name),
                                             style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
@@ -535,9 +560,17 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                                 'Opening Navigation Route direction...',
                                               );
                                             } else {
+                                              if (!_hasPermission('phone')) {
+                                                CustomFeedback.showToast(
+                                                  context,
+                                                  'Calling permission denied.',
+                                                  type: 'warning',
+                                                );
+                                                return;
+                                              }
                                               CustomFeedback.showToast(
                                                 context,
-                                                'Calling customer ${customer.name} at ${customer.phone}...',
+                                                'Calling customer ${_getMaskedText('name', customer.name)} at ${_getMaskedText('phone', customer.phone)}...',
                                               );
                                             }
                                           },

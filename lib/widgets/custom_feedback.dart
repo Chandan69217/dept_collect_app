@@ -3,7 +3,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
 
 class CustomFeedback {
-  static void showToast(BuildContext context, String message, {String type = 'info'}) {
+  static void showToast(
+    BuildContext context,
+    String message, {
+    String type = 'info',
+  }) {
     IconData icon;
     Color color;
     Color bg;
@@ -70,6 +74,14 @@ class CustomFeedback {
           ),
         ),
       ),
+    );
+  }
+
+  static LinearProgressIndicator showProgressIndicator() {
+    return LinearProgressIndicator(
+      color: AppTheme.primary,
+      backgroundColor: Color(0xFFEFF4FF),
+      minHeight: 3,
     );
   }
 
@@ -162,7 +174,9 @@ class CustomFeedback {
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                       onPressed: () => Navigator.pop(context),
                       child: Text(cancelLabel),
@@ -175,7 +189,9 @@ class CustomFeedback {
                       backgroundColor: color,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     onPressed: () {
                       Navigator.pop(context);

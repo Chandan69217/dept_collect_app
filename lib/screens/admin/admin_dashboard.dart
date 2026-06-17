@@ -76,10 +76,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             title: const Text(
               'Agency Admin',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primary,
-              ),
             ),
             actions: [
               IconButton(

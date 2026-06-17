@@ -19,6 +19,7 @@ class Customer {
   final String engineNumber;
   final String chasisNumber;
   final String assetVariant;
+  final bool showLoanId;
 
   const Customer({
     required this.id,
@@ -41,6 +42,7 @@ class Customer {
     this.engineNumber = '',
     this.chasisNumber = '',
     this.assetVariant = '',
+    this.showLoanId = true,
   });
 
   Customer copyWith({
@@ -64,6 +66,7 @@ class Customer {
     String? engineNumber,
     String? chasisNumber,
     String? assetVariant,
+    bool? showLoanId,
   }) {
     return Customer(
       id: id ?? this.id,
@@ -86,6 +89,63 @@ class Customer {
       engineNumber: engineNumber ?? this.engineNumber,
       chasisNumber: chasisNumber ?? this.chasisNumber,
       assetVariant: assetVariant ?? this.assetVariant,
+      showLoanId: showLoanId ?? this.showLoanId,
     );
+  }
+
+  factory Customer.fromJson(Map<String, dynamic> json) {
+    return Customer(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      amountDue: (json['amountDue'] as num?)?.toDouble() ?? 0.0,
+      dueDate: json['dueDate'] != null
+          ? DateTime.tryParse(json['dueDate'] as String) ?? DateTime.now()
+          : DateTime.now(),
+      overdueDays: json['overdueDays'] as int? ?? 0,
+      address: json['address'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      priority: json['priority'] as String? ?? 'MEDIUM',
+      avatarUrl: json['avatarUrl'] as String? ?? '',
+      lat: (json['lat'] as num?)?.toDouble() ?? 0.0,
+      lng: (json['lng'] as num?)?.toDouble() ?? 0.0,
+      assignedAgentId: json['assignedAgentId'] as String? ?? '',
+      status: json['status'] as String? ?? 'OVERDUE',
+      notes: (json['notes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      scheduledVisit: json['scheduledVisit'] != null
+          ? DateTime.tryParse(json['scheduledVisit'] as String)
+          : null,
+      assetModel: json['assetModel'] as String? ?? '',
+      assetRegNo: json['assetRegNo'] as String? ?? '',
+      engineNumber: json['engineNumber'] as String? ?? '',
+      chasisNumber: json['chasisNumber'] as String? ?? '',
+      assetVariant: json['assetVariant'] as String? ?? '',
+      showLoanId: json['showLoanId'] as bool? ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'amountDue': amountDue,
+      'dueDate': dueDate.toIso8601String(),
+      'overdueDays': overdueDays,
+      'address': address,
+      'phone': phone,
+      'priority': priority,
+      'avatarUrl': avatarUrl,
+      'lat': lat,
+      'lng': lng,
+      'assignedAgentId': assignedAgentId,
+      'status': status,
+      'notes': notes,
+      'scheduledVisit': scheduledVisit?.toIso8601String(),
+      'assetModel': assetModel,
+      'assetRegNo': assetRegNo,
+      'engineNumber': engineNumber,
+      'chasisNumber': chasisNumber,
+      'assetVariant': assetVariant,
+      'showLoanId': showLoanId,
+    };
   }
 }

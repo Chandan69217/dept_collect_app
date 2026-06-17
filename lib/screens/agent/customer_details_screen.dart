@@ -46,7 +46,25 @@ class CustomerDetailsScreen extends StatelessWidget {
     return '₹2,50,000'; // Default mock total loan
   }
 
+  bool _hasPermission(String fieldKey) {
+    final user = DatabaseService().currentUser;
+    if (user != null && !user.isAdmin) {
+      return user.permissions[fieldKey] ?? true;
+    }
+    return true;
+  }
+
+  String _getMaskedText(String fieldKey, String value) {
+    if (!_hasPermission(fieldKey)) {
+      return '••••••••';
+    }
+    return value;
+  }
+
   String _getAssetModel(dynamic customer) {
+    if (!_hasPermission('assetModel')) {
+      return '••••';
+    }
     try {
       return customer.assetModel;
     } catch (_) {
@@ -55,6 +73,9 @@ class CustomerDetailsScreen extends StatelessWidget {
   }
 
   String _getAssetRegNo(dynamic customer) {
+    if (!_hasPermission('assetRegNo')) {
+      return '••••';
+    }
     try {
       return customer.assetRegNo;
     } catch (_) {
@@ -63,6 +84,9 @@ class CustomerDetailsScreen extends StatelessWidget {
   }
 
   String _getAddress(dynamic customer) {
+    if (!_hasPermission('address')) {
+      return '••••••••';
+    }
     return customer.id == 'cust_robert'
         ? '452, Park Avenue, Block C, Green Meadows, South Delhi, Delhi - 110024'
         : customer.address;
@@ -186,7 +210,7 @@ class CustomerDetailsScreen extends StatelessWidget {
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            '${currentCust.priority == AppConstants.priorityHigh ? 'High' : 'Medium'} Priority',
+                                            !_hasPermission('priority') ? '•••• Priority' : '${currentCust.priority == AppConstants.priorityHigh ? 'High' : 'Medium'} Priority',
                                             style: TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.bold,
@@ -201,7 +225,7 @@ class CustomerDetailsScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      currentCust.name,
+                                      _getMaskedText('name', currentCust.name),
                                       style: Theme.of(context)
                                           .textTheme
                                           .headlineLarge
@@ -253,11 +277,19 @@ class CustomerDetailsScreen extends StatelessWidget {
                                       ),
                                     ),
                                     onPressed: () async {
+                                      if (!_hasPermission('phone')) {
+                                        CustomFeedback.showToast(
+                                          context,
+                                          'Calling permission denied.',
+                                          type: 'warning',
+                                        );
+                                        return;
+                                      }
                                       final phone = currentCust.phone.trim();
                                       if (phone.isEmpty) {
                                         CustomFeedback.showToast(
                                           context,
-                                          'Phone number not available for ${currentCust.name}',
+                                          'Phone number not available for ${_getMaskedText('name', currentCust.name)}',
                                           type: 'warning',
                                         );
                                         return;
@@ -428,9 +460,9 @@ class CustomerDetailsScreen extends StatelessWidget {
                                           ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text(
-                                      _getTotalLoan(currentCust.id),
-                                      style: const TextStyle(
+                                     Text(
+                                       !_hasPermission('amountDue') ? '••••' : _getTotalLoan(currentCust.id),
+                                       style: const TextStyle(
                                         color: AppTheme.primary,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 18,

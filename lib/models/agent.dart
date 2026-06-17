@@ -12,6 +12,7 @@ class Agent {
   final String email;
   final String phone;
   final String address;
+  final Map<String, bool> permissions;
 
   const Agent({
     required this.id,
@@ -27,6 +28,7 @@ class Agent {
     this.email = '',
     this.phone = '',
     this.address = '',
+    this.permissions = const {},
   });
 
   Agent copyWith({
@@ -43,6 +45,7 @@ class Agent {
     String? email,
     String? phone,
     String? address,
+    Map<String, bool>? permissions,
   }) {
     return Agent(
       id: id ?? this.id,
@@ -58,6 +61,7 @@ class Agent {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       address: address ?? this.address,
+      permissions: permissions ?? this.permissions,
     );
   }
 }

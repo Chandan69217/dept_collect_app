@@ -7,6 +7,8 @@ import '../../widgets/custom_bento_card.dart';
 import '../../models/agent.dart';
 import 'edit_permissions_screen.dart';
 import '../../widgets/custom_feedback.dart';
+import '../../config/field_mapping.dart';
+import '../../constants/app_constants.dart';
 
 class AgentProfileScreen extends StatelessWidget {
   final Agent agent;
@@ -33,19 +35,11 @@ class AgentProfileScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: AppTheme.background,
           appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
             leading: IconButton(
               icon: const Icon(LucideIcons.arrowLeft, color: AppTheme.primary),
               onPressed: () => Navigator.pop(context),
             ),
-            title: const Text(
-              'Agent Profile',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primary,
-              ),
-            ),
+            title: const Text('Agent Profile'),
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
@@ -62,6 +56,10 @@ class AgentProfileScreen extends StatelessWidget {
 
                 // Performance Details
                 _buildPerformanceDetails(context, activeAgent),
+                const SizedBox(height: 16),
+
+                // Security & Permission Clearance
+                _buildClearanceCard(context, activeAgent),
                 const SizedBox(height: 20),
 
                 // Quick Actions
@@ -526,7 +524,8 @@ class AgentProfileScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => EditPermissionsScreen(agent: agent),
+                        builder: (context) =>
+                            EditPermissionsScreen(agent: agent),
                       ),
                     );
                   },
@@ -587,7 +586,8 @@ class AgentProfileScreen extends StatelessWidget {
     CustomFeedback.showFeedbackDialog(
       context,
       title: 'Deactivate Agent Profile?',
-      message: 'This action will mark ${agent.name} (#${agent.id.toUpperCase()}) as inactive. They will no longer be able to log in or sync local collection ledgers until reactivated.',
+      message:
+          'This action will mark ${agent.name} (#${agent.id.toUpperCase()}) as inactive. They will no longer be able to log in or sync local collection ledgers until reactivated.',
       type: 'warning',
       confirmLabel: 'DEACTIVATE',
       onConfirm: () async {
@@ -613,91 +613,247 @@ class AgentProfileScreen extends StatelessWidget {
     );
   }
 
-  // Edit details form dialog
+  // Edit details form dialog in a modal bottom sheet
   void _showEditDetailsDialog(
     BuildContext context,
     DatabaseService db,
     Agent agent,
   ) {
+    final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: agent.name);
     final emailController = TextEditingController(text: agent.email);
     final phoneController = TextEditingController(text: agent.phone);
+    bool isSaving = false;
 
-    CustomFeedback.showFeedbackDialog(
-      context,
-      title: 'Edit Agent Details',
-      message: '',
-      type: 'info',
-      confirmLabel: 'SAVE CHANGES',
-      onConfirm: () async {
-        final newName = nameController.text.trim();
-        final newEmail = emailController.text.trim();
-        final newPhone = phoneController.text.trim();
-
-        if (newName.isEmpty || newEmail.isEmpty || newPhone.isEmpty) {
-          CustomFeedback.showToast(
-            context,
-            'All fields are required.',
-            type: 'error',
-          );
-          return;
-        }
-
-        try {
-          await db.updateAgentOnBackend(
-            agentId: agent.id,
-            fullName: newName,
-            email: newEmail,
-            mobile: newPhone,
-          );
-          if (context.mounted) {
-            CustomFeedback.showToast(
-              context,
-              'Agent details updated successfully!',
-              type: 'success',
-            );
-          }
-        } catch (e) {
-          if (context.mounted) {
-            CustomFeedback.showToast(
-              context,
-              'Failed to update agent: ${e.toString().replaceAll('Exception: ', '')}',
-              type: 'error',
-            );
-          }
-        }
-      },
-      customBody: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: nameController,
-            decoration: const InputDecoration(
-              labelText: 'Full Name',
-              hintText: 'Enter agent full name',
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: emailController,
-            decoration: const InputDecoration(
-              labelText: 'Email Address',
-              hintText: 'Enter agent email address',
-            ),
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: phoneController,
-            decoration: const InputDecoration(
-              labelText: 'Mobile Number',
-              hintText: 'Enter agent mobile number',
-            ),
-            keyboardType: TextInputType.phone,
-          ),
-        ],
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                16,
+                24,
+                MediaQuery.of(context).viewInsets.bottom + 32,
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Drag Handle
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: AppTheme.outlineVariant,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Edit Agent Details',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primary,
+                              ),
+                        ),
+                        IconButton(
+                          icon: const Icon(LucideIcons.x),
+                          onPressed: isSaving ? null : () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Update the agent\'s personal and contact information. These details will sync with the central server.',
+                      style: TextStyle(fontSize: 13, color: AppTheme.secondary),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Full Name Field
+                    const Text(
+                      'Full Name',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: nameController,
+                      enabled: !isSaving,
+                      style: const TextStyle(fontSize: 14, color: AppTheme.onSurface),
+                      decoration: const InputDecoration(
+                        hintText: 'Enter agent full name',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Full Name is required';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Email Address Field
+                    const Text(
+                      'Email Address',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: emailController,
+                      enabled: !isSaving,
+                      keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(fontSize: 14, color: AppTheme.onSurface),
+                      decoration: const InputDecoration(
+                        hintText: 'Enter agent email address',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Email is required';
+                        }
+                        if (!AppConstants.emailRegex.hasMatch(val.trim())) {
+                          return 'Invalid email format';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Mobile Number Field
+                    const Text(
+                      'Mobile Number',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: phoneController,
+                      enabled: !isSaving,
+                      keyboardType: TextInputType.phone,
+                      maxLength: 10,
+                      style: const TextStyle(fontSize: 14, color: AppTheme.onSurface),
+                      decoration: const InputDecoration(
+                        counterText: "",
+                        hintText: 'Enter 10-digit mobile number',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Mobile number is required';
+                        }
+                        if (!AppConstants.mobileRegex.hasMatch(val.trim())) {
+                          return 'Invalid phone format (must be 10 digits)';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Submit Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                if (formKey.currentState?.validate() ?? false) {
+                                  setModalState(() {
+                                    isSaving = true;
+                                  });
+
+                                  final newName = nameController.text.trim();
+                                  final newEmail = emailController.text.trim();
+                                  final newPhone = phoneController.text.trim();
+
+                                  try {
+                                    await db.updateAgentOnBackend(
+                                      agentId: agent.id,
+                                      fullName: newName,
+                                      email: newEmail,
+                                      mobile: newPhone,
+                                    );
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                      CustomFeedback.showToast(
+                                        context,
+                                        'Agent details updated successfully!',
+                                        type: 'success',
+                                      );
+                                    }
+                                  } catch (e) {
+                                    setModalState(() {
+                                      isSaving = false;
+                                    });
+                                    if (context.mounted) {
+                                      CustomFeedback.showToast(
+                                        context,
+                                        'Failed to update agent: ${e.toString().replaceAll('Exception: ', '')}',
+                                        type: 'error',
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text(
+                                'SAVE CHANGES',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -817,6 +973,168 @@ class AgentProfileScreen extends StatelessWidget {
             LucideIcons.chevronRight,
             size: 18,
             color: AppTheme.outline,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClearanceCard(BuildContext context, Agent agent) {
+    return CustomBentoCard(
+      padding: 16.0,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(LucideIcons.shieldCheck, color: AppTheme.primary, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'SECURITY & DATA CLEARANCE',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.secondary,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'The following data access and operational clearances are set for this agent account by system administrators:',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppTheme.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // General Capabilities
+          const Text(
+            'Operational Clearances',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildClearanceRow(
+            'Access Collections History',
+            agent.permissions['accessHistory'] ?? false,
+          ),
+          _buildClearanceRow(
+            'Edit Customer Details',
+            agent.permissions['editDetails'] ?? false,
+          ),
+          _buildClearanceRow(
+            'Approve Partial Payments',
+            agent.permissions['approvePartial'] ?? false,
+          ),
+          _buildClearanceRow(
+            'Export Data Logs',
+            agent.permissions['exportData'] ?? false,
+          ),
+          _buildClearanceRow(
+            'Delete Local Records',
+            agent.permissions['deleteRecords'] ?? false,
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: AppTheme.outlineVariant),
+          const SizedBox(height: 16),
+
+          // Field Access Visibility
+          const Text(
+            'Field Visibility Clearance',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: ExcelFieldMapping.mapping.keys.map((fieldKey) {
+              final isGranted = agent.permissions[fieldKey] ?? false;
+              final label =
+                  fieldKey[0].toUpperCase() +
+                  fieldKey
+                      .substring(1)
+                      .replaceAllMapped(
+                        RegExp(r'[A-Z]'),
+                        (match) => ' ${match.group(0)}',
+                      );
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: isGranted
+                      ? const Color(0xFFE8F5E9)
+                      : const Color(0xFFECEFF1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isGranted
+                        ? const Color(0xFFC8E6C9)
+                        : const Color(0xFFCFD8DC),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isGranted ? LucideIcons.check : LucideIcons.lock,
+                      size: 12,
+                      color: isGranted
+                          ? const Color(0xFF2E7D32)
+                          : const Color(0xFF546E7A),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isGranted
+                            ? const Color(0xFF1B5E20)
+                            : const Color(0xFF37474F),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClearanceRow(String title, bool isCleared) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(
+            isCleared ? LucideIcons.check : LucideIcons.lock,
+            size: 16,
+            color: isCleared ? const Color(0xFF2E7D32) : AppTheme.secondary,
+          ),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: isCleared ? AppTheme.onSurface : AppTheme.secondary,
+              fontWeight: isCleared ? FontWeight.w500 : FontWeight.normal,
+            ),
           ),
         ],
       ),
