@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:excel_plus/excel_plus.dart' hide Border, BorderStyle;
+import 'package:excel/excel.dart' hide Border, BorderStyle;
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_bento_card.dart';
 import '../../config/field_mapping.dart';
@@ -129,6 +129,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
       final filePath = file.path;
       final fileBytes = file.bytes;
 
+      // Ensure we have data to process
       if (kIsWeb && fileBytes == null) {
         _showErrorSnackBar('Could not read file data (bytes are empty).');
         setState(() {
@@ -147,24 +148,19 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
       }
 
       setState(() {
-        _uploadProgress = 0.01;
+        _uploadProgress = 0.05;
         _progressMessage = 'Spawning background parser...';
       });
 
       final receivePort = ReceivePort();
       _activeReceivePort = receivePort;
-
-      final isolateParams = kIsWeb
-          ? _ExcelIsolateParams(bytes: fileBytes, sendPort: receivePort.sendPort)
-          : _ExcelIsolateParams(
-              filePath: filePath,
-              bytes: fileBytes,
-              sendPort: receivePort.sendPort,
-            );
-
       final isolate = await Isolate.spawn(
         _parseExcelIsolate,
-        isolateParams,
+        _ExcelIsolateParams(
+          filePath: kIsWeb ? null : filePath,
+          bytes: kIsWeb ? fileBytes : null,
+          sendPort: receivePort.sendPort,
+        ),
       );
       _activeIsolate = isolate;
 
@@ -514,6 +510,8 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
   }
 
   Widget _buildProgressCard() {
+    final bool isIndeterminate = _uploadProgress < 0.3;
+
     return CustomBentoCard(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
@@ -542,21 +540,31 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  '${(_uploadProgress * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: AppTheme.primary,
+                if (!isIndeterminate)
+                  Text(
+                    '${(_uploadProgress * 100).toStringAsFixed(0)}%',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppTheme.primary,
+                    ),
+                  )
+                else
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 16),
             ClipRRect(
               borderRadius: BorderRadius.circular(99),
               child: LinearProgressIndicator(
-                value: _uploadProgress > 1.0 ? 1.0 : _uploadProgress,
+                value: isIndeterminate ? null : (_uploadProgress > 1.0 ? 1.0 : _uploadProgress),
                 minHeight: 8,
                 backgroundColor: AppTheme.surfaceContainerLow,
                 valueColor: const AlwaysStoppedAnimation<Color>(
@@ -565,15 +573,30 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            TextButton.icon(
+            OutlinedButton.icon(
               onPressed: _cancelUpload,
-              icon: const Icon(LucideIcons.x, size: 16, color: AppTheme.error),
+              icon: const Icon(LucideIcons.x, size: 16),
               label: const Text(
                 'Cancel Parsing',
                 style: TextStyle(
-                  color: AppTheme.error,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.error,
+                backgroundColor: AppTheme.error.withOpacity(0.04),
+                side: BorderSide(
+                  color: AppTheme.error.withOpacity(0.25),
+                  width: 1.2,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
                 ),
               ),
             ),
@@ -900,68 +923,39 @@ class _PulseIndicatorState extends State<_PulseIndicator>
 }
 
 class _ExcelIsolateParams {
-  final List<int>? bytes;
   final String? filePath;
+  final List<int>? bytes;
   final SendPort sendPort;
 
   _ExcelIsolateParams({
-    this.bytes,
     this.filePath,
+    this.bytes,
     required this.sendPort,
   });
 }
 
-Future<void> _parseExcelIsolate(_ExcelIsolateParams params) async {
+void _parseExcelIsolate(_ExcelIsolateParams params) {
   final sendPort = params.sendPort;
+  final filePath = params.filePath;
+  List<int>? bytes = params.bytes;
 
   try {
-    List<int> bytes;
-    if (params.filePath != null) {
-      final file = File(params.filePath!);
-      if (!await file.exists()) {
-        sendPort.send({
-          'type': 'error',
-          'error': 'File not found at path: ${params.filePath}',
-        });
-        return;
-      }
-
-      final totalLength = await file.length();
-      final list = <int>[];
-      int loaded = 0;
-
+    if (bytes == null && filePath != null) {
       sendPort.send({
         'type': 'progress',
-        'progress': 0.0,
-        'message': 'Opening file stream...',
+        'progress': 0.08,
+        'message': 'Reading file from disk...',
       });
+      bytes = File(filePath).readAsBytesSync();
+    }
 
-      await for (final chunk in file.openRead()) {
-        list.addAll(chunk);
-        loaded += chunk.length;
-        final double progress = (loaded / totalLength) * 0.25;
-        final String mbLoaded = (loaded / (1024 * 1024)).toStringAsFixed(1);
-        final String mbTotal = (totalLength / (1024 * 1024)).toStringAsFixed(1);
-        sendPort.send({
-          'type': 'progress',
-          'progress': progress,
-          'message': 'Reading file bytes: $mbLoaded MB / $mbTotal MB...',
-        });
-      }
-      bytes = list;
-    } else if (params.bytes != null) {
-      bytes = params.bytes!;
-    } else {
-      sendPort.send({
-        'type': 'error',
-        'error': 'No file path or bytes provided.',
-      });
-      return;
+    if (bytes == null) {
+      throw Exception('File data is empty');
     }
 
     sendPort.send({
       'type': 'progress',
-      'progress': 0.25,
+      'progress': 0.12,
       'message': 'Decoding Excel spreadsheet...',
     });
 
@@ -973,7 +967,7 @@ Future<void> _parseExcelIsolate(_ExcelIsolateParams params) async {
 
     sendPort.send({
       'type': 'progress',
-      'progress': 0.3,
+      'progress': 0.25,
       'message': 'Analyzing sheets and data structure...',
     });
 
@@ -986,20 +980,15 @@ Future<void> _parseExcelIsolate(_ExcelIsolateParams params) async {
 
       final sheet = excel.tables[firstSheetName];
       if (sheet != null) {
-        totalRows = sheet.maxRows;
-        final int maxCols = sheet.maxColumns;
-        debugPrint(
-          'Isolate: sheet.maxRows = $totalRows, sheet.maxColumns = $maxCols',
-        );
+        final rows = sheet.rows;
+        totalRows = rows.length;
 
-        if (totalRows > 0 && maxCols > 0) {
+        if (rows.isNotEmpty) {
           // Extract headers
+          final headerRow = rows.first;
           List<String> headers = [];
-          for (int j = 0; j < maxCols; j++) {
-            final cell = sheet.cell(
-              CellIndex.indexByColumnRow(columnIndex: j, rowIndex: 0),
-            );
-            headers.add(cell.value?.toString() ?? '');
+          for (final cell in headerRow) {
+            headers.add(cell?.value?.toString() ?? '');
           }
           debugPrint('Isolate: Mapped headers: $headers');
 
@@ -1008,13 +997,11 @@ Future<void> _parseExcelIsolate(_ExcelIsolateParams params) async {
           const int chunkSize = 1000;
 
           for (int i = 1; i < totalRows; i++) {
-            // Full parse
+            final row = rows[i];
             Map<String, dynamic> record = {};
             for (int j = 0; j < headers.length; j++) {
-              final cell = sheet.cell(
-                CellIndex.indexByColumnRow(columnIndex: j, rowIndex: i),
-              );
-              final val = cell.value;
+              final cell = j < row.length ? row[j] : null;
+              final val = cell?.value;
               final header = headers[j];
               final mappedKey = ExcelFieldMapping.mapHeader(header);
               if (mappedKey != null) {

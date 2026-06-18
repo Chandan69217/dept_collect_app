@@ -81,93 +81,8 @@ class DatabaseService extends ChangeNotifier {
   // Prefilled Data Setup
   void _initializeData() {
     // 2. Initialize Customers
-    _customers = [
-      Customer(
-        id: 'cust_robert',
-        name: 'Robert Henderson',
-        amountDue: 12450.0,
-        dueDate: DateTime.now().subtract(const Duration(days: 45)),
-        overdueDays: 45,
-        address: '422 Oakwood Avenue, Suite 400, Mumbai',
-        phone: '+91 98765 43210',
-        priority: 'HIGH',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-        lat: 19.0760,
-        lng: 72.8777,
-        assignedAgentId: 'miller',
-        status: 'OVERDUE',
-        notes: [
-          'Customer was busy during last visit.',
-          'Needs verification of UPI transaction.',
-        ],
-      ),
-      Customer(
-        id: 'cust_jenkins',
-        name: 'Sarah Jenkins',
-        amountDue: 1800.0,
-        dueDate: DateTime.now().subtract(const Duration(days: 12)),
-        overdueDays: 12,
-        address: '102 Skyline Apartments, Bandra West, Mumbai',
-        phone: '+91 98123 45678',
-        priority: 'MEDIUM',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
-        lat: 19.0596,
-        lng: 72.8295,
-        assignedAgentId: 'miller',
-        status: 'OVERDUE',
-        notes: ['Agreed to pay on next visit.'],
-      ),
-      Customer(
-        id: 'cust_david',
-        name: 'David Miller',
-        amountDue: 3500.0,
-        dueDate: DateTime.now().subtract(const Duration(days: 30)),
-        overdueDays: 30,
-        address: '58 Orchard Road, Andheri East, Mumbai',
-        phone: '+91 97654 32109',
-        priority: 'HIGH',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150',
-        lat: 19.1136,
-        lng: 72.8697,
-        assignedAgentId: 'miller',
-        status: 'OVERDUE',
-      ),
-      Customer(
-        id: 'cust_amit',
-        name: 'Amit Sharma',
-        amountDue: 12500.0,
-        dueDate: DateTime.now().subtract(const Duration(days: 60)),
-        overdueDays: 60,
-        address: '702 Sea Green Complex, Worli, Mumbai',
-        phone: '+91 99999 88888',
-        priority: 'HIGH',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
-        lat: 19.0178,
-        lng: 72.8174,
-        assignedAgentId: 'rahul',
-        status: 'PAID',
-      ),
-      Customer(
-        id: 'cust_priya_p',
-        name: 'Priya Patel',
-        amountDue: 8200.0,
-        dueDate: DateTime.now().subtract(const Duration(days: 15)),
-        overdueDays: 15,
-        address: 'Tower 4, Apex Heights, Powai, Mumbai',
-        phone: '+91 98888 77777',
-        priority: 'MEDIUM',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        lat: 19.1176,
-        lng: 72.9060,
-        assignedAgentId: 'priya',
-        status: 'PENDING_VERIFICATION',
-      ),
-    ];
+
+    fetchRecentUploads();
 
     // 3. Initialize Payments (Verification requests)
     _payments = [
@@ -659,7 +574,17 @@ class DatabaseService extends ChangeNotifier {
 
   // Case Assignment Operation (Admin)
   void assignCase(String customerId, String newAgentId) {
-    final oldCustomer = _customers.firstWhere((c) => c.id == customerId);
+    Customer? oldCustomer = _customers.where((c) => c.id == customerId).firstOrNull;
+    if (oldCustomer == null) {
+      for (var uploadItem in _recentUploads) {
+        final match = uploadItem.customers.where((c) => c.id == customerId).firstOrNull;
+        if (match != null) {
+          oldCustomer = match;
+          break;
+        }
+      }
+    }
+    if (oldCustomer == null) return;
     final oldAgentId = oldCustomer.assignedAgentId;
 
     _customers = _customers.map((c) {
@@ -668,6 +593,15 @@ class DatabaseService extends ChangeNotifier {
       }
       return c;
     }).toList();
+
+    // Update in recent uploads
+    for (var uploadItem in _recentUploads) {
+      for (int i = 0; i < uploadItem.customers.length; i++) {
+        if (uploadItem.customers[i].id == customerId) {
+          uploadItem.customers[i] = uploadItem.customers[i].copyWith(assignedAgentId: newAgentId);
+        }
+      }
+    }
 
     // Adjust case counts on agents
     _agents = _agents.map((a) {
@@ -687,7 +621,7 @@ class DatabaseService extends ChangeNotifier {
       );
     }
 
-    final newAgentName = _agents.firstWhere((a) => a.id == newAgentId).name;
+    final newAgentName = _agents.where((a) => a.id == newAgentId).firstOrNull?.name ?? 'Agent';
 
     // Add activity feed
     _activityFeed.insert(0, {
@@ -710,53 +644,49 @@ class DatabaseService extends ChangeNotifier {
       return c;
     }).toList();
 
+    // Update in recent uploads
+    for (var uploadItem in _recentUploads) {
+      for (int i = 0; i < uploadItem.customers.length; i++) {
+        if (uploadItem.customers[i].id == customerId) {
+          uploadItem.customers[i] = uploadItem.customers[i].copyWith(priority: newPriority.toUpperCase());
+        }
+      }
+    }
+
     notifyListeners();
   }
 
   // Case Delete Operation (Admin)
-  void deleteCase(String customerId) {
-    final customer = _customers.where((c) => c.id == customerId).firstOrNull;
-    if (customer == null) return;
-
-    // Remove from active list
-    _customers.removeWhere((c) => c.id == customerId);
-
-    // Adjust agent case count if assigned
-    if (customer.assignedAgentId.isNotEmpty &&
-        customer.assignedAgentId != 'unassigned') {
-      _agents = _agents.map((a) {
-        if (a.id == customer.assignedAgentId) {
-          return a.copyWith(
-            casesCount: a.casesCount > 0 ? a.casesCount - 1 : 0,
-          );
+  Future<void> deleteCase(int fileId, String customerId) async {
+    Customer? customer = _customers.where((c) => c.id == customerId).firstOrNull;
+    if (customer == null) {
+      for (var uploadItem in _recentUploads) {
+        final match = uploadItem.customers.where((c) => c.id == customerId).firstOrNull;
+        if (match != null) {
+          customer = match;
+          break;
         }
-        return a;
-      }).toList();
+      }
     }
+    if (customer == null) return;
+    final targetCustomer = customer;
 
-    // Log update in activity feed
-    _activityFeed.insert(0, {
-      'id': 'act_delete_${customerId}_${DateTime.now().millisecondsSinceEpoch}',
-      'title': 'Case Deleted',
-      'subtitle': 'Admin deleted portfolio record for ${customer.name}',
-      'time': 'Just now',
-      'type': 'error',
-    });
+    try {
+      await _apiService.deleteFileRecord(fileId: fileId, recordId: customerId);
 
-    notifyListeners();
-  }
+      // Remove from active list
+      _customers.removeWhere((c) => c.id == customerId);
 
-  // Bulk Case Delete Operation (Admin)
-  void deleteMultipleCases(List<String> customerIds) {
-    for (var id in customerIds) {
-      final customer = _customers.where((c) => c.id == id).firstOrNull;
-      if (customer == null) continue;
+      // Remove from recent uploads list
+      for (var uploadItem in _recentUploads) {
+        uploadItem.customers.removeWhere((c) => c.id == customerId);
+      }
 
       // Adjust agent case count if assigned
-      if (customer.assignedAgentId.isNotEmpty &&
-          customer.assignedAgentId != 'unassigned') {
+      if (targetCustomer.assignedAgentId.isNotEmpty &&
+          targetCustomer.assignedAgentId != 'unassigned') {
         _agents = _agents.map((a) {
-          if (a.id == customer.assignedAgentId) {
+          if (a.id == targetCustomer.assignedAgentId) {
             return a.copyWith(
               casesCount: a.casesCount > 0 ? a.casesCount - 1 : 0,
             );
@@ -764,22 +694,80 @@ class DatabaseService extends ChangeNotifier {
           return a;
         }).toList();
       }
+
+      // Log update in activity feed
+      _activityFeed.insert(0, {
+        'id':
+            'act_delete_${customerId}_${DateTime.now().millisecondsSinceEpoch}',
+        'title': 'Case Deleted',
+        'subtitle': 'Admin deleted portfolio record for ${targetCustomer.name}',
+        'time': 'Just now',
+        'type': 'error',
+      });
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error deleting case from API: $e');
+      rethrow;
     }
+  }
 
-    // Remove from active list
-    _customers.removeWhere((c) => customerIds.contains(c.id));
+  // Bulk Case Delete Operation (Admin)
+  Future<void> deleteMultipleCases(int fileId, List<String> customerIds) async {
+    try {
+      for (var id in customerIds) {
+        Customer? customer = _customers.where((c) => c.id == id).firstOrNull;
+        if (customer == null) {
+          for (var uploadItem in _recentUploads) {
+            final match = uploadItem.customers.where((c) => c.id == id).firstOrNull;
+            if (match != null) {
+              customer = match;
+              break;
+            }
+          }
+        }
+        if (customer == null) continue;
+        final targetCustomer = customer;
 
-    // Log update in activity feed
-    _activityFeed.insert(0, {
-      'id': 'act_bulk_delete_${DateTime.now().millisecondsSinceEpoch}',
-      'title': 'Bulk Cases Deleted',
-      'subtitle':
-          'Admin deleted ${customerIds.length} portfolio records simultaneously.',
-      'time': 'Just now',
-      'type': 'error',
-    });
+        await _apiService.deleteFileRecord(fileId: fileId, recordId: id);
 
-    notifyListeners();
+        // Adjust agent case count if assigned
+        if (targetCustomer.assignedAgentId.isNotEmpty &&
+            targetCustomer.assignedAgentId != 'unassigned') {
+          _agents = _agents.map((a) {
+            if (a.id == targetCustomer.assignedAgentId) {
+              return a.copyWith(
+                casesCount: a.casesCount > 0 ? a.casesCount - 1 : 0,
+              );
+            }
+            return a;
+          }).toList();
+        }
+      }
+
+      // Remove from active list
+      _customers.removeWhere((c) => customerIds.contains(c.id));
+
+      // Remove from recent uploads list
+      for (var uploadItem in _recentUploads) {
+        uploadItem.customers.removeWhere((c) => customerIds.contains(c.id));
+      }
+
+      // Log update in activity feed
+      _activityFeed.insert(0, {
+        'id': 'act_bulk_delete_${DateTime.now().millisecondsSinceEpoch}',
+        'title': 'Bulk Cases Deleted',
+        'subtitle':
+            'Admin deleted ${customerIds.length} portfolio records simultaneously.',
+        'time': 'Just now',
+        'type': 'error',
+      });
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error bulk deleting cases from API: $e');
+      rethrow;
+    }
   }
 
   // CSV Data upload simulation
@@ -790,58 +778,59 @@ class DatabaseService extends ChangeNotifier {
     // First save the data into the api
     await _apiService.uploadRecords(fileName, records);
     await fetchRecentUploads();
-    int addedCount = 0;
-    for (var r in records) {
-      final id =
-          'cust_csv_${DateTime.now().millisecondsSinceEpoch}_$addedCount';
-      final newCust = Customer(
-        id: id,
-        name: r['name'] ?? '',
-        amountDue: (r['amountDue'] as num?)?.toDouble() ?? 0.0,
-        dueDate: DateTime.now().subtract(
-          Duration(days: r['overdueDays'] as int? ?? 10),
-        ),
-        overdueDays: r['overdueDays'] as int? ?? 0,
-        address: r['address'] ?? '',
-        phone: r['phone'] ?? '',
-        priority: r['priority'] ?? 'MEDIUM',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-        lat: 19.0760 + (addedCount * 0.01),
-        lng: 72.8777 + (addedCount * 0.01),
-        assignedAgentId: 'miller', // auto assign to miller for test
-        status: 'OVERDUE',
-        assetModel: r['assetModel'] ?? '',
-        assetRegNo: r['assetRegNo'] ?? '',
-        engineNumber: r['engineNumber'] ?? '',
-        chasisNumber: r['chasisNumber'] ?? '',
-        assetVariant: r['assetVariant'] ?? '',
-        showLoanId: r['showLoanId'] ?? true,
-      );
-      _customers.add(newCust);
-      addedCount++;
-    }
+    // int addedCount = 0;
+    // for (var r in records) {
+    //   final id =
+    //       'cust_csv_${DateTime.now().millisecondsSinceEpoch}_$addedCount';
+    //   final newCust = Customer(
+    //     id: id,
+    //     name: r['name'] ?? '',
+    //     amountDue: (r['amountDue'] as num?)?.toDouble() ?? 0.0,
+    //     dueDate: DateTime.now().subtract(
+    //       Duration(days: r['overdueDays'] as int? ?? 10),
+    //     ),
+    //     overdueDays: r['overdueDays'] as int? ?? 0,
+    //     address: r['address'] ?? '',
+    //     phone: r['phone'] ?? '',
+    //     priority: r['priority'] ?? 'MEDIUM',
+    //     avatarUrl:
+    //         'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+    //     lat: 19.0760 + (addedCount * 0.01),
+    //     lng: 72.8777 + (addedCount * 0.01),
+    //     assignedAgentId: r['assignedAgentId'], // auto assign to miller for test
+    //     status: 'OVERDUE',
+    //     assetModel: r['assetModel'] ?? '',
+    //     assetRegNo: r['assetRegNo'] ?? '',
+    //     engineNumber: r['engineNumber'] ?? '',
+    //     chasisNumber: r['chasisNumber'] ?? '',
+    //     assetVariant: r['assetVariant'] ?? '',
+    //     showLoanId: r['showLoanId'] ?? true,
+    //     assignedAgentName: r['assignedAgentName'],
+    //   );
+    //   _customers.add(newCust);
+    //   addedCount++;
+    // }
 
-    // Update Agent Miller's casesCount
-    _agents = _agents.map((a) {
-      if (a.id == 'miller') {
-        return a.copyWith(casesCount: a.casesCount + addedCount);
-      }
-      return a;
-    }).toList();
+    // // Update Agent Miller's casesCount
+    // _agents = _agents.map((a) {
+    //   if (a.id == 'miller') {
+    //     return a.copyWith(casesCount: a.casesCount + addedCount);
+    //   }
+    //   return a;
+    // }).toList();
 
-    if (_currentUser != null && _currentUser!.id == 'miller') {
-      _currentUser = _agents.firstWhere((a) => a.id == 'miller');
-    }
-
-    // Add activity feed
-    _activityFeed.insert(0, {
-      'id': 'act_csv_upload',
-      'title': 'CSV Data Imported',
-      'subtitle': '$addedCount records successfully parsed and assigned.',
-      'time': 'Just now',
-      'type': 'success',
-    });
+    // if (_currentUser != null && _currentUser!.id == 'miller') {
+    //   _currentUser = _agents.firstWhere((a) => a.id == 'miller');
+    // }
+    //
+    // // Add activity feed
+    // _activityFeed.insert(0, {
+    //   'id': 'act_csv_upload',
+    //   'title': 'CSV Data Imported',
+    //   'subtitle': '$addedCount records successfully parsed and assigned.',
+    //   'time': 'Just now',
+    //   'type': 'success',
+    // });
 
     notifyListeners();
   }
@@ -1094,6 +1083,62 @@ class DatabaseService extends ChangeNotifier {
       debugPrint(
         'Error fetching recent uploads files: $e , StackTrace: ${stackTrace}',
       );
+      rethrow;
+    }
+  }
+
+  Future<void> fetchRecordsForFile({required int fileId, required int limits}) async {
+    try {
+      final List<Map<String, dynamic>> recordsData = await _apiService
+          .getFileRecords(fileId: fileId, limits: limits);
+
+      List<Customer> records = [];
+
+      for (var data in recordsData) {
+        records.add(Customer.fromJson(data));
+      }
+
+      final fileIndex = _recentUploads.indexWhere((item) => item.fileId == fileId);
+      if (fileIndex != -1) {
+        _recentUploads[fileIndex].customers.clear();
+        _recentUploads[fileIndex].customers.addAll(records);
+      }
+
+      // Also set the active _customers list to contain only this file's customers
+      _customers.clear();
+      _customers.addAll(records);
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      debugPrint(
+        'Error fetching file records: $e , StackTrace: ${stackTrace}',
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> deleteFile(int fileId) async {
+    try {
+      await _apiService.deleteFile(fileId);
+      _recentUploads.removeWhere((item) => item.fileId == fileId);
+      _customers.clear();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error deleting file: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteMultipleFiles(List<int> fileIds) async {
+    try {
+      for (var id in fileIds) {
+        await _apiService.deleteFile(id);
+      }
+      _recentUploads.removeWhere((item) => fileIds.contains(item.fileId));
+      _customers.clear();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error bulk deleting files: $e');
       rethrow;
     }
   }

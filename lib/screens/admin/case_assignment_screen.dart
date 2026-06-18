@@ -4,13 +4,20 @@ import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
 import '../../models/customer.dart';
+import '../../models/recent_upload_item.dart';
+import '../../models/agent.dart';
 import '../agent/customer_details_screen.dart';
 import '../../widgets/custom_feedback.dart';
 
 class CaseAssignmentScreen extends StatefulWidget {
+  final RecentUploadItem selectedFile;
   final bool isEmbedded;
 
-  const CaseAssignmentScreen({super.key, this.isEmbedded = false});
+  const CaseAssignmentScreen({
+    super.key,
+    required this.selectedFile,
+    this.isEmbedded = false,
+  });
 
   @override
   State<CaseAssignmentScreen> createState() => _CaseAssignmentScreenState();
@@ -57,6 +64,13 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
 
   String _searchQuery = '';
   final _searchController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRecords();
+  }
 
   @override
   void dispose() {
@@ -64,52 +78,39 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
     super.dispose();
   }
 
+  Future<void> _fetchRecords() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      await _db.fetchAgentsFromApi();
+      await _db.fetchRecordsForFile(
+        fileId: widget.selectedFile.fileId,
+        limits: widget.selectedFile.totalRecords,
+      );
+    } catch (e) {
+      if (mounted) {
+        CustomFeedback.showToast(
+          context,
+          'Failed to load records: ${e.toString().replaceAll('Exception: ', '')}',
+          type: 'error',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   // Local overrides for assigned static cases
-  final Map<String, String> _mockAssignments = {};
-  final Map<String, String> _mockPriorities = {};
+  final Map<String, String> _caseAssignments = {};
+  final Map<String, String> _casePriorities = {};
 
   // Standard high-fidelity mock cases from Stitch UI spec
-  final List<CaseItem> _staticMockCases = [
-    CaseItem(
-      id: 'mock_case_1',
-      loanId: '#LN-882104',
-      name: 'Dominic Chambers',
-      amount: 4250.00,
-      overdueStatus: '12 Days Overdue',
-      location: 'Queens, NY',
-      riskLevel: 'High Risk',
-      riskIcon: LucideIcons.alertTriangle,
-    ),
-    CaseItem(
-      id: 'mock_case_2',
-      loanId: '#LN-773291',
-      name: 'Elena Rodriguez',
-      amount: 1120.50,
-      overdueStatus: 'Due Tomorrow',
-      location: 'Brooklyn, NY',
-      riskLevel: 'First Notice',
-      riskIcon: LucideIcons.history,
-    ),
-    CaseItem(
-      id: 'mock_case_3',
-      loanId: '#LN-901445',
-      name: 'Marcus Thorne',
-      amount: 12800.00,
-      overdueStatus: '45 Days Overdue',
-      location: 'Manhattan, NY',
-      riskLevel: 'Critical',
-      riskIcon: LucideIcons.triangleAlert,
-    ),
-    CaseItem(
-      id: 'mock_case_4',
-      loanId: '#LN-110292',
-      name: 'Sarah Jenkins',
-      amount: 850.00,
-      overdueStatus: 'Due in 5 days',
-      location: 'Staten Island, NY',
-      riskLevel: 'Low Balance',
-      riskIcon: LucideIcons.info,
-    ),
+  final List<CaseItem> _allCases = [
   ];
 
   @override
@@ -117,8 +118,14 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
     return ListenableBuilder(
       listenable: _db,
       builder: (context, child) {
-        // Map actual database customers to CaseItems
-        final List<CaseItem> dbCases = _db.customers.map((c) {
+        // Map actual database customers from recentUploaded's customers to CaseItems (only if file selected)
+        final List<Customer> allDbCustomers = [];
+        final currentFile = _db.recentUploadItem
+            .where((f) => f.fileId == widget.selectedFile.fileId)
+            .firstOrNull;
+        allDbCustomers.addAll(currentFile?.customers ?? widget.selectedFile.customers);
+
+        final List<CaseItem> dbCases = allDbCustomers.map((c) {
           // Resolve risk details based on priority
           IconData riskIcon = LucideIcons.triangle;
           String riskText = 'First Notice';
@@ -162,9 +169,9 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
         }).toList();
 
         // Map mock cases with local overrides
-        final List<CaseItem> mappedMocks = _staticMockCases.map((m) {
-          final assignedAgentId = _mockAssignments[m.id];
-          final localPriority = _mockPriorities[m.id];
+        final List<CaseItem> mappedMocks = _allCases.map((m) {
+          final assignedAgentId = _caseAssignments[m.id];
+          final localPriority = _casePriorities[m.id];
           String? resolvedAgentName;
           if (assignedAgentId != null) {
             final agent = _db.agents
@@ -275,7 +282,6 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
 
         // Calculate count indicator
         final int unassignedCount =
-            838 +
             allCases
                 .where(
                   (c) =>
@@ -287,12 +293,11 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
 
         final scaffoldBody = Column(
           children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 20.0,
-                ),
+            if (_isLoading) CustomFeedback.showProgressIndicator(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Hero Header Section
                   Column(
@@ -321,10 +326,10 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                             child: Text(
                               '$unassignedCount Unassigned Cases',
                               style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.error,
-                              ),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.error,
+                                ),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -340,7 +345,7 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
                   // Segmented Control (Toggle Unassigned / Assigned)
                   Container(
@@ -357,74 +362,54 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
                   // Beautiful Search Input Bar (Stitch Specs)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: AppTheme.outlineVariant),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                  TextField(
+                    controller: _searchController,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.onSurface,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'Inter',
                     ),
-                    child: TextField(
-                      controller: _searchController,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.onSurface,
-                        fontWeight: FontWeight.w500,
+                    onChanged: (val) {
+                      setState(() {
+                        _searchQuery = val.trim();
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search by debtor name, region, or loan...',
+                      hintStyle: TextStyle(
+                        color: AppTheme.secondary.withOpacity(0.6),
+                        fontSize: 13,
+                        fontWeight: FontWeight.normal,
                         fontFamily: 'Inter',
                       ),
-                      onChanged: (val) {
-                        setState(() {
-                          _searchQuery = val.trim();
-                        });
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Search by debtor name, region, or loan...',
-                        hintStyle: TextStyle(
-                          color: AppTheme.secondary.withOpacity(0.6),
-                          fontSize: 13,
-                          fontWeight: FontWeight.normal,
-                          fontFamily: 'Inter',
-                        ),
-                        prefixIcon: const Icon(
-                          LucideIcons.search,
-                          color: AppTheme.primary,
-                          size: 20,
-                        ),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(
-                                  LucideIcons.x,
-                                  color: AppTheme.secondary,
-                                  size: 18,
-                                ),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _searchQuery = '';
-                                  });
-                                },
-                              )
-                            : null,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
+                      prefixIcon: const Icon(
+                        LucideIcons.search,
+                        color: AppTheme.primary,
+                        size: 20,
                       ),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                        icon: const Icon(
+                          LucideIcons.x,
+                          color: AppTheme.secondary,
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                          : null,
+                     
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
                   // Bulk Action Controller Panel
                   Row(
@@ -499,14 +484,13 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
                   // Sticky Assignment and Priority Action Panel (Dual Side-by-Side buttons)
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     width: double.infinity,
                     height: 52,
-                    margin: const EdgeInsets.only(bottom: 20),
                     child: Row(
                       children: [
                         // Assign Button
@@ -611,49 +595,49 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                       ],
                     ),
                   ),
-
-                  // Cases list view mapping
-                  filteredCases.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 48.0),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  LucideIcons.folder,
-                                  size: 56,
-                                  color: AppTheme.outline.withOpacity(0.4),
-                                ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  'No portfolio cases found in segment.',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.secondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: filteredCases.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final caseItem = filteredCases[index];
-                            final isChecked = _selectedCaseIds.contains(
-                              caseItem.id,
-                            );
-
-                            return _buildCaseCard(caseItem, isChecked);
-                          },
-                        ),
-                  const SizedBox(height: 80),
                 ],
               ),
+            ),
+            const Divider(height: 1, color: AppTheme.outlineVariant),
+
+            // Cases list view mapping
+            Expanded(
+              child: filteredCases.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            LucideIcons.folder,
+                            size: 56,
+                            color: AppTheme.outline.withOpacity(0.4),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'No portfolio cases found in segment.',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 12.0, bottom: 32.0),
+                      itemCount: filteredCases.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final caseItem = filteredCases[index];
+                        final isChecked = _selectedCaseIds.contains(
+                          caseItem.id,
+                        );
+
+                        return _buildCaseCard(caseItem, isChecked);
+                      },
+                    ),
             ),
           ],
         );
@@ -663,14 +647,8 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
         return Scaffold(
           backgroundColor: AppTheme.background,
           appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            title: const Text(
-              'Case Assignment Manager',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primary,
-              ),
+            title: Text(
+              widget.selectedFile.fileName,
             ),
           ),
           body: scaffoldBody,
@@ -755,6 +733,7 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
         'Initial mock case record imported.',
         'Verified geographic region: ${item.location}.',
       ],
+      assignedAgentName: ""
     );
   }
 
@@ -956,7 +935,9 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                       // Subtle Premium Details Link
                       GestureDetector(
                         onTap: () {
-                          final customer = _db.customers.firstWhere(
+                          final customer = _db.recentUploadItem
+                              .expand((item) => item.customers)
+                              .firstWhere(
                             (c) => c.id == caseItem.id,
                             orElse: () => _createMockCustomer(caseItem),
                           );
@@ -1068,122 +1049,38 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
   }
 
   void _showBulkDeployDialog(List<CaseItem> allCases) {
-    CustomFeedback.showFeedbackDialog(
-      context,
-      title: 'Deploy Active Agent',
-      message: '',
-      type: 'info',
-      showCancel: false,
-      confirmLabel: 'CANCEL',
-      customBody: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              'Assigning ${_selectedCaseIds.length} Case${_selectedCaseIds.length > 1 ? 's' : ''} simultaneously.',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: AppTheme.primary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'SELECT AGENT PORTFOLIO TARGET:',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.outline,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Flexible(
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: _db.agents.where((a) => !a.isAdmin).length,
-              separatorBuilder: (context, index) =>
-                  const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final agent = _db.agents
-                    .where((a) => !a.isAdmin)
-                    .toList()[index];
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    radius: 18,
-                    backgroundImage: NetworkImage(agent.avatarUrl),
-                  ),
-                  title: Text(
-                    agent.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Zone: ${agent.zone} • ${agent.casesCount} active cases',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.secondary,
-                    ),
-                  ),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppTheme.outlineVariant),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Assign All',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primary,
-                      ),
-                    ),
-                  ),
-                  onTap: () {
-                    // Execute bulk migrations on database service loop!
-                    for (var id in _selectedCaseIds) {
-                      if (id.startsWith('cust_')) {
-                        _db.assignCase(id, agent.id);
-                      } else {
-                        // Static local override
-                        _mockAssignments[id] = agent.id;
-                      }
-                    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return _DeployAgentBottomSheet(
+          selectedCaseIds: _selectedCaseIds,
+          agents: _db.agents.where((a) => !a.isAdmin).toList(),
+          onDeploy: (agent) {
+            // Execute bulk migrations on database service loop!
+            for (var id in _selectedCaseIds) {
+              if (id.startsWith('cust_')) {
+                _db.assignCase(id, agent.id);
+              } else {
+                // Static local override
+                _caseAssignments[id] = agent.id;
+              }
+            }
 
-                    final count = _selectedCaseIds.length;
-                    setState(() {
-                      _selectedCaseIds.clear(); // Reset selections
-                    });
+            final count = _selectedCaseIds.length;
+            setState(() {
+              _selectedCaseIds.clear(); // Reset selections
+            });
 
-                    Navigator.pop(context);
-
-                    CustomFeedback.showToast(
-                      context,
-                      'Successfully deployed $count case${count > 1 ? 's' : ''} to ${agent.name}.',
-                      type: 'success',
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+            CustomFeedback.showToast(
+              context,
+              'Successfully deployed $count case${count > 1 ? 's' : ''} to ${agent.name}.',
+              type: 'success',
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1201,7 +1098,7 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                 if (caseItem.id.startsWith('cust_')) {
                   _db.updateCasePriority(caseItem.id, priority);
                 } else {
-                  _mockPriorities[caseItem.id] = priority.toUpperCase();
+                  _casePriorities[caseItem.id] = priority.toUpperCase();
                 }
               }
               _selectedCaseIds.clear(); // Reset selections
@@ -1666,6 +1563,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
   final _minController = TextEditingController();
   final _maxController = TextEditingController();
   late String _sortBy;
+  late RangeValues _amountRange;
 
   @override
   void initState() {
@@ -1674,6 +1572,13 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
     _startDate = widget.initialStartDate;
     _endDate = widget.initialEndDate;
     _sortBy = widget.initialSortBy;
+
+    double minVal = widget.initialMinAmount ?? 0.0;
+    double maxVal = widget.initialMaxAmount ?? 30000.0;
+    if (minVal < 0.0) minVal = 0.0;
+    if (maxVal > 30000.0) maxVal = 30000.0;
+    if (minVal > maxVal) minVal = maxVal;
+    _amountRange = RangeValues(minVal, maxVal);
 
     if (widget.initialMinAmount != null) {
       _minController.text = widget.initialMinAmount!.toStringAsFixed(0);
@@ -1820,7 +1725,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
 
                       // Date range picker Row
                       const Text(
-                        'Date Range',
+                        'Due Date Range',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -1923,11 +1828,47 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
 
                       // Amount range inputs Row
                       const Text(
-                        'Amount Range (₹)',
+                        'EMI Amount Range (₹)',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF0B1C30),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          sliderTheme: SliderThemeData(
+                            activeTrackColor: const Color(0xFF00328A),
+                            inactiveTrackColor: const Color(0xFFEFF4FF),
+                            thumbColor: const Color(0xFF00328A),
+                            overlayColor: const Color(0xFF00328A).withOpacity(0.12),
+                            valueIndicatorColor: const Color(0xFF0B1C30),
+                            valueIndicatorTextStyle: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Inter',
+                            ),
+                            showValueIndicator: ShowValueIndicator.always,
+                          ),
+                        ),
+                        child: RangeSlider(
+                          values: _amountRange,
+                          min: 0.0,
+                          max: 30000.0,
+                          divisions: 60,
+                          labels: RangeLabels(
+                            '₹${_amountRange.start.toStringAsFixed(0)}',
+                            '₹${_amountRange.end.toStringAsFixed(0)}',
+                          ),
+                          onChanged: (RangeValues values) {
+                            setState(() {
+                              _amountRange = values;
+                              _minController.text = values.start.toStringAsFixed(0);
+                              _maxController.text = values.end.toStringAsFixed(0);
+                            });
+                          },
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -1976,6 +1917,15 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                                       child: TextField(
                                         controller: _minController,
                                         keyboardType: TextInputType.number,
+                                        onChanged: (val) {
+                                          final parsed = double.tryParse(val) ?? 0.0;
+                                          setState(() {
+                                            _amountRange = RangeValues(
+                                              parsed.clamp(0.0, _amountRange.end),
+                                              _amountRange.end,
+                                            );
+                                          });
+                                        },
                                         style: const TextStyle(
                                           fontSize: 14,
                                           color: Color(0xFF0B1C30),
@@ -2041,6 +1991,15 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                                       child: TextField(
                                         controller: _maxController,
                                         keyboardType: TextInputType.number,
+                                        onChanged: (val) {
+                                          final parsed = double.tryParse(val) ?? 30000.0;
+                                          setState(() {
+                                            _amountRange = RangeValues(
+                                              _amountRange.start,
+                                              parsed.clamp(_amountRange.start, 30000.0),
+                                            );
+                                          });
+                                        },
                                         style: const TextStyle(
                                           fontSize: 14,
                                           color: Color(0xFF0B1C30),
@@ -2241,6 +2200,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
       _minController.clear();
       _maxController.clear();
       _sortBy = 'Newest First';
+      _amountRange = const RangeValues(0.0, 30000.0);
     });
   }
 
@@ -2249,5 +2209,243 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
     final max = double.tryParse(_maxController.text.trim());
     widget.onApply(_status, _startDate, _endDate, min, max, _sortBy);
     Navigator.pop(context);
+  }
+}
+
+class _DeployAgentBottomSheet extends StatefulWidget {
+  final Set<String> selectedCaseIds;
+  final List<Agent> agents;
+  final Function(Agent agent) onDeploy;
+
+  const _DeployAgentBottomSheet({
+    required this.selectedCaseIds,
+    required this.agents,
+    required this.onDeploy,
+  });
+
+  @override
+  State<_DeployAgentBottomSheet> createState() => _DeployAgentBottomSheetState();
+}
+
+class _DeployAgentBottomSheetState extends State<_DeployAgentBottomSheet> {
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredAgents = widget.agents.where((agent) {
+      final nameMatches = agent.name.toLowerCase().contains(_searchQuery.toLowerCase());
+      final zoneMatches = agent.zone.toLowerCase().contains(_searchQuery.toLowerCase());
+      return nameMatches || zoneMatches;
+    }).toList();
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  width: 48,
+                  height: 5,
+                  margin: const EdgeInsets.only(top: 12, bottom: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC4C7C5),
+                    borderRadius: BorderRadius.circular(2.5),
+                  ),
+                ),
+              ),
+
+              // Title Header Row
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 8.0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Deploy Active Agent',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0B1C30),
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        LucideIcons.x,
+                        color: Color(0xFF1C1B1F),
+                        size: 24,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                    vertical: 10.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Info Banner
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'Assigning ${widget.selectedCaseIds.length} Case${widget.selectedCaseIds.length > 1 ? 's' : ''} simultaneously.',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Search Bar Input
+                      TextField(
+                        controller: _searchController,
+                        onChanged: (val) {
+                          setState(() {
+                            _searchQuery = val.trim();
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Search agent by name or zone...',
+                          prefixIcon: const Icon(LucideIcons.search, color: AppTheme.outline, size: 20),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                            icon: const Icon(LucideIcons.x, size: 18, color: AppTheme.outline),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {
+                                _searchQuery = '';
+                              });
+                            },
+                          )
+                              : null,
+
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      const Text(
+                        'SELECT AGENT PORTFOLIO TARGET:',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.outline,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Active Agents list
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 250),
+                        child: filteredAgents.isEmpty
+                            ? const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24.0),
+                                child: Center(
+                                  child: Text(
+                                    'No active agents found',
+                                    style: TextStyle(
+                                      color: AppTheme.secondary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                shrinkWrap: true,
+                                itemCount: filteredAgents.length,
+                                separatorBuilder: (context, index) => const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final agent = filteredAgents[index];
+                                  return ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: CircleAvatar(
+                                      radius: 18,
+                                      backgroundImage: NetworkImage(agent.avatarUrl),
+                                    ),
+                                    title: Text(
+                                      agent.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Zone: ${agent.zone} • ${agent.casesCount} active cases',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme.secondary,
+                                      ),
+                                    ),
+                                    trailing: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: AppTheme.outlineVariant),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'Assign All',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                      widget.onDeploy(agent);
+                                    },
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

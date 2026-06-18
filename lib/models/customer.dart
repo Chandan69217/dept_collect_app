@@ -11,6 +11,7 @@ class Customer {
   final double lat;
   final double lng;
   final String assignedAgentId;
+  final String assignedAgentName;
   final String status; // 'PAID', 'OVERDUE', 'PENDING_VERIFICATION'
   final List<String> notes;
   final DateTime? scheduledVisit;
@@ -20,6 +21,7 @@ class Customer {
   final String chasisNumber;
   final String assetVariant;
   final bool showLoanId;
+  final String loanId;
 
   const Customer({
     required this.id,
@@ -34,6 +36,7 @@ class Customer {
     required this.lat,
     required this.lng,
     required this.assignedAgentId,
+    required this.assignedAgentName,
     required this.status,
     this.notes = const [],
     this.scheduledVisit,
@@ -42,6 +45,7 @@ class Customer {
     this.engineNumber = '',
     this.chasisNumber = '',
     this.assetVariant = '',
+    this.loanId = '',
     this.showLoanId = true,
   });
 
@@ -58,6 +62,7 @@ class Customer {
     double? lat,
     double? lng,
     String? assignedAgentId,
+    String? assignedAgentName,
     String? status,
     List<String>? notes,
     DateTime? scheduledVisit,
@@ -67,6 +72,7 @@ class Customer {
     String? chasisNumber,
     String? assetVariant,
     bool? showLoanId,
+    String? loanId,
   }) {
     return Customer(
       id: id ?? this.id,
@@ -90,18 +96,21 @@ class Customer {
       chasisNumber: chasisNumber ?? this.chasisNumber,
       assetVariant: assetVariant ?? this.assetVariant,
       showLoanId: showLoanId ?? this.showLoanId,
+      loanId: loanId ?? this.loanId,
+      assignedAgentName: assignedAgentName ?? this.assignedAgentName,
     );
   }
 
-  factory Customer.fromJson(Map<String, dynamic> json) {
+  factory Customer.fromJson(Map<String, dynamic> body) {
+    final json = body['data'] as Map<String, dynamic>? ?? {};
     return Customer(
-      id: json['id'] as String? ?? '',
+      id: body['record_id']?.toString() ?? '',
       name: json['name'] as String? ?? '',
       amountDue: (json['amountDue'] as num?)?.toDouble() ?? 0.0,
       dueDate: json['dueDate'] != null
-          ? DateTime.tryParse(json['dueDate'] as String) ?? DateTime.now()
+          ? DateTime.tryParse(json['dueDate'].toString()) ?? DateTime.now()
           : DateTime.now(),
-      overdueDays: json['overdueDays'] as int? ?? 0,
+      overdueDays: (json['overdueDays'] as num?)?.toInt() ?? 0,
       address: json['address'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       priority: json['priority'] as String? ?? 'MEDIUM',
@@ -109,10 +118,15 @@ class Customer {
       lat: (json['lat'] as num?)?.toDouble() ?? 0.0,
       lng: (json['lng'] as num?)?.toDouble() ?? 0.0,
       assignedAgentId: json['assignedAgentId'] as String? ?? '',
+      assignedAgentName: json['assignedAgentName'] as String? ?? '',
       status: json['status'] as String? ?? 'OVERDUE',
-      notes: (json['notes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      notes:
+          (json['notes'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
       scheduledVisit: json['scheduledVisit'] != null
-          ? DateTime.tryParse(json['scheduledVisit'] as String)
+          ? DateTime.tryParse(json['scheduledVisit'].toString())
           : null,
       assetModel: json['assetModel'] as String? ?? '',
       assetRegNo: json['assetRegNo'] as String? ?? '',
@@ -120,6 +134,7 @@ class Customer {
       chasisNumber: json['chasisNumber'] as String? ?? '',
       assetVariant: json['assetVariant'] as String? ?? '',
       showLoanId: json['showLoanId'] as bool? ?? true,
+      loanId: json['loanId']?.toString() ?? json['loadId']?.toString() ?? '',
     );
   }
 

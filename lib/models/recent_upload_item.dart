@@ -1,4 +1,5 @@
 import 'package:dept_collection_app/constants/app_constants.dart';
+import 'package:dept_collection_app/models/customer.dart';
 
 class RecentUploadItem {
   final int fileId;
@@ -8,6 +9,7 @@ class RecentUploadItem {
   final int totalRecords;
   final String status;
   final DateTime createdAt;
+  final List<Customer> customers;
 
   RecentUploadItem({
     required this.fileId,
@@ -17,7 +19,8 @@ class RecentUploadItem {
     this.status = "success",
     required this.totalRecords,
     required this.createdAt,
-  });
+    List<Customer>? customers,
+  }) : customers = customers ?? [];
 
   String get formattedDate => AppConstants.dateFormat.format(createdAt);
 

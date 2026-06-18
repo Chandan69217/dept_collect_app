@@ -250,7 +250,45 @@ class ApiService {
         return data.map((e) => e as Map<String, dynamic>).toList();
       } else {
         final message =
-            responseData['message'] ?? 'Failed to load agents list.';
+            responseData['message'] ?? 'Failed to load excels files.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
+
+
+  Future<List<Map<String, dynamic>>> getFileRecords({required int fileId, required int limits}) async {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.getAllExcelRecords}/$fileId?page=1&limit=$limits',
+    );
+
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Accept': 'application/json',
+        },
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess = responseData['success'] ?? false;
+      if (response.statusCode == 200 && isSuccess) {
+        final List<dynamic> data = responseData['data'] ?? [];
+        return data.map((e) => e as Map<String, dynamic>).toList();
+      } else {
+        final message =
+            responseData['message'] ?? 'Failed to load excel files records.';
         throw Exception(message);
       }
     } on Exception {
@@ -294,6 +332,80 @@ class ApiService {
       } else {
         final message =
             responseData['message'] ?? 'Failed to upload records to API.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
+
+
+  Future<Map<String, dynamic>> deleteFileRecord({
+    required int fileId,
+    required String recordId,
+  }) async {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.deleteExcelFileRecord}/$recordId',
+    );
+
+    try {
+      final response = await _client.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Accept': 'application/json',
+        },
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess = responseData['success'] == true || responseData['isSuccess'] == true;
+      if (response.statusCode == 200 && isSuccess) {
+        return responseData;
+      } else {
+        final message = responseData['message'] ?? 'Failed to delete record from API.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteFile(int fileId) async {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.deleteExcelFile}/$fileId',
+    );
+
+    try {
+      final response = await _client.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Accept': 'application/json',
+        },
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess = responseData['success'] == true || responseData['isSuccess'] == true;
+      if (response.statusCode == 200 && isSuccess) {
+        return responseData;
+      } else {
+        final message = responseData['message'] ?? 'Failed to delete file from API.';
         throw Exception(message);
       }
     } on Exception {

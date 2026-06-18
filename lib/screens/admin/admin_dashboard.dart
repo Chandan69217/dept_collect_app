@@ -9,10 +9,9 @@ import '../../widgets/performance_chart.dart';
 import '../shared/login_screen.dart';
 import '../shared/notifications_screen.dart';
 import 'agent_tracking_screen.dart';
-import 'case_assignment_screen.dart';
 import 'verification_queue_screen.dart';
 import 'upload_data_screen.dart';
-import 'uploaded_records_view.dart';
+import 'uploaded_files_screen.dart';
 import 'add_agent_screen.dart';
 import '../agent/agent_edit_profile_screen.dart';
 import '../../widgets/custom_feedback.dart';
@@ -62,7 +61,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         final List<Widget> pages = [
           _buildHomeDashboard(context, pendingCount),
           const AgentTrackingScreen(isEmbedded: true),
-          const CaseAssignmentScreen(isEmbedded: true),
+          const UploadedFilesScreen(isForCaseAssignment: true, isEmbedded: true),
           const VerificationQueueScreen(isEmbedded: true),
         ];
 
@@ -157,7 +156,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               const CustomBottomBarItem(
                 icon: LucideIcons.folderHeart,
                 activeIcon: LucideIcons.folderHeart,
-                label: 'Cases',
+                label: 'Files',
               ),
               CustomBottomBarItem(
                 icon: LucideIcons.userRoundCheck,
@@ -795,7 +794,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               size: 20,
             ),
             title: const Text(
-              'Manage Uploaded Records',
+              'Manage Files & Records',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: AppTheme.onSurface,
@@ -811,7 +810,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const UploadedRecordsView(),
+                  builder: (context) => const UploadedFilesScreen(isForCaseAssignment: false),
                 ),
               );
             },

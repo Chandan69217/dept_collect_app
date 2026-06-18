@@ -9,5 +9,6 @@ class ApiConstants {
   static const String uploadFileRecords = '/api/excel-file/create';
   static const String getAllExcelFiles = '/api/excel-file/files';
   static const String getAllExcelRecords = '/api/excel-file/records';
-  static const String deleteExcelFile = '/api/excel-file/records';
+  static const String deleteExcelFileRecord = '/api/excel-file/records';
+  static const String deleteExcelFile = '/api/excel-file/file';
 }
