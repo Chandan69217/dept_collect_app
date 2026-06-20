@@ -24,6 +24,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
   final _db = DatabaseService();
   String _paymentMethod = 'UPI'; // 'Cash', 'UPI', 'Cheque'
   bool _receiptUploaded = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -64,7 +65,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  void _handleSubmit() {
+  void _handleSubmit() async {
     final amt = double.tryParse(_amountController.text) ?? 0;
     if (amt <= 0) {
       CustomFeedback.showToast(
@@ -75,25 +76,61 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
       return;
     }
 
-    // Record payment
-    _db.recordPayment(
-      customerId: widget.customer.id,
-      amount: amt,
-      method: _paymentMethod,
-      reference: _refController.text,
-      receiptPath: _receiptUploaded ? '/simulated/receipt_capture.jpg' : null,
-    );
+    setState(() {
+      _isLoading = true;
+    });
 
-    Navigator.pop(context); // pop bottom sheet
+    try {
+      await _db.recordPayment(
+        customerId: widget.customer.id,
+        amount: amt,
+        method: _paymentMethod,
+        reference: _refController.text,
+        receiptPath: _receiptUploaded ? '/simulated/receipt_capture.jpg' : null,
+      );
 
-    CustomFeedback.showToast(
-      context,
-      'Collection of ₹${amt.toStringAsFixed(0)} recorded for ${widget.customer.name}! Pending Admin Verification.',
-      type: 'success',
-    );
+      if (mounted) {
+        Navigator.pop(context); // pop bottom sheet
+        CustomFeedback.showToast(
+          context,
+          'Collection of ₹${amt.toStringAsFixed(0)} recorded for ${widget.customer.name}! Pending Admin Verification.',
+          type: 'success',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        CustomFeedback.showToast(
+          context,
+          'Failed to record collection: ${e.toString().replaceAll('Exception: ', '')}',
+          type: 'error',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  bool _hasPermission(String fieldKey) {
+    final user = DatabaseService().currentUser;
+    if (user != null && !user.isAdmin) {
+      return user.permissions[fieldKey] ?? true;
+    }
+    return true;
   }
 
   void _handleSchedule() {
+    if (!_hasPermission('editDetails')) {
+      CustomFeedback.showToast(
+        context,
+        'You do not have permission to schedule follow-up visits.',
+        type: 'error',
+      );
+      return;
+    }
     Navigator.pop(context); // close current sheet
     showModalBottomSheet(
       context: context,
@@ -433,11 +470,20 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
                     borderRadius: BorderRadius.circular(8.0),
                   ),
                 ),
-                onPressed: _handleSubmit,
-                icon: const Icon(LucideIcons.save, size: 18),
-                label: const Text(
-                  'SAVE COLLECTION',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                onPressed: _isLoading ? null : _handleSubmit,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(LucideIcons.save, size: 18),
+                label: Text(
+                  _isLoading ? 'SAVING COLLECTION...' : 'SAVE COLLECTION',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ),

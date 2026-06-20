@@ -22,6 +22,7 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
   DateTime _focusedMonth = DateTime.now();
   String _selectedSlot = 'MORNING'; // 'MORNING', 'AFTERNOON', 'EVENING'
   final _purposeController = TextEditingController();
+  bool _isLoading = false;
 
   final List<String> _monthsNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -60,27 +61,56 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
     super.dispose();
   }
 
-  void _handleConfirm() {
+  void _handleConfirm() async {
     final String timeSlotText = _slotsInfo.firstWhere((s) => s['id'] == _selectedSlot)['window'];
     final String visitNote = 'Scheduled follow-up visit for ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year} during $timeSlotText.';
-    
-    // Call database schedule
-    _db.scheduleFollowUp(widget.customer.id, _selectedDate);
-    
-    // Add purpose note if entered
-    final cust = _db.customers.firstWhere((c) => c.id == widget.customer.id);
-    cust.notes.add(visitNote);
-    if (_purposeController.text.trim().isNotEmpty) {
-      cust.notes.add('Follow-up Purpose: ${_purposeController.text.trim()}');
+    final String customPurpose = _purposeController.text.trim();
+    final String fullRemarks = customPurpose.isNotEmpty 
+        ? '$visitNote Purpose: $customPurpose' 
+        : visitNote;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Call database schedule
+      await _db.scheduleFollowUp(
+        customerId: widget.customer.id,
+        date: _selectedDate,
+        remarks: fullRemarks,
+      );
+      
+      // Add purpose note if entered
+      final cust = _db.customers.firstWhere((c) => c.id == widget.customer.id);
+      cust.notes.add(visitNote);
+      if (customPurpose.isNotEmpty) {
+        cust.notes.add('Follow-up Purpose: $customPurpose');
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+        CustomFeedback.showToast(
+          context,
+          'Follow-up scheduled successfully for ${widget.customer.name} on ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}!',
+          type: 'success',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        CustomFeedback.showToast(
+          context,
+          'Failed to schedule follow-up: ${e.toString().replaceAll('Exception: ', '')}',
+          type: 'error',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-
-    Navigator.pop(context);
-
-    CustomFeedback.showToast(
-      context,
-      'Follow-up scheduled successfully for ${widget.customer.name} on ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}!',
-      type: 'success',
-    );
   }
 
   @override
@@ -437,11 +467,20 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
                   borderRadius: BorderRadius.circular(8.0),
                 ),
               ),
-              onPressed: _handleConfirm,
-              child: const Text(
-                'CONFIRM VISIT PROTOCOL',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
-              ),
+              onPressed: _isLoading ? null : _handleConfirm,
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'CONFIRM VISIT PROTOCOL',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+                    ),
             ),
           ),
           ],

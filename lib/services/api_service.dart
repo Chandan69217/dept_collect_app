@@ -169,8 +169,8 @@ class ApiService {
 
     final url = Uri.parse(
       isUpdatingOwnAdminProfile
-          ? '${ApiConstants.baseUrl}${ApiConstants.updateAdminProfile}$agentId'
-          : '${ApiConstants.baseUrl}${ApiConstants.updateAgentProfile}$agentId',
+          ? '${ApiConstants.baseUrl}${ApiConstants.updateAdminProfile}/$agentId'
+          : '${ApiConstants.baseUrl}${ApiConstants.updateAgentProfile}/$agentId',
     );
 
     try {
@@ -260,8 +260,10 @@ class ApiService {
     }
   }
 
-
-  Future<List<Map<String, dynamic>>> getFileRecords({required int fileId, required int limits}) async {
+  Future<List<Map<String, dynamic>>> getFileRecords({
+    required int fileId,
+    required int limits,
+  }) async {
     final url = Uri.parse(
       '${ApiConstants.baseUrl}${ApiConstants.getAllExcelRecords}/$fileId?page=1&limit=$limits',
     );
@@ -306,16 +308,65 @@ class ApiService {
       '${ApiConstants.baseUrl}${ApiConstants.uploadFileRecords}',
     );
 
+    log('Uploading $fileName with ${records.length} records. URL: $url');
+
     try {
-      final response = await _client.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({'fileName': fileName, 'records': records}),
-      );
+      final request = http.StreamedRequest('POST', url);
+      request.headers.addAll({
+        'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      });
+
+      final startString = '{"fileName": ${jsonEncode(fileName)}, "records": [';
+      final startBytes = utf8.encode(startString);
+
+      int recordsLength = 0;
+      for (int i = 0; i < records.length; i++) {
+        if (i > 0) {
+          recordsLength += 1;
+        }
+        recordsLength += utf8.encode(jsonEncode(records[i])).length;
+      }
+
+      final endString = ']}';
+      final endBytes = utf8.encode(endString);
+
+      final totalContentLength =
+          startBytes.length + recordsLength + endBytes.length;
+      request.contentLength = totalContentLength;
+      log('Calculated Content-Length: $totalContentLength bytes');
+
+      final responseFuture = _client.send(request);
+
+      request.sink.add(startBytes);
+
+      const int batchSize = 1000;
+      for (int i = 0; i < records.length; i += batchSize) {
+        final end = (i + batchSize < records.length)
+            ? i + batchSize
+            : records.length;
+        final chunk = records.sublist(i, end);
+
+        final buffer = StringBuffer();
+        for (int j = 0; j < chunk.length; j++) {
+          final absoluteIndex = i + j;
+          if (absoluteIndex > 0) {
+            buffer.write(',');
+          }
+          buffer.write(jsonEncode(chunk[j]));
+        }
+
+        request.sink.add(utf8.encode(buffer.toString()));
+
+        await Future.delayed(Duration.zero);
+      }
+
+      request.sink.add(endBytes);
+      await request.sink.close();
+
+      final streamedResponse = await responseFuture;
+      final response = await http.Response.fromStream(streamedResponse);
 
       Map<String, dynamic> responseData;
       try {
@@ -334,13 +385,14 @@ class ApiService {
             responseData['message'] ?? 'Failed to upload records to API.';
         throw Exception(message);
       }
-    } on Exception {
+    } on Exception catch (e) {
+      log('Upload Exception: $e');
       rethrow;
     } catch (e) {
+      log('Upload Error: $e');
       throw Exception('Network or server error: $e');
     }
   }
-
 
   Future<Map<String, dynamic>> deleteFileRecord({
     required int fileId,
@@ -366,11 +418,13 @@ class ApiService {
         responseData = {};
       }
 
-      final isSuccess = responseData['success'] == true || responseData['isSuccess'] == true;
+      final isSuccess =
+          responseData['success'] == true || responseData['isSuccess'] == true;
       if (response.statusCode == 200 && isSuccess) {
         return responseData;
       } else {
-        final message = responseData['message'] ?? 'Failed to delete record from API.';
+        final message =
+            responseData['message'] ?? 'Failed to delete record from API.';
         throw Exception(message);
       }
     } on Exception {
@@ -401,11 +455,279 @@ class ApiService {
         responseData = {};
       }
 
-      final isSuccess = responseData['success'] == true || responseData['isSuccess'] == true;
+      final isSuccess =
+          responseData['success'] == true || responseData['isSuccess'] == true;
       if (response.statusCode == 200 && isSuccess) {
         return responseData;
       } else {
-        final message = responseData['message'] ?? 'Failed to delete file from API.';
+        final message =
+            responseData['message'] ?? 'Failed to delete file from API.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> assignRecord({
+    required int recordId,
+    required int agentId,
+    required int assignedBy,
+    required String scheduleDate,
+    required String remarks,
+    required double paymentCollection,
+    required String paymentMethod,
+    required String approvedImg,
+    required String status,
+  }) async {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.createAssignment}',
+    );
+
+    try {
+      final response = await _client.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'record_id': recordId,
+          'agent_id': agentId,
+          'assigned_by': assignedBy,
+          'schedule_date': scheduleDate,
+          'remarks': remarks,
+          'payment_collection': paymentCollection,
+          'payment_method': paymentMethod,
+          'approved_img': approvedImg,
+          'status': status,
+        }),
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess =
+          responseData['success'] == true || responseData['isSuccess'] == true;
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          isSuccess) {
+        return responseData;
+      } else {
+        final message = responseData['message'] ?? 'Failed to assign record.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAssignments() async {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.getAllAssignments}',
+    );
+
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Accept': 'application/json',
+        },
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess = responseData['success'] ?? false;
+      if (response.statusCode == 200 && isSuccess) {
+        final List<dynamic> data = responseData['data'] ?? [];
+        return data.map((e) => e as Map<String, dynamic>).toList();
+      } else {
+        final message =
+            responseData['message'] ?? 'Failed to load assignments.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteAssignment(int assignmentId) async {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}/api/assignments/$assignmentId',
+    );
+
+    try {
+      final response = await _client.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Accept': 'application/json',
+        },
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess =
+          responseData['success'] == true || responseData['isSuccess'] == true;
+      if (response.statusCode == 200 && isSuccess) {
+        return responseData;
+      } else {
+        final message =
+            responseData['message'] ?? 'Failed to delete assignment.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateRecordPriority({
+    required String recordId,
+    required String priority,
+  }) async {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.updateRecordPriority}/$recordId',
+    );
+
+    try {
+      final response = await _client.put(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'priority': priority.toUpperCase()}),
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess =
+          responseData['success'] == true || responseData['isSuccess'] == true;
+      if (response.statusCode == 200 && isSuccess) {
+        return responseData;
+      } else {
+        final message =
+            responseData['message'] ?? 'Failed to update record priority.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateAssignment({
+    required int assignmentId,
+    required String scheduleDate,
+    required String remarks,
+    required double paymentCollection,
+    required String paymentMethod,
+    required String approvedImg,
+    required String status,
+  }) async {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}/api/assignments/$assignmentId',
+    );
+
+    try {
+      final response = await _client.put(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'schedule_date': scheduleDate,
+          'remarks': remarks,
+          'payment_collection': paymentCollection,
+          'payment_method': paymentMethod,
+          'approved_img': approvedImg,
+          'status': status,
+        }),
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess =
+          responseData['success'] == true || responseData['isSuccess'] == true;
+      if (response.statusCode == 200 && isSuccess) {
+        return responseData;
+      } else {
+        final message =
+            responseData['message'] ?? 'Failed to update assignment details.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAgentAssignments(String agentId) async {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.getAgentAssignments}/$agentId',
+    );
+
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Accept': 'application/json',
+        },
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess = responseData['success'] ?? false;
+      if (response.statusCode == 200 && isSuccess) {
+        final List<dynamic> data = responseData['data'] ?? [];
+        return data.map((e) => e as Map<String, dynamic>).toList();
+      } else {
+        final message =
+            responseData['message'] ?? 'Failed to load agent assignments.';
         throw Exception(message);
       }
     } on Exception {

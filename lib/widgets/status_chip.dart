@@ -19,18 +19,22 @@ class StatusChip extends StatelessWidget {
     switch (type.toUpperCase()) {
       case 'PAID':
       case 'APPROVED':
+      case 'COMPLETED':
+      case 'CLOSED':
         bg = AppTheme.successContainer;
         fg = AppTheme.success;
         break;
       case 'OVERDUE':
       case 'HIGH':
       case 'REJECTED':
+      case 'ASSIGNED':
         bg = AppTheme.errorContainer;
         fg = AppTheme.error;
         break;
       case 'PENDING_VERIFICATION':
       case 'PENDING':
       case 'MEDIUM':
+      case 'IN PROGRESS':
         bg = AppTheme.warningContainer;
         fg = AppTheme.warning;
         break;

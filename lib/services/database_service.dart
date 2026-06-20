@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'package:intl/intl.dart';
 
 import 'package:dept_collection_app/models/recent_upload_item.dart';
 import 'package:flutter/material.dart';
@@ -56,6 +57,18 @@ class DatabaseService extends ChangeNotifier {
   final List<RecentUploadItem> _recentUploads = [];
   List<RecentUploadItem> get recentUploadItem => _recentUploads;
 
+  double _approvedTodaySum = 0.0;
+  double get approvedTodaySum => _approvedTodaySum;
+
+  int _rejectedCount = 0;
+  int get rejectedCount => _rejectedCount;
+
+  int _totalAssignmentsCount = 0;
+  int get totalAssignmentsCount => _totalAssignmentsCount;
+
+  int _completedAssignmentsCount = 0;
+  int get completedAssignmentsCount => _completedAssignmentsCount;
+
   // Security Toggles
   bool biometricAuthEnabled = true;
   bool faceIdEnabled = true;
@@ -85,68 +98,7 @@ class DatabaseService extends ChangeNotifier {
     fetchRecentUploads();
 
     // 3. Initialize Payments (Verification requests)
-    _payments = [
-      PaymentRecord(
-        id: 'TXN9881A',
-        customerId: 'cust_priya_p',
-        customerName: 'Priya Patel',
-        agentId: 'priya',
-        agentName: 'Agent Priya',
-        amount: 8200.0,
-        paymentMethod: 'UPI',
-        transactionReference: 'UPI88921820',
-        timestamp: DateTime.now().subtract(const Duration(hours: 3)),
-        status: 'PENDING',
-      ),
-      PaymentRecord(
-        id: 'TXN1120B',
-        customerId: 'cust_amit',
-        customerName: 'Amit Sharma',
-        agentId: 'rahul',
-        agentName: 'Agent Rahul',
-        amount: 12500.0,
-        paymentMethod: 'Cash',
-        transactionReference: 'CASH-AMIT-Worli',
-        timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-        status: 'APPROVED',
-      ),
-      PaymentRecord(
-        id: 'TXN7701M',
-        customerId: 'cust_robert',
-        customerName: 'Robert Henderson',
-        agentId: 'miller',
-        agentName: 'Agent Miller',
-        amount: 4500.0,
-        paymentMethod: 'UPI',
-        transactionReference: 'UPI-ROB-Today',
-        timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-        status: 'PENDING',
-      ),
-      PaymentRecord(
-        id: 'TXN5502M',
-        customerId: 'cust_jenkins',
-        customerName: 'Sarah Jenkins',
-        agentId: 'miller',
-        agentName: 'Agent Miller',
-        amount: 8000.0,
-        paymentMethod: 'Cash',
-        transactionReference: 'CASH-SARAH-Yest',
-        timestamp: DateTime.now().subtract(const Duration(hours: 26)),
-        status: 'APPROVED',
-      ),
-      PaymentRecord(
-        id: 'TXN3303M',
-        customerId: 'cust_david',
-        customerName: 'David Miller',
-        agentId: 'miller',
-        agentName: 'Agent Miller',
-        amount: 12450.0,
-        paymentMethod: 'Cheque',
-        transactionReference: 'CHQ-DAVID-Prev',
-        timestamp: DateTime.now().subtract(const Duration(days: 4)),
-        status: 'APPROVED',
-      ),
-    ];
+    _payments = [];
 
     // 4. Initialize Activity Feed
     _activityFeed = [
@@ -281,6 +233,12 @@ class DatabaseService extends ChangeNotifier {
 
           _isLoggedIn = true;
           notifyListeners();
+
+          if (!isAdmin) {
+            fetchAgentAssignments(_currentUser!.id).catchError((e) {
+              debugPrint('Error pre-fetching agent assignments: $e');
+            });
+          }
           return true;
         }
       }
@@ -339,6 +297,12 @@ class DatabaseService extends ChangeNotifier {
           address: userData['address'] ?? '',
           permissions: parsedPermissions,
         );
+
+        if (!isAdmin) {
+          fetchAgentAssignments(_currentUser!.id).catchError((e) {
+            debugPrint('Error auto-login pre-fetching agent assignments: $e');
+          });
+        }
       }
     }
   }
@@ -368,16 +332,35 @@ class DatabaseService extends ChangeNotifier {
   }
 
   // Collection Operations (Agent recording payment)
-  void recordPayment({
+  Future<void> recordPayment({
     required String customerId,
     required double amount,
     required String method,
     required String reference,
     String? receiptPath,
-  }) {
+  }) async {
     final customer = _customers.firstWhere((c) => c.id == customerId);
     final txnId =
         'TXN${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+
+    // Find assignmentId from corresponding customer
+    final int? assignmentId = customer.assignmentId;
+
+    if (assignmentId != null) {
+      final now = DateTime.now();
+      final formattedDate =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
+      
+      await _apiService.updateAssignment(
+        assignmentId: assignmentId,
+        scheduleDate: formattedDate,
+        remarks: reference,
+        paymentCollection: amount,
+        paymentMethod: method,
+        approvedImg: receiptPath ?? 'receipt.jpg',
+        status: 'Pending', // Status is 'Pending' per user request!
+      );
+    }
 
     // Create pending payment record
     final newPayment = PaymentRecord(
@@ -416,7 +399,7 @@ class DatabaseService extends ChangeNotifier {
         }
         return a;
       }).toList();
-      _currentUser = _agents.firstWhere((a) => a.id == _currentUser!.id);
+      _currentUser = _agents.firstWhere((a) => a.id == _currentUser!.id, orElse: () => _currentUser!);
     }
 
     // Add activity for Admin Feed
@@ -433,16 +416,40 @@ class DatabaseService extends ChangeNotifier {
   }
 
   // Admin Approving Collection
-  void approvePayment(String recordId) {
+  Future<void> approvePayment(String recordId) async {
     final recordIndex = _payments.indexWhere((p) => p.id == recordId);
     if (recordIndex == -1) return;
 
     final record = _payments[recordIndex];
 
+    // Find assignmentId from corresponding customer or directly from recordId if it is a number
+    final customer = _customers
+        .where((c) => c.id == record.customerId)
+        .firstOrNull;
+    final int? assignmentId = int.tryParse(recordId) ?? customer?.assignmentId;
+
+    if (assignmentId != null) {
+      final scheduleDateFormatted = DateFormat(
+        'yyyy-MM-dd HH:mm:ss',
+      ).format(customer?.scheduledVisit ?? record.timestamp);
+      await _apiService.updateAssignment(
+        assignmentId: assignmentId,
+        scheduleDate: scheduleDateFormatted,
+        remarks:
+            'Approved by Admin: Verified ${record.paymentMethod} payment of ₹${record.amount}',
+        paymentCollection: record.amount,
+        paymentMethod: record.paymentMethod,
+        approvedImg: record.receiptImagePath ?? 'receipt.jpg',
+        status: 'Completed',
+      );
+    }
+
     // Update record status to APPROVED
     _payments[recordIndex] = record.copyWith(
       status: AppConstants.statusApproved,
     );
+    _approvedTodaySum += record.amount;
+    _completedAssignmentsCount++;
 
     // Update customer status to PAID and clear due amount
     _customers = _customers.map((c) {
@@ -492,20 +499,49 @@ class DatabaseService extends ChangeNotifier {
       'type': 'success',
     });
 
-    notifyListeners();
+    // Fetch latest uploads and assignments
+    try {
+      await fetchRecentUploads();
+    } catch (e) {
+      debugPrint('Error reloading data: $e');
+      notifyListeners();
+    }
   }
 
   // Admin Rejecting Collection
-  void rejectPayment(String recordId) {
+  Future<void> rejectPayment(String recordId) async {
     final recordIndex = _payments.indexWhere((p) => p.id == recordId);
     if (recordIndex == -1) return;
 
     final record = _payments[recordIndex];
 
+    // Find assignmentId from corresponding customer or directly from recordId if it is a number
+    final customer = _customers
+        .where((c) => c.id == record.customerId)
+        .firstOrNull;
+    final int? assignmentId = int.tryParse(recordId) ?? customer?.assignmentId;
+
+    if (assignmentId != null) {
+      final scheduleDateFormatted = DateFormat(
+        'yyyy-MM-dd HH:mm:ss',
+      ).format(customer?.scheduledVisit ?? record.timestamp);
+      await _apiService.updateAssignment(
+        assignmentId: assignmentId,
+        scheduleDate: scheduleDateFormatted,
+        remarks:
+            'Rejected by Admin: Invalid ${record.paymentMethod} payment verification.',
+        paymentCollection: record.amount,
+        paymentMethod: record.paymentMethod,
+        approvedImg: record.receiptImagePath ?? 'receipt.jpg',
+        status: 'Rejected',
+      );
+    }
+
     // Update record status to REJECTED
     _payments[recordIndex] = record.copyWith(
       status: AppConstants.statusRejected,
     );
+    _rejectedCount++;
 
     // Update customer status back to OVERDUE
     _customers = _customers.map((c) {
@@ -537,23 +573,48 @@ class DatabaseService extends ChangeNotifier {
       'type': 'error',
     });
 
-    notifyListeners();
+    // Fetch latest uploads and assignments
+    try {
+      await fetchRecentUploads();
+    } catch (e) {
+      debugPrint('Error reloading data: $e');
+      notifyListeners();
+    }
   }
 
   // Follow-up Scheduling
-  void scheduleFollowUp(String customerId, DateTime date) {
+  Future<void> scheduleFollowUp({
+    required String customerId,
+    required DateTime date,
+    required String remarks,
+  }) async {
+    final customer = _customers.firstWhere((c) => c.id == customerId);
+    final int? assignmentId = customer.assignmentId;
+
+    if (assignmentId != null) {
+      final formattedDate =
+          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} 12:00:00";
+
+      await _apiService.updateAssignment(
+        assignmentId: assignmentId,
+        scheduleDate: formattedDate,
+        remarks: remarks,
+        paymentCollection: 0.0,
+        paymentMethod: 'Cash',
+        approvedImg: '',
+        status: 'Pending',
+      );
+    }
+
     _customers = _customers.map((c) {
       if (c.id == customerId) {
         final List<String> updatedNotes = List.from(c.notes);
-        updatedNotes.add(
-          'Scheduled follow-up visit for ${date.day}/${date.month}/${date.year}.',
-        );
+        updatedNotes.add(remarks);
         return c.copyWith(scheduledVisit: date, notes: updatedNotes);
       }
       return c;
     }).toList();
 
-    final customer = _customers.firstWhere((c) => c.id == customerId);
     final String agentName = _currentUser?.name ?? 'An Agent';
     _notifications.insert(
       0,
@@ -573,11 +634,15 @@ class DatabaseService extends ChangeNotifier {
   }
 
   // Case Assignment Operation (Admin)
-  void assignCase(String customerId, String newAgentId) {
-    Customer? oldCustomer = _customers.where((c) => c.id == customerId).firstOrNull;
+  Future<void> assignCase(String customerId, String newAgentId) async {
+    Customer? oldCustomer = _customers
+        .where((c) => c.id == customerId)
+        .firstOrNull;
     if (oldCustomer == null) {
       for (var uploadItem in _recentUploads) {
-        final match = uploadItem.customers.where((c) => c.id == customerId).firstOrNull;
+        final match = uploadItem.customers
+            .where((c) => c.id == customerId)
+            .firstOrNull;
         if (match != null) {
           oldCustomer = match;
           break;
@@ -585,6 +650,25 @@ class DatabaseService extends ChangeNotifier {
       }
     }
     if (oldCustomer == null) return;
+
+    // Format date as yyyy-MM-dd HH:mm:ss
+    final now = DateTime.now();
+    final formattedDate =
+        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
+
+    // Call API
+    await _apiService.assignRecord(
+      recordId: int.tryParse(customerId) ?? 0,
+      agentId: int.tryParse(newAgentId) ?? 0,
+      assignedBy: int.tryParse(_currentUser?.id ?? '') ?? 0,
+      scheduleDate: formattedDate,
+      remarks: "First visit pending",
+      paymentCollection: 0.0,
+      paymentMethod: "Cash",
+      approvedImg: "",
+      status: "Assigned",
+    );
+
     final oldAgentId = oldCustomer.assignedAgentId;
 
     _customers = _customers.map((c) {
@@ -598,7 +682,9 @@ class DatabaseService extends ChangeNotifier {
     for (var uploadItem in _recentUploads) {
       for (int i = 0; i < uploadItem.customers.length; i++) {
         if (uploadItem.customers[i].id == customerId) {
-          uploadItem.customers[i] = uploadItem.customers[i].copyWith(assignedAgentId: newAgentId);
+          uploadItem.customers[i] = uploadItem.customers[i].copyWith(
+            assignedAgentId: newAgentId,
+          );
         }
       }
     }
@@ -621,7 +707,8 @@ class DatabaseService extends ChangeNotifier {
       );
     }
 
-    final newAgentName = _agents.where((a) => a.id == newAgentId).firstOrNull?.name ?? 'Agent';
+    final newAgentName =
+        _agents.where((a) => a.id == newAgentId).firstOrNull?.name ?? 'Agent';
 
     // Add activity feed
     _activityFeed.insert(0, {
@@ -635,11 +722,38 @@ class DatabaseService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Case Priority Operation (Admin)
-  void updateCasePriority(String customerId, String newPriority) {
+  Future<void> unassignCase(String customerId) async {
+    Customer? oldCustomer = _customers
+        .where((c) => c.id == customerId)
+        .firstOrNull;
+    if (oldCustomer == null) {
+      for (var uploadItem in _recentUploads) {
+        final match = uploadItem.customers
+            .where((c) => c.id == customerId)
+            .firstOrNull;
+        if (match != null) {
+          oldCustomer = match;
+          break;
+        }
+      }
+    }
+    if (oldCustomer == null) return;
+
+    final assignmentId = oldCustomer.assignmentId;
+    if (assignmentId != null) {
+      await _apiService.deleteAssignment(assignmentId);
+    }
+
+    final oldAgentId = oldCustomer.assignedAgentId;
+
     _customers = _customers.map((c) {
       if (c.id == customerId) {
-        return c.copyWith(priority: newPriority.toUpperCase());
+        return c.copyWith(
+          assignedAgentId: '',
+          assignedAgentName: '',
+          assignmentId: null,
+          status: 'Unassigned',
+        );
       }
       return c;
     }).toList();
@@ -648,7 +762,101 @@ class DatabaseService extends ChangeNotifier {
     for (var uploadItem in _recentUploads) {
       for (int i = 0; i < uploadItem.customers.length; i++) {
         if (uploadItem.customers[i].id == customerId) {
-          uploadItem.customers[i] = uploadItem.customers[i].copyWith(priority: newPriority.toUpperCase());
+          uploadItem.customers[i] = uploadItem.customers[i].copyWith(
+            assignedAgentId: '',
+            assignedAgentName: '',
+            assignmentId: null,
+            status: 'Unassigned',
+          );
+        }
+      }
+    }
+
+    // Adjust case counts on agents
+    _agents = _agents.map((a) {
+      if (a.id == oldAgentId) {
+        return a.copyWith(casesCount: a.casesCount > 0 ? a.casesCount - 1 : 0);
+      }
+      return a;
+    }).toList();
+
+    if (_currentUser != null) {
+      _currentUser = _agents.firstWhere(
+        (a) => a.id == _currentUser!.id,
+        orElse: () => _currentUser!,
+      );
+    }
+
+    // Add activity feed
+    _activityFeed.insert(0, {
+      'id': 'act_unsg_${customerId}',
+      'title': 'Case Unassigned',
+      'subtitle': '${oldCustomer.name} unassigned',
+      'time': 'Just now',
+      'type': 'warning',
+    });
+
+    notifyListeners();
+  }
+
+  // Case Priority Operation (Admin)
+  Future<void> updateCasePriority(String customerId, String newPriority) async {
+    Customer? targetCustomer = _customers
+        .where((c) => c.id == customerId)
+        .firstOrNull;
+    if (targetCustomer == null) {
+      for (var uploadItem in _recentUploads) {
+        final match = uploadItem.customers
+            .where((c) => c.id == customerId)
+            .firstOrNull;
+        if (match != null) {
+          targetCustomer = match;
+          break;
+        }
+      }
+    }
+
+    if (targetCustomer == null) return;
+
+    // Call API to update priority on backend
+    await _apiService.updateRecordPriority(
+      recordId: customerId,
+      priority: newPriority.toUpperCase(),
+    );
+
+    final String nameToMatch = targetCustomer.name.trim().toLowerCase();
+    final String phoneToMatch = targetCustomer.phone.trim();
+    final String loanIdToMatch = targetCustomer.loanId.trim();
+
+    // Check matching criteria (satisfies "and all other records of customers")
+    bool matchesTarget(Customer c) {
+      if (c.id == customerId) return true;
+      if (nameToMatch.isNotEmpty && c.name.trim().toLowerCase() == nameToMatch) {
+        return true;
+      }
+      if (phoneToMatch.isNotEmpty && c.phone.trim() == phoneToMatch) {
+        return true;
+      }
+      if (loanIdToMatch.isNotEmpty && c.loanId.trim() == loanIdToMatch) {
+        return true;
+      }
+      return false;
+    }
+
+    _customers = _customers.map((c) {
+      if (matchesTarget(c)) {
+        return c.copyWith(priority: newPriority.toUpperCase());
+      }
+      return c;
+    }).toList();
+
+    // Update in recent uploads
+    for (var uploadItem in _recentUploads) {
+      for (int i = 0; i < uploadItem.customers.length; i++) {
+        if (matchesTarget(uploadItem.customers[i])) {
+          uploadItem.customers[i] = uploadItem.customers[i].copyWith(
+            priority: newPriority.toUpperCase(),
+          );
         }
       }
     }
@@ -658,10 +866,14 @@ class DatabaseService extends ChangeNotifier {
 
   // Case Delete Operation (Admin)
   Future<void> deleteCase(int fileId, String customerId) async {
-    Customer? customer = _customers.where((c) => c.id == customerId).firstOrNull;
+    Customer? customer = _customers
+        .where((c) => c.id == customerId)
+        .firstOrNull;
     if (customer == null) {
       for (var uploadItem in _recentUploads) {
-        final match = uploadItem.customers.where((c) => c.id == customerId).firstOrNull;
+        final match = uploadItem.customers
+            .where((c) => c.id == customerId)
+            .firstOrNull;
         if (match != null) {
           customer = match;
           break;
@@ -719,7 +931,9 @@ class DatabaseService extends ChangeNotifier {
         Customer? customer = _customers.where((c) => c.id == id).firstOrNull;
         if (customer == null) {
           for (var uploadItem in _recentUploads) {
-            final match = uploadItem.customers.where((c) => c.id == id).firstOrNull;
+            final match = uploadItem.customers
+                .where((c) => c.id == id)
+                .firstOrNull;
             if (match != null) {
               customer = match;
               break;
@@ -778,60 +992,6 @@ class DatabaseService extends ChangeNotifier {
     // First save the data into the api
     await _apiService.uploadRecords(fileName, records);
     await fetchRecentUploads();
-    // int addedCount = 0;
-    // for (var r in records) {
-    //   final id =
-    //       'cust_csv_${DateTime.now().millisecondsSinceEpoch}_$addedCount';
-    //   final newCust = Customer(
-    //     id: id,
-    //     name: r['name'] ?? '',
-    //     amountDue: (r['amountDue'] as num?)?.toDouble() ?? 0.0,
-    //     dueDate: DateTime.now().subtract(
-    //       Duration(days: r['overdueDays'] as int? ?? 10),
-    //     ),
-    //     overdueDays: r['overdueDays'] as int? ?? 0,
-    //     address: r['address'] ?? '',
-    //     phone: r['phone'] ?? '',
-    //     priority: r['priority'] ?? 'MEDIUM',
-    //     avatarUrl:
-    //         'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-    //     lat: 19.0760 + (addedCount * 0.01),
-    //     lng: 72.8777 + (addedCount * 0.01),
-    //     assignedAgentId: r['assignedAgentId'], // auto assign to miller for test
-    //     status: 'OVERDUE',
-    //     assetModel: r['assetModel'] ?? '',
-    //     assetRegNo: r['assetRegNo'] ?? '',
-    //     engineNumber: r['engineNumber'] ?? '',
-    //     chasisNumber: r['chasisNumber'] ?? '',
-    //     assetVariant: r['assetVariant'] ?? '',
-    //     showLoanId: r['showLoanId'] ?? true,
-    //     assignedAgentName: r['assignedAgentName'],
-    //   );
-    //   _customers.add(newCust);
-    //   addedCount++;
-    // }
-
-    // // Update Agent Miller's casesCount
-    // _agents = _agents.map((a) {
-    //   if (a.id == 'miller') {
-    //     return a.copyWith(casesCount: a.casesCount + addedCount);
-    //   }
-    //   return a;
-    // }).toList();
-
-    // if (_currentUser != null && _currentUser!.id == 'miller') {
-    //   _currentUser = _agents.firstWhere((a) => a.id == 'miller');
-    // }
-    //
-    // // Add activity feed
-    // _activityFeed.insert(0, {
-    //   'id': 'act_csv_upload',
-    //   'title': 'CSV Data Imported',
-    //   'subtitle': '$addedCount records successfully parsed and assigned.',
-    //   'time': 'Just now',
-    //   'type': 'success',
-    // });
-
     notifyListeners();
   }
 
@@ -1078,6 +1238,8 @@ class DatabaseService extends ChangeNotifier {
       _recentUploads.clear();
       _recentUploads.addAll(recentUploads);
 
+      await fetchAssignmentsForQueue();
+
       notifyListeners();
     } catch (e, stackTrace) {
       debugPrint(
@@ -1087,18 +1249,80 @@ class DatabaseService extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchRecordsForFile({required int fileId, required int limits}) async {
+  Future<void> fetchRecordsForFile({
+    required int fileId,
+    required int limits,
+  }) async {
     try {
+      // Fetch assignments first
+      List<Map<String, dynamic>> assignmentsData = [];
+      try {
+        assignmentsData = await _apiService.getAssignments();
+      } catch (e) {
+        debugPrint('Error fetching assignments: $e');
+      }
+
+      final Map<String, Map<String, dynamic>> assignmentMap = {};
+      for (var assignment in assignmentsData) {
+        final recordId = assignment['record_id']?.toString();
+        if (recordId != null) {
+          assignmentMap[recordId] = assignment;
+        }
+      }
+
       final List<Map<String, dynamic>> recordsData = await _apiService
           .getFileRecords(fileId: fileId, limits: limits);
 
       List<Customer> records = [];
 
       for (var data in recordsData) {
-        records.add(Customer.fromJson(data));
+        final recordId = data['record_id']?.toString();
+        final assignment = assignmentMap[recordId];
+
+        if (assignment != null) {
+          final mergedData = Map<String, dynamic>.from(data);
+          mergedData['status'] =
+              assignment['assignment_status'] ?? assignment['status'];
+          mergedData['assignment_id'] = assignment['assignment_id'];
+
+          final nestedData = Map<String, dynamic>.from(
+            mergedData['data'] as Map? ?? {},
+          );
+
+          // Merge customer data from assignment data map if available
+          final assignmentData = assignment['data'] as Map?;
+          if (assignmentData != null) {
+            assignmentData.forEach((key, value) {
+              nestedData[key] = value;
+            });
+          }
+
+          final agentData = assignment['agent'] as Map?;
+          final agentIdStr =
+              agentData?['agent_id']?.toString() ??
+              assignment['agent_id']?.toString() ??
+              '';
+          final agentName =
+              agentData?['full_name']?.toString() ??
+              _agents.where((a) => a.id == agentIdStr).firstOrNull?.name ??
+              '';
+
+          nestedData['assignedAgentId'] = agentIdStr;
+          nestedData['assignedAgentName'] = agentName;
+          nestedData['assigned_by'] = assignment['assigned_by']?.toString();
+          nestedData['scheduledVisit'] = assignment['schedule_date'];
+          nestedData['remarks'] = assignment['remarks'];
+
+          mergedData['data'] = nestedData;
+          records.add(Customer.fromJson(mergedData));
+        } else {
+          records.add(Customer.fromJson(data));
+        }
       }
 
-      final fileIndex = _recentUploads.indexWhere((item) => item.fileId == fileId);
+      final fileIndex = _recentUploads.indexWhere(
+        (item) => item.fileId == fileId,
+      );
       if (fileIndex != -1) {
         _recentUploads[fileIndex].customers.clear();
         _recentUploads[fileIndex].customers.addAll(records);
@@ -1110,9 +1334,7 @@ class DatabaseService extends ChangeNotifier {
 
       notifyListeners();
     } catch (e, stackTrace) {
-      debugPrint(
-        'Error fetching file records: $e , StackTrace: ${stackTrace}',
-      );
+      debugPrint('Error fetching file records: $e , StackTrace: ${stackTrace}');
       rethrow;
     }
   }
@@ -1195,6 +1417,260 @@ class DatabaseService extends ChangeNotifier {
       notifyListeners();
     } catch (e, stackTrace) {
       debugPrint('Error fetching agents: $e , StackTrace: ${stackTrace}');
+      rethrow;
+    }
+  }
+
+  Future<void> fetchAssignmentsForQueue() async {
+    try {
+      // Pre-fetch agents if not already loaded to resolve actual agent names
+      if (_agents.isEmpty) {
+        try {
+          await fetchAgentsFromApi();
+        } catch (e) {
+          debugPrint('Error fetching agents: $e');
+        }
+      }
+
+      final List<Map<String, dynamic>> assignmentsData = await _apiService
+          .getAssignments();
+      final List<PaymentRecord> queuePayments = [];
+
+      double tempApprovedSum = 0.0;
+      int tempRejectedCount = 0;
+      int tempTotalCount = assignmentsData.length;
+      int tempCompletedCount = 0;
+
+      for (var assignment in assignmentsData) {
+        final String statusRaw =
+            assignment['assignment_status']?.toString() ??
+            assignment['status']?.toString() ??
+            '';
+        final statusLower = statusRaw.toLowerCase();
+        final amount =
+            double.tryParse(
+              assignment['payment_collection']?.toString() ?? '',
+            ) ??
+            0.0;
+
+        if (statusLower == 'completed' || statusLower == 'paid') {
+          tempCompletedCount++;
+          tempApprovedSum += amount;
+        } else if (statusLower == 'rejected') {
+          tempRejectedCount++;
+        }
+
+        // If status is "In Progress" or "Pending", it represents a payment verification pending request!
+        if (statusLower == 'in progress' || statusLower == 'pending_verification' || statusLower == 'pending') {
+          final recordId = assignment['record_id']?.toString() ?? '';
+          final agentData = assignment['agent'] as Map?;
+          final agentId =
+              agentData?['agent_id']?.toString() ??
+              assignment['agent_id']?.toString() ??
+              '';
+          final method = assignment['payment_method']?.toString() ?? 'Cash';
+          final remarks =
+              assignment['remarks']?.toString() ?? 'Visited customer';
+          final approvedImg = assignment['approved_img']?.toString() ?? '';
+
+          // Let's resolve the agent name
+          final agentName =
+              agentData?['full_name']?.toString() ??
+              _agents.where((a) => a.id == agentId).firstOrNull?.name ??
+              'Agent #$agentId';
+
+          // Let's search for customer name in local memory, assignment data, or uploads
+          final customerData = assignment['data'] as Map?;
+          String customerName =
+              customerData?['customer_name']?.toString() ??
+              customerData?['name']?.toString() ??
+              '';
+          if (customerName.isEmpty) {
+            customerName = 'Record #$recordId';
+            for (var uploadItem in _recentUploads) {
+              final match = uploadItem.customers
+                  .where((c) => c.id == recordId)
+                  .firstOrNull;
+              if (match != null) {
+                customerName = match.name;
+                break;
+              }
+            }
+          }
+
+          queuePayments.add(
+            PaymentRecord(
+              id: assignment['assignment_id']?.toString() ?? 'TXN_${recordId}',
+              customerId: recordId,
+              customerName: customerName,
+              agentId: agentId,
+              agentName: agentName,
+              amount: amount,
+              paymentMethod: method,
+              transactionReference: remarks,
+              receiptImagePath: approvedImg.isNotEmpty ? approvedImg : null,
+              timestamp:
+                  DateTime.tryParse(
+                    assignment['updated_at']?.toString() ?? '',
+                  ) ??
+                  DateTime.tryParse(
+                    assignment['schedule_date']?.toString() ?? '',
+                  ) ??
+                  DateTime.now(),
+              status:
+                  'Pending', // PENDING status means it shows in the verification queue!
+            ),
+          );
+        }
+      }
+
+      _payments = [...queuePayments];
+      _approvedTodaySum = tempApprovedSum;
+      _rejectedCount = tempRejectedCount;
+      _totalAssignmentsCount = tempTotalCount;
+      _completedAssignmentsCount = tempCompletedCount;
+
+      List<Customer> assignmentCustomers = [];
+      for (var assignment in assignmentsData) {
+        try {
+          final customer = Customer.fromJson(assignment);
+          if (customer.id.isNotEmpty) {
+            assignmentCustomers.add(customer);
+          }
+        } catch (e) {
+          debugPrint('Error parsing assignment customer: $e');
+        }
+      }
+
+      // Merge assignment customers into _customers list
+      for (var ac in assignmentCustomers) {
+        final existingIndex = _customers.indexWhere((c) => c.id == ac.id);
+        if (existingIndex != -1) {
+          _customers[existingIndex] = ac;
+        } else {
+          _customers.add(ac);
+        }
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error fetching assignments for queue: $e');
+    }
+  }
+
+  Future<void> fetchAgentAssignments(String agentId) async {
+    try {
+      final List<Map<String, dynamic>> assignmentsData =
+          await _apiService.getAgentAssignments(agentId);
+
+      List<Customer> agentCustomers = [];
+      List<PaymentRecord> personalPayments = [];
+      double collectedAmount = 0.0;
+      double assignedTarget = 0.0;
+      int pendingVisits = 0;
+
+      for (var assignment in assignmentsData) {
+        final customer = Customer.fromJson(assignment);
+        if (customer.id.isNotEmpty) {
+          agentCustomers.add(customer);
+          assignedTarget += customer.amountDue;
+        }
+
+        final amount =
+            double.tryParse(
+              assignment['payment_collection']?.toString() ?? '',
+            ) ??
+            0.0;
+
+        if (customer.status == 'Completed' || customer.status == 'Closed') {
+          collectedAmount += amount;
+        }
+
+        // Pending visit is when status is 'Assigned' or 'Rejected' (not visited or rejected collection)
+        if (customer.status == 'Assigned' || customer.status == 'Rejected') {
+          pendingVisits++;
+        }
+
+        // Parse collection history if a payment is present or case is completed/closed
+        if (amount > 0.0 || customer.status == 'Completed' || customer.status == 'Closed') {
+          final recordId = assignment['record_id']?.toString() ?? '';
+          final agentData = assignment['agent'] as Map?;
+          final method = assignment['payment_method']?.toString() ?? 'Cash';
+          final remarks =
+              assignment['remarks']?.toString() ?? 'Visited customer';
+          final approvedImg = assignment['approved_img']?.toString() ?? '';
+
+          String paymentStatus = 'Pending';
+          if (customer.status == 'Completed' || customer.status == 'Closed') {
+            paymentStatus = customer.status;
+          } else if (customer.status == 'Rejected') {
+            paymentStatus = 'Rejected';
+          }
+
+          final txnId =
+              assignment['assignment_id']?.toString() ?? 'TXN_$recordId';
+
+          personalPayments.add(
+            PaymentRecord(
+              id: txnId,
+              customerId: recordId,
+              customerName: customer.name,
+              agentId: agentId,
+              agentName:
+                  agentData?['full_name']?.toString() ??
+                  _currentUser?.name ??
+                  'Agent',
+              amount: amount,
+              paymentMethod: method,
+              transactionReference: remarks,
+              receiptImagePath: approvedImg.isNotEmpty ? approvedImg : null,
+              timestamp:
+                  DateTime.tryParse(
+                    assignment['updated_at']?.toString() ?? '',
+                  ) ??
+                  DateTime.tryParse(
+                    assignment['schedule_date']?.toString() ?? '',
+                  ) ??
+                  DateTime.now(),
+              status: paymentStatus,
+            ),
+          );
+        }
+      }
+
+      // Merge assignment customers into _customers list
+      for (var ac in agentCustomers) {
+        final existingIndex = _customers.indexWhere((c) => c.id == ac.id);
+        if (existingIndex != -1) {
+          _customers[existingIndex] = ac;
+        } else {
+          _customers.add(ac);
+        }
+      }
+
+      // Merge personal payments into _payments list
+      for (var p in personalPayments) {
+        final existingIndex = _payments.indexWhere((pm) => pm.id == p.id);
+        if (existingIndex != -1) {
+          _payments[existingIndex] = p;
+        } else {
+          _payments.insert(0, p);
+        }
+      }
+
+      // Update active user statistics
+      if (_currentUser != null && _currentUser!.id == agentId) {
+        _currentUser = _currentUser!.copyWith(
+          casesCount: agentCustomers.length,
+          pendingVisitsCount: pendingVisits,
+          collectedAmount: collectedAmount,
+          assignedTarget: assignedTarget,
+        );
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error fetching agent assignments: $e');
       rethrow;
     }
   }

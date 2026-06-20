@@ -154,23 +154,23 @@ class _VerifyUploadedRecordsScreenState
   void _precomputeCache() {
     _cachedRecords.clear();
     _selectedIndices.clear();
-    
+
     for (int i = 0; i < widget.records.length; i++) {
       final r = widget.records[i];
-      
+
       // Safe name extraction
       final String name = r['name']?.toString() ?? 'No Name';
       final String nameLower = name.toLowerCase();
-      
+
       // Safe phone extraction
       final String phone = r['phone']?.toString() ?? '';
-      
+
       // Safe loan ID calculation
       final hashStr = name.hashCode.abs().toString();
       final cleanHash = hashStr.length > 5 ? hashStr.substring(0, 5) : hashStr;
       final loanIdDisplay = '#LN-88$cleanHash';
       final loanIdLower = loanIdDisplay.toLowerCase();
-      
+
       // Safe status calculation
       String status;
       if (_discrepancyIndices.contains(i)) {
@@ -180,27 +180,31 @@ class _VerifyUploadedRecordsScreenState
       } else {
         status = 'New Record';
       }
-      
+
       // Safe amountDue parsing
       double amount = 0.0;
       if (r['amountDue'] != null) {
         if (r['amountDue'] is num) {
           amount = (r['amountDue'] as num).toDouble();
         } else {
-          amount = double.tryParse(r['amountDue'].toString().replaceAll(',', '')) ?? 0.0;
+          amount =
+              double.tryParse(r['amountDue'].toString().replaceAll(',', '')) ??
+              0.0;
         }
       }
-      
-      _cachedRecords.add(_RecordCache(
-        record: r,
-        nameLower: nameLower,
-        phone: phone,
-        loanId: loanIdLower,
-        loanIdDisplay: loanIdDisplay,
-        status: status,
-        amountDue: amount,
-      ));
-      
+
+      _cachedRecords.add(
+        _RecordCache(
+          record: r,
+          nameLower: nameLower,
+          phone: phone,
+          loanId: loanIdLower,
+          loanIdDisplay: loanIdDisplay,
+          status: status,
+          amountDue: amount,
+        ),
+      );
+
       _selectedIndices.add(i);
     }
   }
@@ -328,7 +332,8 @@ class _VerifyUploadedRecordsScreenState
       CustomFeedback.showFeedbackDialog(
         context,
         title: 'Import Successful',
-        message: 'Import complete: ${processedRecords.length} records committed successfully!',
+        message:
+            'Import complete: ${processedRecords.length} records committed successfully!',
         type: 'success',
         confirmLabel: 'OK',
         showCancel: false,
@@ -343,7 +348,8 @@ class _VerifyUploadedRecordsScreenState
         CustomFeedback.showFeedbackDialog(
           context,
           title: 'Import Failed',
-          message: 'Failed to upload records: ${e.toString().replaceAll('Exception: ', '')}',
+          message:
+              'Failed to upload records: ${e.toString().replaceAll('Exception: ', '')}',
           type: 'error',
           confirmLabel: 'OK',
           showCancel: false,
@@ -376,10 +382,10 @@ class _VerifyUploadedRecordsScreenState
       // Loop over cached records for fast matching
       final query = _searchQuery.toLowerCase();
       final statusQuery = _selectedStatusFilter.toLowerCase();
-      
+
       for (int i = 0; i < _cachedRecords.length; i++) {
         final cache = _cachedRecords[i];
-        
+
         // Match Search query
         if (hasSearch) {
           final matchesSearch =
@@ -928,17 +934,29 @@ class _VerifyUploadedRecordsScreenState
     final String name = origIndex < _cachedRecords.length
         ? (_cachedRecords[origIndex].record['name']?.toString() ?? 'No Name')
         : (record['name']?.toString() ?? 'No Name');
-        
+
     final String initials = name.trim().isNotEmpty
-        ? name.trim().split(' ').where((s) => s.isNotEmpty).map((s) => s[0]).take(2).join('').toUpperCase()
+        ? name
+              .trim()
+              .split(' ')
+              .where((s) => s.isNotEmpty)
+              .map((s) => s[0])
+              .take(2)
+              .join('')
+              .toUpperCase()
         : '?';
 
     final double amount = origIndex < _cachedRecords.length
         ? _cachedRecords[origIndex].amountDue
         : (() {
             if (record['amountDue'] == null) return 0.0;
-            if (record['amountDue'] is num) return (record['amountDue'] as num).toDouble();
-            return double.tryParse(record['amountDue'].toString().replaceAll(',', '')) ?? 0.0;
+            if (record['amountDue'] is num) {
+              return (record['amountDue'] as num).toDouble();
+            }
+            return double.tryParse(
+                  record['amountDue'].toString().replaceAll(',', ''),
+                ) ??
+                0.0;
           })();
 
     // Premium dynamic avatar colors
@@ -1200,11 +1218,11 @@ class _VerifyUploadedRecordsScreenState
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.onSurfaceVariant,
-                                  fontFamily: 'Inter',
-                                  height: 1.25,
-                                ),
+                                fontSize: 11,
+                                color: AppTheme.onSurfaceVariant,
+                                fontFamily: 'Inter',
+                                height: 1.25,
+                              ),
                             ),
                           ),
                         ],

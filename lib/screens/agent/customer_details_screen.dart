@@ -36,6 +36,9 @@ class CustomerDetailsScreen extends StatelessWidget {
   }
 
   String _formatCurrency(double amount) {
+    if (!_hasPermission('amountDue')) {
+      return '••••';
+    }
     return '₹${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
   }
 
@@ -107,7 +110,7 @@ class CustomerDetailsScreen extends StatelessWidget {
 
         final bool isAdmin = db.currentRole == AppConstants.roleAdmin;
 
-        final bool isPaid = currentCust.status == AppConstants.statusPaid;
+        final bool isPaid = currentCust.status == AppConstants.statusPaid || currentCust.status == AppConstants.statusClosed;
         final bool isPending = currentCust.status == AppConstants.statusPendingVerification;
 
         // Extract initials for the avatar
@@ -134,12 +137,53 @@ class CustomerDetailsScreen extends StatelessWidget {
               ),
             ),
             actions: [
+              if (!isAdmin && _hasPermission('deleteRecords'))
+                IconButton(
+                  icon: const Icon(LucideIcons.trash2, color: AppTheme.error),
+                  tooltip: 'Remove Assignment',
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Remove Assignment'),
+                        content: const Text('Are you sure you want to remove this assignment from your queue?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              try {
+                                await db.unassignCase(currentCust.id);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Assignment removed successfully.')),
+                                  );
+                                  Navigator.pop(context);
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Failed to remove assignment: $e')),
+                                  );
+                                }
+                              }
+                            },
+                            child: const Text('Remove', style: TextStyle(color: AppTheme.error)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
                   children: [
                     Text(
-                      currentCust.name,
+                      _getMaskedText('name', currentCust.name),
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -347,11 +391,47 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-                                    onPressed: () {
-                                      CustomFeedback.showToast(
-                                        context,
-                                        'Opening WhatsApp chat for ${currentCust.name}...',
-                                      );
+                                    onPressed: () async {
+                                      if (!_hasPermission('phone')) {
+                                        CustomFeedback.showToast(
+                                          context,
+                                          'Phone/WhatsApp permission denied.',
+                                          type: 'warning',
+                                        );
+                                        return;
+                                      }
+                                      final phone = currentCust.phone.trim().replaceAll(RegExp(r'\D'), '');
+                                      if (phone.isEmpty) {
+                                        CustomFeedback.showToast(
+                                          context,
+                                          'Phone number not available.',
+                                          type: 'warning',
+                                        );
+                                        return;
+                                      }
+                                      String cleanPhone = phone;
+                                      if (phone.length == 10) {
+                                        cleanPhone = '91$phone';
+                                      }
+                                      final url = Uri.parse('https://wa.me/$cleanPhone');
+                                      try {
+                                        final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+                                        if (!launched) {
+                                          await launchUrl(url, mode: LaunchMode.platformDefault);
+                                        }
+                                      } catch (e) {
+                                        try {
+                                          await launchUrl(url, mode: LaunchMode.platformDefault);
+                                        } catch (e2) {
+                                          if (context.mounted) {
+                                            CustomFeedback.showToast(
+                                              context,
+                                              'Could not launch WhatsApp: $e2',
+                                              type: 'error',
+                                            );
+                                          }
+                                        }
+                                      }
                                     },
                                     icon: const Icon(
                                       LucideIcons.messageCircle,
@@ -658,11 +738,35 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         vertical: 8,
                                       ),
                                     ),
-                                    onPressed: () {
-                                      CustomFeedback.showToast(
-                                        context,
-                                        'Opening turn-by-turn map routing direction...',
-                                      );
+                                    onPressed: () async {
+                                      if (!_hasPermission('address')) {
+                                        CustomFeedback.showToast(
+                                          context,
+                                          'Address access denied.',
+                                          type: 'warning',
+                                        );
+                                        return;
+                                      }
+                                      final address = _getAddress(currentCust);
+                                      final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
+                                      try {
+                                        final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+                                        if (!launched) {
+                                          await launchUrl(url, mode: LaunchMode.platformDefault);
+                                        }
+                                      } catch (e) {
+                                        try {
+                                          await launchUrl(url, mode: LaunchMode.platformDefault);
+                                        } catch (e2) {
+                                          if (context.mounted) {
+                                            CustomFeedback.showToast(
+                                              context,
+                                              'Could not launch maps: $e2',
+                                              type: 'error',
+                                            );
+                                          }
+                                        }
+                                      }
                                     },
                                     icon: const Icon(
                                       LucideIcons.navigation,
@@ -787,6 +891,14 @@ class CustomerDetailsScreen extends StatelessWidget {
                             ),
                             onPressed: () {
                               if (isPaid) return;
+                              if (!_hasPermission('approvePartial')) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('You do not have permission to collect payments.'),
+                                  ),
+                                );
+                                return;
+                              }
                               showModalBottomSheet(
                                 context: context,
                                 isScrollControlled: true,
@@ -834,6 +946,14 @@ class CustomerDetailsScreen extends StatelessWidget {
                             padding: EdgeInsets.zero,
                           ),
                           onPressed: () {
+                            if (!_hasPermission('editDetails')) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('You do not have permission to schedule follow-up visits.'),
+                                ),
+                              );
+                              return;
+                            }
                             showModalBottomSheet(
                               context: context,
                               isScrollControlled: true,

@@ -495,6 +495,7 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                       children: [
                         // Assign Button
                         Expanded(
+                          flex: 3,
                           child: SizedBox(
                             height: double.infinity,
                             child: ElevatedButton.icon(
@@ -517,27 +518,92 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                                   ? () => _showBulkDeployDialog(allCases)
                                   : null,
                               icon: Icon(
-                                LucideIcons.userPlus,
-                                size: 20,
+                                _selectedSegment == 'Assigned'
+                                    ? LucideIcons.userCheck
+                                    : LucideIcons.userPlus,
+                                size: 18,
                                 color: _selectedCaseIds.isNotEmpty
                                     ? Colors.white
                                     : AppTheme.secondary.withOpacity(0.4),
                               ),
                               label: Text(
                                 _selectedCaseIds.isNotEmpty
-                                    ? 'Assign (${_selectedCaseIds.length})'
+                                    ? (_selectedSegment == 'Assigned'
+                                        ? 'Reassign (${_selectedCaseIds.length})'
+                                        : 'Assign (${_selectedCaseIds.length})')
                                     : 'Assign',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 13,
+                                  fontSize: 11,
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
+
+                        // Conditionally show Unassign button if in Assigned tab
+                        if (_selectedSegment == 'Assigned') ...[
+                          Expanded(
+                            flex: 3,
+                            child: SizedBox(
+                              height: double.infinity,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: _selectedCaseIds.isNotEmpty
+                                      ? const Color(0xFFFEF2F2)
+                                      : AppTheme.outline.withOpacity(0.05),
+                                  foregroundColor: _selectedCaseIds.isNotEmpty
+                                      ? AppTheme.error
+                                      : AppTheme.secondary.withOpacity(0.4),
+                                  side: BorderSide(
+                                    color: _selectedCaseIds.isNotEmpty
+                                        ? AppTheme.error
+                                        : AppTheme.outlineVariant.withOpacity(
+                                            0.5,
+                                          ),
+                                    width: 1.5,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                ),
+                                onPressed: _selectedCaseIds.isNotEmpty
+                                    ? () {
+                                        final selectedCases = allCases
+                                            .where((c) => _selectedCaseIds.contains(c.id))
+                                            .toList();
+                                        _handleBulkUnassign(selectedCases);
+                                      }
+                                    : null,
+                                icon: Icon(
+                                  LucideIcons.userMinus,
+                                  size: 18,
+                                  color: _selectedCaseIds.isNotEmpty
+                                      ? AppTheme.error
+                                      : AppTheme.secondary.withOpacity(0.4),
+                                ),
+                                label: Text(
+                                  _selectedCaseIds.isNotEmpty
+                                      ? 'Unassign (${_selectedCaseIds.length})'
+                                      : 'Unassign',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+
                         // Set Priority Button
                         Expanded(
+                          flex: 3,
                           child: SizedBox(
                             height: double.infinity,
                             child: OutlinedButton.icon(
@@ -575,18 +641,18 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
                                   : null,
                               icon: Icon(
                                 LucideIcons.listOrdered,
-                                size: 20,
+                                size: 18,
                                 color: _selectedCaseIds.isNotEmpty
                                     ? AppTheme.primary
                                     : AppTheme.secondary.withOpacity(0.4),
                               ),
                               label: Text(
                                 _selectedCaseIds.isNotEmpty
-                                    ? 'Set Priority (${_selectedCaseIds.length})'
-                                    : 'Set Priority',
+                                    ? 'Priority (${_selectedCaseIds.length})'
+                                    : 'Priority',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 13,
+                                  fontSize: 11,
                                 ),
                               ),
                             ),
@@ -728,7 +794,7 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
       lat: 19.0760,
       lng: 72.8777,
       assignedAgentId: item.assignedAgentId ?? 'miller',
-      status: item.riskLevel == 'Critical' ? 'OVERDUE' : 'PENDING_VERIFICATION',
+      status: item.riskLevel == 'Critical' ? 'Assigned' : 'Pending',
       notes: [
         'Initial mock case record imported.',
         'Verified geographic region: ${item.location}.',
@@ -1048,6 +1114,67 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
     );
   }
 
+  void _handleBulkUnassign(List<CaseItem> selectedCases) {
+    final localContext = context;
+    CustomFeedback.showFeedbackDialog(
+      localContext,
+      title: 'Delete Assignments',
+      message: 'Are you sure you want to remove the assignments for ${selectedCases.length} case(s)?',
+      type: 'warning',
+      confirmLabel: 'DELETE',
+      cancelLabel: 'CANCEL',
+      showCancel: true,
+      onConfirm: () async {
+        if (!localContext.mounted) return;
+        setState(() {
+          _isLoading = true;
+        });
+
+        try {
+          final dbCases = selectedCases.where((c) => !c.id.startsWith('cust_')).toList();
+
+          // Call unassignCase on all database cases concurrently
+          await Future.wait(dbCases.map((c) => _db.unassignCase(c.id)));
+
+          // For mock cases, update local overrides
+          for (var c in selectedCases) {
+            if (c.id.startsWith('cust_')) {
+              setState(() {
+                _caseAssignments.remove(c.id);
+              });
+            }
+          }
+
+          setState(() {
+            _selectedCaseIds.clear();
+          });
+
+          if (localContext.mounted) {
+            CustomFeedback.showToast(
+              localContext,
+              'Successfully removed assignments.',
+              type: 'success',
+            );
+          }
+        } catch (e) {
+          if (localContext.mounted) {
+            CustomFeedback.showToast(
+              localContext,
+              'Failed to remove assignments: ${e.toString().replaceAll('Exception: ', '')}',
+              type: 'error',
+            );
+          }
+        } finally {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        }
+      },
+    );
+  }
+
   void _showBulkDeployDialog(List<CaseItem> allCases) {
     showModalBottomSheet(
       context: context,
@@ -1057,27 +1184,50 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
         return _DeployAgentBottomSheet(
           selectedCaseIds: _selectedCaseIds,
           agents: _db.agents.where((a) => !a.isAdmin).toList(),
-          onDeploy: (agent) {
-            // Execute bulk migrations on database service loop!
-            for (var id in _selectedCaseIds) {
-              if (id.startsWith('cust_')) {
-                _db.assignCase(id, agent.id);
-              } else {
-                // Static local override
-                _caseAssignments[id] = agent.id;
-              }
-            }
-
-            final count = _selectedCaseIds.length;
+          onDeploy: (agent) async {
             setState(() {
-              _selectedCaseIds.clear(); // Reset selections
+              _isLoading = true;
             });
 
-            CustomFeedback.showToast(
-              context,
-              'Successfully deployed $count case${count > 1 ? 's' : ''} to ${agent.name}.',
-              type: 'success',
-            );
+            try {
+              final dbCaseIds = _selectedCaseIds.where((id) => !id.startsWith('cust_')).toList();
+              // Perform all database API case assignments concurrently
+              await Future.wait(dbCaseIds.map((id) => _db.assignCase(id, agent.id)));
+
+              // Perform static local overrides for mock cases
+              for (var id in _selectedCaseIds) {
+                if (id.startsWith('cust_')) {
+                  _caseAssignments[id] = agent.id;
+                }
+              }
+
+              final count = _selectedCaseIds.length;
+              setState(() {
+                _selectedCaseIds.clear(); // Reset selections
+              });
+
+              if (context.mounted) {
+                CustomFeedback.showToast(
+                  context,
+                  'Successfully deployed $count case${count > 1 ? 's' : ''} to ${agent.name}.',
+                  type: 'success',
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                CustomFeedback.showToast(
+                  context,
+                  'Failed to deploy cases: ${e.toString().replaceAll('Exception: ', '')}',
+                  type: 'error',
+                );
+              }
+            } finally {
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            }
           },
         );
       },
@@ -1092,22 +1242,46 @@ class _CaseAssignmentScreenState extends State<CaseAssignmentScreen> {
       builder: (context) {
         return _SetPriorityBottomSheet(
           selectedCases: selectedCases,
-          onApply: (priority) {
+          onApply: (priority) async {
+            final localContext = context;
             setState(() {
+              _isLoading = true;
+            });
+            try {
               for (var caseItem in selectedCases) {
-                if (caseItem.id.startsWith('cust_')) {
-                  _db.updateCasePriority(caseItem.id, priority);
+                if (!caseItem.id.startsWith('cust_')) {
+                  await _db.updateCasePriority(caseItem.id, priority);
                 } else {
-                  _casePriorities[caseItem.id] = priority.toUpperCase();
+                  setState(() {
+                    _casePriorities[caseItem.id] = priority.toUpperCase();
+                  });
                 }
               }
-              _selectedCaseIds.clear(); // Reset selections
-              CustomFeedback.showToast(
-                context,
-                'Updated priority to $priority for ${selectedCases.length} case${selectedCases.length > 1 ? 's' : ''}.',
-                type: 'success',
-              );
-            });
+              setState(() {
+                _selectedCaseIds.clear(); // Reset selections
+              });
+              if (localContext.mounted) {
+                CustomFeedback.showToast(
+                  localContext,
+                  'Updated priority to $priority for ${selectedCases.length} case${selectedCases.length > 1 ? 's' : ''}.',
+                  type: 'success',
+                );
+              }
+            } catch (e) {
+              if (localContext.mounted) {
+                CustomFeedback.showToast(
+                  localContext,
+                  'Failed to update priority: ${e.toString().replaceAll('Exception: ', '')}',
+                  type: 'error',
+                );
+              }
+            } finally {
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            }
           },
         );
       },
@@ -1383,8 +1557,8 @@ class _SetPriorityBottomSheetState extends State<_SetPriorityBottomSheet> {
                   height: 52,
                   child: ElevatedButton(
                     onPressed: () {
-                      widget.onApply(_selectedPriority);
                       Navigator.pop(context);
+                      widget.onApply(_selectedPriority);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(

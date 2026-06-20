@@ -19,12 +19,13 @@ class AppConstants {
   static const String priorityLow = 'LOW';
 
   // Customer / Payment Statuses
-  static const String statusOverdue = 'OVERDUE';
-  static const String statusPaid = 'PAID';
-  static const String statusPendingVerification = 'PENDING_VERIFICATION';
-  static const String statusPending = 'PENDING';
-  static const String statusApproved = 'APPROVED';
-  static const String statusRejected = 'REJECTED';
+  static const String statusOverdue = 'Assigned';
+  static const String statusPaid = 'Completed';
+  static const String statusPendingVerification = 'Pending';
+  static const String statusPending = 'Pending';
+  static const String statusApproved = 'Completed';
+  static const String statusRejected = 'Rejected';
+  static const String statusClosed = 'Closed';
 
   // DateFormater
 

@@ -7,7 +7,7 @@ import '../../widgets/custom_bento_card.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import '../../widgets/performance_chart.dart';
 import '../shared/login_screen.dart';
-import '../shared/notifications_screen.dart';
+// import '../shared/notifications_screen.dart';
 import 'agent_tracking_screen.dart';
 import 'verification_queue_screen.dart';
 import 'upload_data_screen.dart';
@@ -37,6 +37,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Future<void> _fetchAgents() async {
     try {
       await _db.fetchAgentsFromApi();
+      await _db.fetchRecentUploads();
     } catch (e) {
       debugPrint('Error fetching agents on dashboard: $e');
     }
@@ -54,9 +55,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
         final pendingCount = _db.payments
             .where((p) => p.status == AppConstants.statusPending)
             .length;
-        final adminUnreadCount = _db.notifications
-            .where((n) => n.recipientRole == AppConstants.roleAdmin && !n.isRead)
-            .length;
+        // final adminUnreadCount = _db.notifications
+        //     .where((n) => n.recipientRole == AppConstants.roleAdmin && !n.isRead)
+        //     .length;
 
         final List<Widget> pages = [
           _buildHomeDashboard(context, pendingCount),
@@ -77,21 +78,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
               'Agency Admin',
             ),
             actions: [
-              IconButton(
-                icon: Badge(
-                  label: Text('$adminUnreadCount'),
-                  isLabelVisible: adminUnreadCount > 0,
-                  child: const Icon(LucideIcons.bell, color: AppTheme.primary),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const NotificationsScreen(),
-                    ),
-                  );
-                },
-              ),
+              // IconButton(
+              //   icon: Badge(
+              //     label: Text('$adminUnreadCount'),
+              //     isLabelVisible: adminUnreadCount > 0,
+              //     child: const Icon(LucideIcons.bell, color: AppTheme.primary),
+              //   ),
+              //   onPressed: () {
+              //     Navigator.push(
+              //       context,
+              //       MaterialPageRoute(
+              //         builder: (context) => const NotificationsScreen(),
+              //       ),
+              //     );
+              //   },
+              // ),
               GestureDetector(
                 onTap: () => _scaffoldKey.currentState?.openDrawer(),
                 child: Container(
@@ -171,12 +172,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Widget _buildHomeDashboard(BuildContext context, int pendingCount) {
-    // Calculate total recovery (sum of approved collections + prefill 45.2L)
-    final double sessionApprovedSum = _db.payments
-        .where((p) => p.status == 'APPROVED' && p.id.startsWith('TXN_'))
-        .fold(0.0, (sum, item) => sum + item.amount);
-
-    final double displayedTotalRecovery = 45200.0 + sessionApprovedSum;
+    // Calculate total recovery dynamically from Completed assignments
+    final double displayedTotalRecovery = _db.approvedTodaySum;
 
     final fieldAgents = _db.agents.where((a) => !a.isAdmin).toList();
     final totalAgentsCount = fieldAgents.length;
@@ -399,7 +396,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '72% Success',
+                            '${(_db.totalAssignmentsCount > 0 ? (_db.completedAssignmentsCount / _db.totalAssignmentsCount) * 100 : 0.0).toStringAsFixed(0)}% Success',
                             style: Theme.of(context).textTheme.headlineMedium
                                 ?.copyWith(
                                   color: Colors.white,
@@ -418,10 +415,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    const PerformanceChart(
+                    PerformanceChart(
                       type: ChartType.gauge,
-                      value: 0.72,
-                      centerText: '72%',
+                      value: _db.totalAssignmentsCount > 0 
+                          ? _db.completedAssignmentsCount / _db.totalAssignmentsCount 
+                          : 0.0,
+                      centerText: '${(_db.totalAssignmentsCount > 0 ? (_db.completedAssignmentsCount / _db.totalAssignmentsCount) * 100 : 0.0).toStringAsFixed(0)}%',
                     ),
                   ],
                 ),
@@ -587,96 +586,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
               );
             },
-          ),
-          const SizedBox(height: 24),
-
-          // Geographic Zone Map Card
-          Text(
-            'GEOGRAPHIC RECOVERY FOCUS',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
-            ),
-          ),
-          const SizedBox(height: 12),
-          CustomBentoCard(
-            padding: 0,
-            child: Column(
-              children: [
-                // map mockup image
-                Container(
-                  height: 160,
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: AppTheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(AppTheme.radiusLarge),
-                    ),
-                  ),
-                  child: Center(
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Icon(
-                          LucideIcons.map,
-                          color: AppTheme.primary.withOpacity(0.2),
-                          size: 100,
-                        ),
-                        // pulsating dots
-                        const Positioned(
-                          left: 100,
-                          top: 50,
-                          child: _PulseDot(color: AppTheme.primary),
-                        ),
-                        const Positioned(
-                          right: 120,
-                          bottom: 40,
-                          child: _PulseDot(color: AppTheme.error),
-                        ),
-                        const Positioned(
-                          right: 60,
-                          top: 70,
-                          child: _PulseDot(color: AppTheme.success),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppTheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Mumbai Metro Live Tracking Active',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                      const Text(
-                        'EXPAND',
-                        style: TextStyle(
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: 80),
         ],

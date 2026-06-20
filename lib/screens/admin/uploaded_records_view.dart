@@ -42,7 +42,8 @@ class UploadedRecordsView extends StatefulWidget {
 class _UploadedRecordsViewState extends State<UploadedRecordsView> {
   final _db = DatabaseService();
   String _searchQuery = '';
-  String _statusFilter = 'ALL'; // 'ALL', 'Unassigned', 'Assigned', 'In-Progress'
+  String _statusFilter =
+      'ALL'; // 'ALL', 'Unassigned', 'Assigned', 'In-Progress'
   String _sortBy = 'NEWEST'; // 'NEWEST', 'OLDEST', 'AMOUNT_DESC', 'AMOUNT_ASC'
   final Set<String> _selectedRecordIds = {};
   bool _isLoading = false;
@@ -95,15 +96,17 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
         final currentFile = _db.recentUploadItem
             .where((f) => f.fileId == widget.selectedFile.fileId)
             .firstOrNull;
-        final sourceCustomers = currentFile?.customers ?? widget.selectedFile.customers;
+        final sourceCustomers =
+            currentFile?.customers ?? widget.selectedFile.customers;
 
         for (final c in sourceCustomers) {
           String resolvedStatus = 'Assigned';
-          if (c.status == 'PENDING_VERIFICATION') {
+          if (c.status == 'Pending') {
             resolvedStatus = 'In-Progress';
-          } else if (c.status == 'PAID') {
+          } else if (c.status == 'Completed' || c.status == 'Closed') {
             resolvedStatus = 'Paid';
-          } else if (c.assignedAgentId.isEmpty || c.assignedAgentId == 'unassigned') {
+          } else if (c.assignedAgentId.isEmpty ||
+              c.assignedAgentId == 'unassigned') {
             resolvedStatus = 'Unassigned';
           }
 
@@ -112,28 +115,34 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
               ? (cleanId.length > 4 ? cleanId.substring(0, 4) : cleanId)
               : 'N/A';
 
-          final agent = _db.agents.where((a) => a.id == c.assignedAgentId).firstOrNull;
+          final agent = _db.agents
+              .where((a) => a.id == c.assignedAgentId)
+              .firstOrNull;
 
-          dbRecords.add(c.copyWith(
-            id: c.id,
-            loanId: loanId,
-            name: c.name,
-            status: resolvedStatus,
-            amountDue: c.amountDue,
-            address: c.address,
-            phone: c.phone,
-            assignedAgentName: agent?.name ?? '',
-          ));
+          dbRecords.add(
+            c.copyWith(
+              id: c.id,
+              loanId: loanId,
+              name: c.name,
+              status: resolvedStatus,
+              amountDue: c.amountDue,
+              address: c.address,
+              phone: c.phone,
+              assignedAgentName: agent?.name ?? '',
+            ),
+          );
         }
 
         // Dynamic search, status filter, and sorting
         final List<Customer> filteredRecords = dbRecords.where((r) {
           final query = _searchQuery.toLowerCase();
-          final matchesSearch = r.name.toLowerCase().contains(query) ||
+          final matchesSearch =
+              r.name.toLowerCase().contains(query) ||
               r.loanId.toLowerCase().contains(query) ||
               r.address.toLowerCase().contains(query);
 
-          final matchesStatus = _statusFilter == 'ALL' || r.status == _statusFilter;
+          final matchesStatus =
+              _statusFilter == 'ALL' || r.status == _statusFilter;
 
           return matchesSearch && matchesStatus;
         }).toList();
@@ -154,12 +163,13 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
         return Scaffold(
           backgroundColor: AppTheme.background,
           appBar: AppBar(
-            title: Text(
-              widget.selectedFile.fileName,
-            ),
+            title: Text(widget.selectedFile.fileName),
             actions: [
               IconButton(
-                icon: const Icon(LucideIcons.refreshCw, color: AppTheme.primary),
+                icon: const Icon(
+                  LucideIcons.refreshCw,
+                  color: AppTheme.primary,
+                ),
                 onPressed: _isLoading ? null : _refreshData,
               ),
               const SizedBox(width: 8),
@@ -171,7 +181,10 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
               if (_isLoading) CustomFeedback.showProgressIndicator(),
               Container(
                 color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 16.0,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -184,10 +197,15 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                         decoration: InputDecoration(
                           hintText: 'Search by ID or Customer Name...',
                           prefixIcon: const Icon(
-                            LucideIcons.search, size: 20, color: AppTheme.outline),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            LucideIcons.search,
+                            size: 20,
+                            color: AppTheme.outline,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 16,
+                          ),
                           fillColor: const Color(0xFFF1F3F9),
-                         
                         ),
                       ),
                     ),
@@ -195,7 +213,8 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                     // Filter Action Button
                     _buildHeaderButton(
                       icon: LucideIcons.filter,
-                      label: 'Filter${_statusFilter == 'ALL' ? '' : ': $_statusFilter'}',
+                      label:
+                          'Filter${_statusFilter == 'ALL' ? '' : ': $_statusFilter'}',
                       onPressed: () => _showFilterBottomSheet(context),
                       backgroundColor: Colors.white,
                       textColor: AppTheme.onSurfaceVariant,
@@ -214,11 +233,23 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                     children: [
                       _buildFilterChip('All Records', 'ALL', LucideIcons.inbox),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Unassigned', 'Unassigned', LucideIcons.userX),
+                      _buildFilterChip(
+                        'Unassigned',
+                        'Unassigned',
+                        LucideIcons.userX,
+                      ),
                       const SizedBox(width: 8),
-                      _buildFilterChip('In-Progress', 'In-Progress', LucideIcons.timer),
+                      _buildFilterChip(
+                        'In-Progress',
+                        'In-Progress',
+                        LucideIcons.timer,
+                      ),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Assigned', 'Assigned', LucideIcons.userCheck),
+                      _buildFilterChip(
+                        'Assigned',
+                        'Assigned',
+                        LucideIcons.userCheck,
+                      ),
                     ],
                   ),
                 ),
@@ -233,15 +264,25 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                     Row(
                       children: [
                         Checkbox(
-                          value: filteredRecords.isNotEmpty && filteredRecords.every((r) => _selectedRecordIds.contains(r.id)),
+                          value:
+                              filteredRecords.isNotEmpty &&
+                              filteredRecords.every(
+                                (r) => _selectedRecordIds.contains(r.id),
+                              ),
                           activeColor: AppTheme.primary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                           onChanged: (val) {
                             setState(() {
                               if (val == true) {
-                                _selectedRecordIds.addAll(filteredRecords.map((r) => r.id));
+                                _selectedRecordIds.addAll(
+                                  filteredRecords.map((r) => r.id),
+                                );
                               } else {
-                                _selectedRecordIds.removeAll(filteredRecords.map((r) => r.id));
+                                _selectedRecordIds.removeAll(
+                                  filteredRecords.map((r) => r.id),
+                                );
                               }
                             });
                           },
@@ -258,21 +299,43 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                     ),
                     Row(
                       children: [
-                        const Text('Sort: ', style: TextStyle(fontSize: 12, color: AppTheme.secondary)),
+                        const Text(
+                          'Sort: ',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.secondary,
+                          ),
+                        ),
                         DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             value: _sortBy,
-                            icon: const Icon(LucideIcons.chevronDown, color: AppTheme.primary, size: 18),
+                            icon: const Icon(
+                              LucideIcons.chevronDown,
+                              color: AppTheme.primary,
+                              size: 18,
+                            ),
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: AppTheme.primary,
                             ),
                             items: const [
-                              DropdownMenuItem(value: 'NEWEST', child: Text('Newest First')),
-                              DropdownMenuItem(value: 'OLDEST', child: Text('Oldest First')),
-                              DropdownMenuItem(value: 'AMOUNT_DESC', child: Text('Amount: High to Low')),
-                              DropdownMenuItem(value: 'AMOUNT_ASC', child: Text('Amount: Low to High')),
+                              DropdownMenuItem(
+                                value: 'NEWEST',
+                                child: Text('Newest First'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'OLDEST',
+                                child: Text('Oldest First'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'AMOUNT_DESC',
+                                child: Text('Amount: High to Low'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'AMOUNT_ASC',
+                                child: Text('Amount: Low to High'),
+                              ),
                             ],
                             onChanged: (val) {
                               if (val != null) {
@@ -293,12 +356,20 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
               // Bulk Actions Panel
               if (_selectedRecordIds.isNotEmpty) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12.0,
+                      vertical: 8.0,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF0F0),
-                      border: Border.all(color: AppTheme.error.withOpacity(0.3)),
+                      border: Border.all(
+                        color: AppTheme.error.withOpacity(0.3),
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -322,7 +393,11 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                               },
                               child: const Text(
                                 'Clear',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.secondary),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.secondary,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -331,14 +406,23 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                                 backgroundColor: AppTheme.error,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                               ),
-                              onPressed: () => _confirmBulkDeleteRecords(filteredRecords),
+                              onPressed: () =>
+                                  _confirmBulkDeleteRecords(filteredRecords),
                               icon: const Icon(LucideIcons.trash2, size: 14),
                               label: const Text(
                                 'Delete',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -356,20 +440,32 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(LucideIcons.folderOpen, size: 48, color: AppTheme.outline.withOpacity(0.5)),
+                            Icon(
+                              LucideIcons.folderOpen,
+                              size: 48,
+                              color: AppTheme.outline.withOpacity(0.5),
+                            ),
                             const SizedBox(height: 12),
                             const Text(
                               'No matching ledger entries found',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondary),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.secondary,
+                              ),
                             ),
                           ],
                         ),
                       )
                     : ListView.separated(
                         physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 32.0),
+                        padding: const EdgeInsets.only(
+                          left: 16.0,
+                          right: 16.0,
+                          bottom: 32.0,
+                        ),
                         itemCount: filteredRecords.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final record = filteredRecords[index];
                           return _buildRecordCard(record);
@@ -396,7 +492,9 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
-        border: hasBorder ? Border.all(color: AppTheme.outlineVariant, width: 1) : null,
+        border: hasBorder
+            ? Border.all(color: AppTheme.outlineVariant, width: 1)
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -467,8 +565,9 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
   }
 
   Customer _createMockCustomerFromRecord(Customer record) {
-
-    final agent = _db.agents.where((a) => a.id == record.assignedAgentId).firstOrNull;
+    final agent = _db.agents
+        .where((a) => a.id == record.assignedAgentId)
+        .firstOrNull;
     return Customer(
       id: record.id,
       name: record.name,
@@ -478,13 +577,23 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
       address: record.address,
       phone: record.phone,
       priority: record.amountDue > 100000.0 ? 'HIGH' : 'MEDIUM',
-      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      avatarUrl:
+          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
       lat: 19.0760,
       lng: 72.8777,
-      assignedAgentId: record.assignedAgentName.isNotEmpty ? 'miller' : 'unassigned',
-      status: record.status == 'Paid' ? 'PAID' : (record.status == 'In-Progress' ? 'PENDING_VERIFICATION' : 'OVERDUE'),
-      notes: ['Uploaded record parsed from debt ledger.', 'Verification of address complete.'],
-      assignedAgentName: agent?.name??'',
+      assignedAgentId: record.assignedAgentName.isNotEmpty
+          ? 'miller'
+          : 'unassigned',
+      status: record.status == 'Paid'
+          ? 'Completed'
+          : (record.status == 'In-Progress'
+                ? 'Pending'
+                : 'Assigned'),
+      notes: [
+        'Uploaded record parsed from debt ledger.',
+        'Verification of address complete.',
+      ],
+      assignedAgentName: agent?.name ?? '',
     );
   }
 
@@ -492,22 +601,23 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
     CustomFeedback.showFeedbackDialog(
       context,
       title: 'Delete Record?',
-      message: 'Are you sure you want to delete ${record.name}\'s ledger record (${record.loanId})? This action is permanent.',
+      message:
+          'Are you sure you want to delete ${record.name}\'s ledger record (${record.loanId})? This action is permanent.',
       type: 'error',
       confirmLabel: 'DELETE',
       onConfirm: () async {
         try {
           await _db.deleteCase(widget.selectedFile.fileId, record.id);
-          
+
           setState(() {
             _selectedRecordIds.remove(record.id);
           });
-          
+
           if (mounted) {
             CustomFeedback.showToast(
               context,
               '${record.name}\'s record was successfully deleted.',
-              type: 'error',
+              type: 'success',
             );
           }
         } catch (e) {
@@ -528,19 +638,23 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
     CustomFeedback.showFeedbackDialog(
       context,
       title: 'Delete Selected Records?',
-      message: 'Are you sure you want to delete all $count selected ledger records permanently? This cannot be undone.',
+      message:
+          'Are you sure you want to delete all $count selected ledger records permanently? This cannot be undone.',
       type: 'error',
       confirmLabel: 'DELETE ALL',
       onConfirm: () async {
         final List<String> selectedIds = _selectedRecordIds.toList();
-        
+
         try {
-          await _db.deleteMultipleCases(widget.selectedFile.fileId, selectedIds);
+          await _db.deleteMultipleCases(
+            widget.selectedFile.fileId,
+            selectedIds,
+          );
 
           setState(() {
             _selectedRecordIds.clear();
           });
-          
+
           if (mounted) {
             CustomFeedback.showToast(
               context,
@@ -642,7 +756,10 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: chipBg,
                           borderRadius: BorderRadius.circular(16),
@@ -669,17 +786,24 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                       color: AppTheme.onSurface,
                     ),
                   ),
-                  
+
                   // Subtitle address description
                   if (record.assignedAgentName.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(LucideIcons.headset, size: 14, color: AppTheme.secondary),
+                        const Icon(
+                          LucideIcons.headset,
+                          size: 14,
+                          color: AppTheme.secondary,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Assigned to: ${record.assignedAgentName}',
-                          style: const TextStyle(fontSize: 11, color: AppTheme.secondary),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.secondary,
+                          ),
                         ),
                       ],
                     ),
@@ -687,7 +811,11 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                     const SizedBox(height: 4),
                     const Row(
                       children: [
-                        Icon(LucideIcons.triangleAlert, size: 14, color: AppTheme.error),
+                        Icon(
+                          LucideIcons.triangleAlert,
+                          size: 14,
+                          color: AppTheme.error,
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'Pending deployment assignment',
@@ -696,7 +824,7 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                       ],
                     ),
                   ],
-                  
+
                   const SizedBox(height: 12),
                   const Divider(height: 1, color: AppTheme.outlineVariant),
                   const SizedBox(height: 12),
@@ -711,7 +839,10 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                         children: [
                           const Text(
                             'Principal Amount',
-                            style: TextStyle(fontSize: 11, color: AppTheme.onSurfaceVariant),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.onSurfaceVariant,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -732,7 +863,11 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                             visualDensity: VisualDensity.compact,
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
-                            icon: const Icon(LucideIcons.trash2, size: 16, color: AppTheme.error),
+                            icon: const Icon(
+                              LucideIcons.trash2,
+                              size: 16,
+                              color: AppTheme.error,
+                            ),
                             onPressed: () => _confirmDeleteRecord(record),
                           ),
                           const SizedBox(width: 12),
@@ -740,12 +875,14 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                             onTap: () {
                               final customer = _db.customers.firstWhere(
                                 (c) => c.id == record.id,
-                                orElse: () => _createMockCustomerFromRecord(record),
+                                orElse: () =>
+                                    _createMockCustomerFromRecord(record),
                               );
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => CustomerDetailsScreen(customer: customer),
+                                  builder: (context) =>
+                                      CustomerDetailsScreen(customer: customer),
                                 ),
                               );
                             },
@@ -754,10 +891,16 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                               height: 36,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(color: AppTheme.outlineVariant),
+                                border: Border.all(
+                                  color: AppTheme.outlineVariant,
+                                ),
                                 color: AppTheme.primary.withOpacity(0.04),
                               ),
-                              child: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.primary),
+                              child: const Icon(
+                                LucideIcons.chevronRight,
+                                size: 20,
+                                color: AppTheme.primary,
+                              ),
                             ),
                           ),
                         ],
@@ -788,13 +931,33 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
             children: [
               const Text(
                 'Filter Records',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.onSurface),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.onSurface,
+                ),
               ),
               const SizedBox(height: 16),
-              _buildFilterOption('All Ledger Entries', 'ALL', LucideIcons.inbox),
-              _buildFilterOption('Unassigned Cases', 'Unassigned', LucideIcons.userX),
-              _buildFilterOption('Assigned Portfolio', 'Assigned', LucideIcons.userCheck),
-              _buildFilterOption('In-Progress Verification', 'In-Progress', LucideIcons.timerReset),
+              _buildFilterOption(
+                'All Ledger Entries',
+                'ALL',
+                LucideIcons.inbox,
+              ),
+              _buildFilterOption(
+                'Unassigned Cases',
+                'Unassigned',
+                LucideIcons.userX,
+              ),
+              _buildFilterOption(
+                'Assigned Portfolio',
+                'Assigned',
+                LucideIcons.userCheck,
+              ),
+              _buildFilterOption(
+                'In-Progress Verification',
+                'In-Progress',
+                LucideIcons.timerReset,
+              ),
             ],
           ),
         );
@@ -805,7 +968,10 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
   Widget _buildFilterOption(String label, String value, IconData icon) {
     final isSelected = _statusFilter == value;
     return ListTile(
-      leading: Icon(icon, color: isSelected ? AppTheme.primary : AppTheme.secondary),
+      leading: Icon(
+        icon,
+        color: isSelected ? AppTheme.primary : AppTheme.secondary,
+      ),
       title: Text(
         label,
         style: TextStyle(
@@ -813,7 +979,9 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
           color: isSelected ? AppTheme.primary : AppTheme.onSurface,
         ),
       ),
-      trailing: isSelected ? const Icon(LucideIcons.check, color: AppTheme.primary) : null,
+      trailing: isSelected
+          ? const Icon(LucideIcons.check, color: AppTheme.primary)
+          : null,
       onTap: () {
         setState(() {
           _statusFilter = value;
@@ -826,7 +994,9 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
   void _showReassignDialog(Customer record) {
     CustomFeedback.showFeedbackDialog(
       context,
-      title: record.status == 'Unassigned' ? 'Assign Debtor Portfolio' : 'Reassign Portfolio',
+      title: record.status == 'Unassigned'
+          ? 'Assign Debtor Portfolio'
+          : 'Reassign Portfolio',
       message: '',
       type: 'info',
       showCancel: false,
@@ -852,20 +1022,32 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                       children: [
                         Text(
                           record.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.onSurface),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: AppTheme.onSurface,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Loan ID: ${record.loanId} • ₹${record.amountDue.toStringAsFixed(0)}',
-                          style: const TextStyle(fontSize: 11, color: AppTheme.secondary),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.secondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: record.status == 'Unassigned' ? AppTheme.errorContainer : AppTheme.surfaceContainerHighest,
+                      color: record.status == 'Unassigned'
+                          ? AppTheme.errorContainer
+                          : AppTheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -873,7 +1055,9 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
-                        color: record.status == 'Unassigned' ? AppTheme.error : AppTheme.primary,
+                        color: record.status == 'Unassigned'
+                            ? AppTheme.error
+                            : AppTheme.primary,
                       ),
                     ),
                   ),
@@ -883,7 +1067,12 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
             const SizedBox(height: 16),
             const Text(
               'SELECT ACTIVE AGENT TO DEPLOY:',
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.outline, letterSpacing: 0.5),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.outline,
+                letterSpacing: 0.5,
+              ),
             ),
             const SizedBox(height: 8),
 
@@ -894,8 +1083,11 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                 itemCount: _db.agents.where((a) => !a.isAdmin).length,
                 separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, index) {
-                  final agent = _db.agents.where((a) => !a.isAdmin).toList()[index];
-                  final isCurrentlyAssigned = record.assignedAgentName == agent.name;
+                  final agent = _db.agents
+                      .where((a) => !a.isAdmin)
+                      .toList()[index];
+                  final isCurrentlyAssigned =
+                      record.assignedAgentName == agent.name;
 
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -905,51 +1097,127 @@ class _UploadedRecordsViewState extends State<UploadedRecordsView> {
                     ),
                     title: Text(
                       agent.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                     subtitle: Text(
                       'Zone: ${agent.zone} • ${agent.casesCount} active cases',
-                      style: const TextStyle(fontSize: 11, color: AppTheme.secondary),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.secondary,
+                      ),
                     ),
                     trailing: isCurrentlyAssigned
                         ? const Icon(
-                            LucideIcons.checkCircle, color: AppTheme.primary)
+                            LucideIcons.checkCircle,
+                            color: AppTheme.primary,
+                          )
                         : Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              border: Border.all(color: AppTheme.outlineVariant),
+                              border: Border.all(
+                                color: AppTheme.outlineVariant,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Text(
                               'Deploy',
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primary,
+                              ),
                             ),
                           ),
-                    onTap: () {
+                    onTap: () async {
+                      final localContext = context;
                       if (isCurrentlyAssigned) {
-                        Navigator.pop(context);
+                        CustomFeedback.showFeedbackDialog(
+                          localContext,
+                          title: 'Delete Assignment',
+                          message: 'Are you sure you want to remove the assignment of this case to ${agent.name}?',
+                          type: 'warning',
+                          confirmLabel: 'DELETE',
+                          cancelLabel: 'CANCEL',
+                          showCancel: true,
+                          onConfirm: () async {
+                            if (!localContext.mounted) return;
+                            try {
+                              Navigator.pop(localContext); // Close the deploy list dialog
+                              setState(() {
+                                _isLoading = true;
+                              });
+                              if (!record.id.startsWith('cust_')) {
+                                await _db.unassignCase(record.id);
+                              } else {
+                                setState(() {
+                                  _mockAssignments.remove(record.id);
+                                  _mockStatuses[record.id] = 'Unassigned';
+                                });
+                              }
+                              if (localContext.mounted) {
+                                CustomFeedback.showToast(
+                                  localContext,
+                                  'Assignment successfully removed.',
+                                  type: 'success',
+                                );
+                              }
+                            } catch (e) {
+                              if (localContext.mounted) {
+                                CustomFeedback.showToast(
+                                  localContext,
+                                  'Failed to remove assignment: ${e.toString().replaceAll('Exception: ', '')}',
+                                  type: 'error',
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  _isLoading = false;
+                                });
+                              }
+                            }
+                          },
+                        );
                         return;
                       }
 
                       // Action reassign
-                      if (record.id.startsWith('cust_')) {
-                        // Reassign actual database customer!
-                        _db.assignCase(record.id, agent.id);
-                      } else {
-                        // Reassign static mock local override!
-                        setState(() {
-                          _mockAssignments[record.id] = agent.id;
-                          _mockStatuses[record.id] = 'Assigned';
-                        });
+                      try {
+                        if (!record.id.startsWith('cust_')) {
+                          // Reassign actual database customer!
+                          await _db.assignCase(record.id, agent.id);
+                        } else {
+                          // Reassign static mock local override!
+                          setState(() {
+                            _mockAssignments[record.id] = agent.id;
+                            _mockStatuses[record.id] = 'Assigned';
+                          });
+                        }
+
+                        if (localContext.mounted) {
+                          Navigator.pop(localContext);
+                          CustomFeedback.showToast(
+                            localContext,
+                            '${record.name} portfolio successfully deployed to ${agent.name}.',
+                            type: 'success',
+                          );
+                        }
+                      } catch (e) {
+                        if (localContext.mounted) {
+                          Navigator.pop(localContext);
+                          CustomFeedback.showToast(
+                            localContext,
+                            'Failed to deploy case: ${e.toString().replaceAll('Exception: ', '')}',
+                            type: 'error',
+                          );
+                        }
                       }
-
-                      Navigator.pop(context);
-
-                      CustomFeedback.showToast(
-                        context,
-                        '${record.name} portfolio successfully deployed to ${agent.name}.',
-                        type: 'success',
-                      );
                     },
                   );
                 },

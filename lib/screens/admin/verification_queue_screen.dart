@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:intl/intl.dart';
+import '../../constants/api_constants.dart';
 import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
@@ -8,64 +10,107 @@ import '../../models/customer.dart';
 import '../agent/customer_details_screen.dart';
 import '../../widgets/custom_feedback.dart';
 
-class VerificationQueueScreen extends StatelessWidget {
+class VerificationQueueScreen extends StatefulWidget {
   final bool isEmbedded;
 
   const VerificationQueueScreen({super.key, this.isEmbedded = false});
 
   @override
-  Widget build(BuildContext context) {
-    final db = DatabaseService();
+  State<VerificationQueueScreen> createState() => _VerificationQueueScreenState();
+}
 
+class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
+  bool _isLoading = true;
+  final db = DatabaseService();
+
+  @override
+  void initState() {
+    super.initState();
+    // Fetch latest assignments and recent uploads on screen load
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await db.fetchRecentUploads();
+      } catch (e) {
+        if (mounted) {
+          _showSnackBar(context, 'Failed to load assignments: $e', false);
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: db,
       builder: (context, child) {
         // Filter pending records
         final pendingPayments = db.payments
-            .where((p) => p.status == 'PENDING')
+            .where((p) => p.status == 'Pending')
             .toList();
 
-        // Calculate dynamic values for the stats bar
-        final double sessionApprovedSum = db.payments
-            .where((p) => p.status == 'APPROVED')
-            .fold(0.0, (sum, item) => sum + item.amount);
+        // Calculate dynamic values for the stats bar directly from database service
         final String approvedTodayText =
-            '₹${(42500.0 + sessionApprovedSum).toStringAsFixed(0)}';
-
-        final int sessionRejectedCount = db.payments
-            .where((p) => p.status == 'REJECTED')
-            .length;
-        final String rejectedCountText = (4 + sessionRejectedCount)
+            '₹${db.approvedTodaySum.toStringAsFixed(0)}';
+        final String rejectedCountText = db.rejectedCount
             .toString()
             .padLeft(2, '0');
 
-        final content = ListView(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 96),
-          children: [
-            // Sub Header Section
-            _buildSubHeader(context, pendingPayments.length),
-            const SizedBox(height: 16),
+        final content = RefreshIndicator(
+          onRefresh: () async {
+            setState(() {
+              _isLoading = true;
+            });
+            try {
+              await db.fetchRecentUploads();
+            } catch (e) {
+              if (context.mounted) {
+                _showSnackBar(context, 'Failed to refresh: $e', false);
+              }
+            } finally {
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            }
+          },
+          color: AppTheme.primary,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 96),
+            children: [
+              if (_isLoading) CustomFeedback.showProgressIndicator(),
+              // Sub Header Section
+              _buildSubHeader(context, pendingPayments.length),
+              const SizedBox(height: 16),
 
-            // Stats Counter Bar
-            _buildStatsBar(context, approvedTodayText, rejectedCountText),
-            const SizedBox(height: 20),
+              // Stats Counter Bar
+              _buildStatsBar(context, approvedTodayText, rejectedCountText),
+              const SizedBox(height: 20),
 
-            // Queue List / Empty State
-            if (pendingPayments.isEmpty)
-              _buildEmptyState(context)
-            else
-              ...pendingPayments.map(
-                (item) => _buildSwipeableCard(context, db, item),
-              ),
+              // Queue List / Empty State
+              if (pendingPayments.isEmpty)
+                _buildEmptyState(context)
+              else
+                ...pendingPayments.map(
+                  (item) => _buildSwipeableCard(context, db, item),
+                ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // Footer
-            _buildLoadMoreFooter(context, pendingPayments.length),
-          ],
+              // Footer
+              _buildLoadMoreFooter(context, pendingPayments.length),
+            ],
+          ),
         );
 
-        if (isEmbedded) return content;
+        if (widget.isEmbedded) return content;
 
         return Scaffold(
           backgroundColor: AppTheme.background,
@@ -296,20 +341,25 @@ class VerificationQueueScreen extends StatelessWidget {
     );
   }
 
-  // Render Collection card wrapped with swipe to action Dismissible gesture
   Widget _buildSwipeableCard(
     BuildContext context,
     DatabaseService db,
     PaymentRecord item,
   ) {
     final isUpi = item.paymentMethod.toUpperCase() == 'UPI';
-    final imageUrl = isUpi
-        ? 'https://lh3.googleusercontent.com/aida-public/AB6AXuDT0arBz1RsJ08eAQeEKV6dRpZdfTMevJEHBz8A1GKnuUhwVKNbKn41KAXP1i5wZnK_UIsrz07UJerqK-7JR0DrGhA97wm-p9fhObsdGAnNJUknc6euG0hwKb4O2lCJDmm6INB84Ng9K2nXidqk01oEbX3n1BYU8082z8EKOMqs50iEN8KM85tzaGG_GZCWS0v3Cc7KFrbSvj0fMCphfPqsu-yo3FGER52ftFAM9nIoEwLbyzDIbdiUSnQbOt3n0mFabvxyG-B3r3il'
-        : 'https://lh3.googleusercontent.com/aida-public/AB6AXuCtQhJG7cGf6cEF0RaYY8O_qVk-mU1DPXP7y1XRlIun8UsamoMnakKqUhsGJjR6FMZ4alkW2fdPbPXjNY9D9dZBlIUN1Sr6Nt1S29kGODHve5nlGWnlXixlWrKb6ox5cxnaUkv4PQKR60yJpQFIGH2CXl9QgLTS3GtkfkWs8NpsjzUld67dlOiYrvTwKJARRZ2lQ5MZlx5tJ5hdGduGfuVQd_ag5h1uom-W01GITQ2JmXiXGSIKIWzBrthpC-ERcBm_WTttcLUU9zU-';
+    final imageUrl = (item.receiptImagePath != null && item.receiptImagePath!.isNotEmpty)
+        ? (item.receiptImagePath!.startsWith('http')
+            ? item.receiptImagePath!
+            : '${ApiConstants.baseUrl}/uploads/${item.receiptImagePath}')
+        : (isUpi
+            ? 'https://lh3.googleusercontent.com/aida-public/AB6AXuDT0arBz1RsJ08eAQeEKV6dRpZdfTMevJEHBz8A1GKnuUhwVKNbKn41KAXP1i5wZnK_UIsrz07UJerqK-7JR0DrGhA97wm-p9fhObsdGAnNJUknc6euG0hwKb4O2lCJDmm6INB84Ng9K2nXidqk01oEbX3n1BYU8082z8EKOMqs50iEN8KM85tzaGG_GZCWS0v3Cc7KFrbSvj0fMCphfPqsu-yo3FGER52ftFAM9nIoEwLbyzDIbdiUSnQbOt3n0mFabvxyG-B3r3il'
+            : 'https://lh3.googleusercontent.com/aida-public/AB6AXuCtQhJG7cGf6cEF0RaYY8O_qVk-mU1DPXP7y1XRlIun8UsamoMnakKqUhsGJjR6FMZ4alkW2fdPbPXjNY9D9dZBlIUN1Sr6Nt1S29kGODHve5nlGWnlXixlWrKb6ox5cxnaUkv4PQKR60yJpQFIGH2CXl9QgLTS3GtkfkWs8NpsjzUld67dlOiYrvTwKJARRZ2lQ5MZlx5tJ5hdGduGfuVQd_ag5h1uom-W01GITQ2JmXiXGSIKIWzBrthpC-ERcBm_WTttcLUU9zU-');
 
-    final comment = isUpi
-        ? 'Payment confirmed via transaction ID ${item.transactionReference}. Customer was satisfied.'
-        : 'Full settlement for invoice #${item.transactionReference}. Counted and verified twice.';
+    final comment = item.transactionReference.isNotEmpty
+        ? item.transactionReference
+        : (isUpi
+            ? 'Payment confirmed via transaction ID ${item.transactionReference}. Customer was satisfied.'
+            : 'Full settlement for invoice #${item.transactionReference}. Counted and verified twice.');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -318,24 +368,49 @@ class VerificationQueueScreen extends StatelessWidget {
         background: _buildSwipeBackground(isLeftToRight: true),
         secondaryBackground: _buildSwipeBackground(isLeftToRight: false),
         confirmDismiss: (direction) async {
-          if (direction == DismissDirection.startToEnd) {
-            // Swipe Right -> Approve
-            db.approvePayment(item.id);
-            _showSnackBar(
-              context,
-              'Collection of ₹${item.amount.toStringAsFixed(0)} for ${item.customerName} approved successfully!',
-              true,
-            );
-            return true;
-          } else {
-            // Swipe Left -> Reject
-            db.rejectPayment(item.id);
-            _showSnackBar(
-              context,
-              'Collection of ₹${item.amount.toStringAsFixed(0)} rejected.',
-              false,
-            );
-            return true;
+          final localContext = context;
+          setState(() {
+            _isLoading = true;
+          });
+          try {
+            if (direction == DismissDirection.startToEnd) {
+              // Swipe Right -> Approve
+              await db.approvePayment(item.id);
+              if (localContext.mounted) {
+                _showSnackBar(
+                  localContext,
+                  'Collection of ₹${item.amount.toStringAsFixed(0)} for ${item.customerName} approved successfully!',
+                  true,
+                );
+              }
+              return true;
+            } else {
+              // Swipe Left -> Reject
+              await db.rejectPayment(item.id);
+              if (localContext.mounted) {
+                _showSnackBar(
+                  localContext,
+                  'Collection of ₹${item.amount.toStringAsFixed(0)} rejected.',
+                  false,
+                );
+              }
+              return true;
+            }
+          } catch (e) {
+            if (localContext.mounted) {
+              _showSnackBar(
+                localContext,
+                'Failed to update collection status: ${e.toString().replaceAll('Exception: ', '')}',
+                false,
+              );
+            }
+            return false;
+          } finally {
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+            }
           }
         },
         child: CustomBentoCard(
@@ -502,7 +577,7 @@ class VerificationQueueScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Oct 24, 11:30 AM',
+                        DateFormat('MMM dd, hh:mm a').format(item.timestamp),
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppTheme.onSurface,
@@ -582,13 +657,35 @@ class VerificationQueueScreen extends StatelessWidget {
                     child: SizedBox(
                       height: 44,
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          db.approvePayment(item.id);
-                          _showSnackBar(
-                            context,
-                            'Collection of ₹${item.amount.toStringAsFixed(0)} for ${item.customerName} approved successfully!',
-                            true,
-                          );
+                        onPressed: _isLoading ? null : () async {
+                          final localContext = context;
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          try {
+                            await db.approvePayment(item.id);
+                            if (localContext.mounted) {
+                              _showSnackBar(
+                                localContext,
+                                'Collection of ₹${item.amount.toStringAsFixed(0)} for ${item.customerName} approved successfully!',
+                                true,
+                              );
+                            }
+                          } catch (e) {
+                            if (localContext.mounted) {
+                              _showSnackBar(
+                                localContext,
+                                'Failed to approve collection: ${e.toString().replaceAll('Exception: ', '')}',
+                                false,
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          }
                         },
                         icon: const Icon(LucideIcons.check, size: 16),
                         label: const Text(
@@ -614,13 +711,35 @@ class VerificationQueueScreen extends StatelessWidget {
                     child: SizedBox(
                       height: 44,
                       child: OutlinedButton.icon(
-                        onPressed: () {
-                          db.rejectPayment(item.id);
-                          _showSnackBar(
-                            context,
-                            'Collection of ₹${item.amount.toStringAsFixed(0)} rejected.',
-                            false,
-                          );
+                        onPressed: _isLoading ? null : () async {
+                          final localContext = context;
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          try {
+                            await db.rejectPayment(item.id);
+                            if (localContext.mounted) {
+                              _showSnackBar(
+                                localContext,
+                                'Collection of ₹${item.amount.toStringAsFixed(0)} rejected.',
+                                false,
+                              );
+                            }
+                          } catch (e) {
+                            if (localContext.mounted) {
+                              _showSnackBar(
+                                localContext,
+                                'Failed to reject collection: ${e.toString().replaceAll('Exception: ', '')}',
+                                false,
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          }
                         },
                         icon: const Icon(
                           LucideIcons.x,
@@ -660,21 +779,21 @@ class VerificationQueueScreen extends StatelessWidget {
     String imageUrl,
     String comment,
   ) {
+    // Internal checklist state variables declared here to persist between dialog rebuilds
+    bool checkTxn = false;
+    bool checkName = false;
+    bool checkAmt = false;
+    bool checkSign = false;
+
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Receipt',
       barrierColor: Colors.black.withOpacity(0.6),
       transitionDuration: const Duration(milliseconds: 250),
-      pageBuilder: (context, anim1, anim2) {
+      pageBuilder: (dialogContext, anim1, anim2) {
         return StatefulBuilder(
-          builder: (context, setState) {
-            // Internal checklist state variables
-            bool checkTxn = false;
-            bool checkName = false;
-            bool checkAmt = false;
-            bool checkSign = false;
-
+          builder: (dialogContext, setDialogState) {
             return Dialog(
               backgroundColor: AppTheme.surfaceContainerLowest,
               shape: RoundedRectangleBorder(
@@ -707,12 +826,11 @@ class VerificationQueueScreen extends StatelessWidget {
                               LucideIcons.x,
                               color: AppTheme.secondary,
                             ),
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () => Navigator.pop(dialogContext),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-
                       // Large Zoomable Image frame
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
@@ -802,22 +920,22 @@ class VerificationQueueScreen extends StatelessWidget {
                       _buildCheckItem(
                         'Reference Matches: ${item.transactionReference}',
                         checkTxn,
-                        (val) => setState(() => checkTxn = val ?? false),
+                        (val) => setDialogState(() => checkTxn = val ?? false),
                       ),
                       _buildCheckItem(
                         'Payer Name Matches: ${item.customerName}',
                         checkName,
-                        (val) => setState(() => checkName = val ?? false),
+                        (val) => setDialogState(() => checkName = val ?? false),
                       ),
                       _buildCheckItem(
                         'Amount Matches: ₹${item.amount.toStringAsFixed(0)}',
                         checkAmt,
-                        (val) => setState(() => checkAmt = val ?? false),
+                        (val) => setDialogState(() => checkAmt = val ?? false),
                       ),
                       _buildCheckItem(
                         'Stamp & Official Signature Present',
                         checkSign,
-                        (val) => setState(() => checkSign = val ?? false),
+                        (val) => setDialogState(() => checkSign = val ?? false),
                       ),
 
                       const SizedBox(height: 20),
@@ -829,16 +947,38 @@ class VerificationQueueScreen extends StatelessWidget {
                                   (checkTxn &&
                                       checkName &&
                                       checkAmt &&
-                                      checkSign)
-                                  ? () {
-                                      final db = DatabaseService();
-                                      db.approvePayment(item.id);
-                                      Navigator.pop(context);
-                                      _showSnackBar(
-                                        context,
-                                        'Collection of ₹${item.amount.toStringAsFixed(0)} for ${item.customerName} approved successfully!',
-                                        true,
-                                      );
+                                      checkSign &&
+                                      !_isLoading)
+                                  ? () async {
+                                      final parentContext = context;
+                                      Navigator.pop(dialogContext);
+                                      setState(() {
+                                        _isLoading = true;
+                                      });
+                                      try {
+                                        await db.approvePayment(item.id);
+                                        if (parentContext.mounted) {
+                                          _showSnackBar(
+                                            parentContext,
+                                            'Collection of ₹${item.amount.toStringAsFixed(0)} for ${item.customerName} approved successfully!',
+                                            true,
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (parentContext.mounted) {
+                                          _showSnackBar(
+                                            parentContext,
+                                            'Failed to approve collection: ${e.toString().replaceAll('Exception: ', '')}',
+                                            false,
+                                          );
+                                        }
+                                      } finally {
+                                        if (mounted) {
+                                          setState(() {
+                                            _isLoading = false;
+                                          });
+                                        }
+                                      }
                                     }
                                   : null,
                               style: ElevatedButton.styleFrom(
@@ -1029,3 +1169,4 @@ class DashedDivider extends StatelessWidget {
     );
   }
 }
+

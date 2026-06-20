@@ -4,6 +4,7 @@ import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
 import '../../widgets/status_chip.dart';
+import '../../widgets/custom_feedback.dart';
 
 class CollectionsHistoryScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -21,9 +22,47 @@ class _CollectionsHistoryScreenState extends State<CollectionsHistoryScreen> {
   final db = DatabaseService();
   final _searchController = TextEditingController();
   
-  String _activeFilter = 'ALL'; // 'ALL', 'PENDING', 'APPROVED', 'REJECTED'
+  String _activeFilter = 'ALL'; // 'ALL', 'PENDING', 'COMPLETED', 'REJECTED'
   String _dateFilter = 'ALL'; // 'ALL', 'TODAY', 'YESTERDAY', 'WEEK' (Last 7 days)
   String _searchQuery = '';
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshData(showProgress: true);
+    });
+  }
+
+  Future<void> _refreshData({bool showProgress = false}) async {
+    final agentId = db.currentUser?.id;
+    if (agentId == null) return;
+
+    if (showProgress) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
+    try {
+      await db.fetchAgentAssignments(agentId);
+    } catch (e) {
+      if (mounted) {
+        CustomFeedback.showToast(
+          context,
+          'Failed to load assignments: $e',
+          type: 'error',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -44,6 +83,9 @@ class _CollectionsHistoryScreenState extends State<CollectionsHistoryScreen> {
         // 1. Apply Status Filter Tab
         var filteredPayments = personalPayments.where((p) {
           if (_activeFilter == 'ALL') return true;
+          if (_activeFilter == 'COMPLETED') {
+            return p.status.toUpperCase() == 'COMPLETED' || p.status.toUpperCase() == 'PAID' || p.status.toUpperCase() == 'CLOSED';
+          }
           return p.status.toUpperCase() == _activeFilter;
         }).toList();
 
@@ -79,7 +121,7 @@ class _CollectionsHistoryScreenState extends State<CollectionsHistoryScreen> {
 
         // Calculate summary aggregates (only for approved and pending collections)
         final double totalApprovedToday = personalPayments
-            .where((p) => p.status.toUpperCase() == 'APPROVED')
+            .where((p) => p.status.toUpperCase() == 'COMPLETED' || p.status.toUpperCase() == 'PAID' || p.status.toUpperCase() == 'CLOSED')
             .fold(0.0, (sum, p) => sum + p.amount);
 
         final double totalPendingToday = personalPayments
@@ -89,6 +131,7 @@ class _CollectionsHistoryScreenState extends State<CollectionsHistoryScreen> {
         final content = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_isLoading) CustomFeedback.showProgressIndicator(),
             // 1. Ledger Summary card with rich gradients
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
@@ -125,7 +168,7 @@ class _CollectionsHistoryScreenState extends State<CollectionsHistoryScreen> {
                             ),
                             SizedBox(height: 6),
                             Text(
-                              'Total Recovered Today',
+                              'Total Recovered',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -272,161 +315,173 @@ class _CollectionsHistoryScreenState extends State<CollectionsHistoryScreen> {
             ),
             const SizedBox(height: 10),
 
-            // 4. Status Filter Tabs Row (All, Pending, Approved)
+            // 4. Status Filter Tabs Row (All, Pending, Completed, Rejected)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  _buildFilterTab('ALL', personalPayments.length),
-                  const SizedBox(width: 8),
-                  _buildFilterTab('PENDING', personalPayments.where((p) => p.status.toUpperCase() == 'PENDING').length),
-                  const SizedBox(width: 8),
-                  _buildFilterTab('APPROVED', personalPayments.where((p) => p.status.toUpperCase() == 'APPROVED').length),
-                ],
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [
+                    _buildFilterTab('ALL', personalPayments.length),
+                    const SizedBox(width: 8),
+                    _buildFilterTab('PENDING', personalPayments.where((p) => p.status.toUpperCase() == 'PENDING').length),
+                    const SizedBox(width: 8),
+                    _buildFilterTab('COMPLETED', personalPayments.where((p) => p.status.toUpperCase() == 'COMPLETED' || p.status.toUpperCase() == 'PAID' || p.status.toUpperCase() == 'CLOSED').length),
+                    const SizedBox(width: 8),
+                    _buildFilterTab('REJECTED', personalPayments.where((p) => p.status.toUpperCase() == 'REJECTED').length),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 16),
 
             // 5. Transactions List
             Expanded(
-              child: filteredPayments.isEmpty
-                  ? Center(
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              LucideIcons.scrollText,
-                              size: 64,
-                              color: AppTheme.secondary.withOpacity(0.25),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No Collections Logged',
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                    color: AppTheme.secondary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            const SizedBox(height: 8),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                              child: Text(
-                                _searchQuery.isNotEmpty
-                                    ? 'No logged payments match your search criteria: "$_searchQuery"'
-                                    : 'No logged transactions match the selected filter categories.',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: AppTheme.secondary,
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : ListView.separated(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
-                      itemCount: filteredPayments.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final item = filteredPayments[index];
-                        IconData icon;
-                        Color iconColor;
-
-                        switch (item.paymentMethod.toUpperCase()) {
-                          case 'UPI':
-                            icon = LucideIcons.qrCode;
-                            iconColor = AppTheme.primary;
-                            break;
-                          case 'CHEQUE':
-                            icon = LucideIcons.fileText;
-                            iconColor = Colors.purple;
-                            break;
-                          default:
-                            icon = LucideIcons.banknote;
-                            iconColor = const Color(0xFF1B5E20);
-                        }
-
-                        return CustomBentoCard(
-                          padding: 14.0,
-                          child: Row(
+              child: RefreshIndicator(
+                onRefresh: () => _refreshData(),
+                color: AppTheme.primary,
+                child: filteredPayments.isEmpty
+                    ? SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Container(
+                          height: MediaQuery.of(context).size.height * 0.5,
+                          alignment: Alignment.center,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: iconColor.withOpacity(0.08),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(icon, color: iconColor, size: 20),
+                              Icon(
+                                LucideIcons.scrollText,
+                                size: 64,
+                                color: AppTheme.secondary.withOpacity(0.25),
                               ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.customerName,
-                                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: AppTheme.onSurface,
-                                          ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Collections Logged',
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                      color: AppTheme.secondary,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          '${item.paymentMethod} • ',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.secondary,
-                                          ),
-                                        ),
-                                        Text(
-                                          item.id,
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: AppTheme.secondary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${item.timestamp.hour.toString().padLeft(2, '0')}:${item.timestamp.minute.toString().padLeft(2, '0')} - ${item.timestamp.day}/${item.timestamp.month}/${item.timestamp.year}',
-                                      style: TextStyle(
-                                        fontSize: 10, 
-                                        color: AppTheme.secondary.withOpacity(0.8),
+                              ),
+                              const SizedBox(height: 8),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                                child: Text(
+                                  _searchQuery.isNotEmpty
+                                      ? 'No logged payments match your search criteria: "$_searchQuery"'
+                                      : 'No logged transactions match the selected filter categories.',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: AppTheme.secondary,
                                       ),
-                                    ),
-                                  ],
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    '₹${item.amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      color: AppTheme.onSurface,
-                                      fontSize: 15,
-                                      letterSpacing: -0.2,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  StatusChip(label: item.status, type: item.status),
-                                ],
                               ),
                             ],
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      )
+                    : ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                        itemCount: filteredPayments.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final item = filteredPayments[index];
+                          IconData icon;
+                          Color iconColor;
+
+                          switch (item.paymentMethod.toUpperCase()) {
+                            case 'UPI':
+                              icon = LucideIcons.qrCode;
+                              iconColor = AppTheme.primary;
+                              break;
+                            case 'CHEQUE':
+                              icon = LucideIcons.fileText;
+                              iconColor = Colors.purple;
+                              break;
+                            default:
+                              icon = LucideIcons.banknote;
+                              iconColor = const Color(0xFF1B5E20);
+                          }
+
+                          return CustomBentoCard(
+                            padding: 14.0,
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: iconColor.withOpacity(0.08),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(icon, color: iconColor, size: 20),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.customerName,
+                                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.onSurface,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '${item.paymentMethod} • ',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.secondary,
+                                            ),
+                                          ),
+                                          Text(
+                                            item.id,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppTheme.secondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${item.timestamp.hour.toString().padLeft(2, '0')}:${item.timestamp.minute.toString().padLeft(2, '0')} - ${item.timestamp.day}/${item.timestamp.month}/${item.timestamp.year}',
+                                        style: TextStyle(
+                                          fontSize: 10, 
+                                          color: AppTheme.secondary.withOpacity(0.8),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '₹${item.amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        color: AppTheme.onSurface,
+                                        fontSize: 15,
+                                        letterSpacing: -0.2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    StatusChip(label: item.status, type: item.status),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
             ),
           ],
         );

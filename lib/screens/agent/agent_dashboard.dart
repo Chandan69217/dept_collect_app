@@ -6,13 +6,14 @@ import '../../widgets/custom_bento_card.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import '../../widgets/status_chip.dart';
 import '../shared/login_screen.dart';
-import '../shared/notifications_screen.dart';
+// import '../shared/notifications_screen.dart';
 import 'customer_list_screen.dart';
 import 'customer_details_screen.dart';
 import 'collections_history_screen.dart';
 import 'agent_profile_screen.dart';
 import 'agent_edit_profile_screen.dart';
 import 'record_payment_sheet.dart';
+import '../../models/customer.dart';
 
 class AgentDashboard extends StatefulWidget {
   const AgentDashboard({super.key});
@@ -27,6 +28,60 @@ class _AgentDashboardState extends State<AgentDashboard> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final agentId = _db.currentUser?.id;
+      if (agentId != null) {
+        setState(() {
+          _isLoading = true;
+        });
+        try {
+          await _db.fetchAgentAssignments(agentId);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to load assignments: $e')),
+            );
+          }
+        } finally {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        }
+      }
+    });
+  }
+
+  Customer? _getPriorityCustomer() {
+    if (_db.customers.isEmpty) return null;
+    final agentId = _db.currentUser?.id;
+    final myCustomers = _db.customers
+        .where((c) => c.assignedAgentId == agentId)
+        .toList();
+    if (myCustomers.isEmpty) return null;
+
+    final highPriority = myCustomers
+        .where((c) => c.priority.toUpperCase() == 'HIGH')
+        .firstOrNull;
+    if (highPriority != null) return highPriority;
+    final robert = myCustomers.where((c) => c.id == 'cust_robert').firstOrNull;
+    if (robert != null) return robert;
+    return myCustomers.first;
+  }
+
+  bool _hasPermission(String fieldKey) {
+    final user = _db.currentUser;
+    if (user != null && !user.isAdmin) {
+      return user.permissions[fieldKey] ?? true;
+    }
+    return true;
+  }
 
   @override
   void dispose() {
@@ -89,20 +144,23 @@ class _AgentDashboardState extends State<AgentDashboard> {
                 ],
               ),
               actions: [
-                IconButton(
-                  icon: Badge(
-                    isLabelVisible: _db.notifications.any((n) => !n.isRead),
-                    child: const Icon(LucideIcons.bell, color: AppTheme.primary),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const NotificationsScreen(),
-                      ),
-                    );
-                  },
-                ),
+                // IconButton(
+                //   icon: Badge(
+                //     isLabelVisible: _db.notifications.any((n) => !n.isRead),
+                //     child: const Icon(
+                //       LucideIcons.bell,
+                //       color: AppTheme.primary,
+                //     ),
+                //   ),
+                //   onPressed: () {
+                //     Navigator.push(
+                //       context,
+                //       MaterialPageRoute(
+                //         builder: (context) => const NotificationsScreen(),
+                //       ),
+                //     );
+                //   },
+                // ),
                 const SizedBox(width: 8),
               ],
             ),
@@ -111,6 +169,14 @@ class _AgentDashboardState extends State<AgentDashboard> {
             bottomNavigationBar: CustomBottomBar(
               currentIndex: _currentIndex,
               onTap: (index) {
+                if (index == 2 && !_hasPermission('accessHistory')) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('You do not have permission to view history.'),
+                    ),
+                  );
+                  return;
+                }
                 setState(() {
                   _currentIndex = index;
                 });
@@ -139,24 +205,26 @@ class _AgentDashboardState extends State<AgentDashboard> {
               ],
             ),
             floatingActionButton: _currentIndex == 0
-                ? FloatingActionButton(
-                    backgroundColor: AppTheme.primaryContainer,
-                    foregroundColor: Colors.white,
-                    shape: const CircleBorder(),
-                    onPressed: () {
-                      // Navigate to priority visit customer details
-                      final robert = _db.customers.firstWhere(
-                        (c) => c.id == 'cust_robert',
-                      );
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              CustomerDetailsScreen(customer: robert),
-                        ),
+                ? Builder(
+                    builder: (context) {
+                      final pc = _getPriorityCustomer();
+                      if (pc == null) return const SizedBox();
+                      return FloatingActionButton(
+                        backgroundColor: AppTheme.primaryContainer,
+                        foregroundColor: Colors.white,
+                        shape: const CircleBorder(),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  CustomerDetailsScreen(customer: pc),
+                            ),
+                          );
+                        },
+                        child: const Icon(LucideIcons.mapPin),
                       );
                     },
-                    child: const Icon(LucideIcons.mapPin),
                   )
                 : null,
           ),
@@ -166,23 +234,43 @@ class _AgentDashboardState extends State<AgentDashboard> {
   }
 
   Widget _buildHomeDashboard(BuildContext context, dynamic agent) {
-    // Find next priority customer (Robert Henderson)
-    final priorityCustomer = _db.customers.firstWhere(
-      (c) => c.id == 'cust_robert',
-      orElse: () => _db.customers[0],
-    );
+    final priorityCustomer = _getPriorityCustomer();
 
-    final targetMetPercent =
-        (agent.collectedAmount / agent.assignedTarget * 100).toStringAsFixed(0);
+    final double targetMetPercentVal = agent.assignedTarget > 0
+        ? (agent.collectedAmount / agent.assignedTarget * 100)
+        : 0.0;
+    final targetMetPercent = targetMetPercentVal.toStringAsFixed(0);
 
-    return SingleChildScrollView(
+    final hour = DateTime.now().hour;
+    final String greetingStr;
+    if (hour < 12) {
+      greetingStr = 'Good Morning';
+    } else if (hour < 17) {
+      greetingStr = 'Good Afternoon';
+    } else {
+      greetingStr = 'Good Evening';
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        final agentId = _db.currentUser?.id;
+        if (agentId != null) {
+          await _db.fetchAgentAssignments(agentId);
+        }
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Good Morning miller
+            if (_isLoading) ...[
+              const LinearProgressIndicator(),
+              const SizedBox(height: 8),
+            ],
+            // Wishing based on local time
             Text(
-              'Good Morning, ${agent.name}',
+              '$greetingStr, ${agent.name}',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
@@ -228,13 +316,13 @@ class _AgentDashboardState extends State<AgentDashboard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Today's Collection Target",
+                          "Today's Total Recovered",
                           style: Theme.of(context).textTheme.labelMedium
                               ?.copyWith(color: Colors.white.withOpacity(0.8)),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '₹${agent.assignedTarget.toStringAsFixed(2)}',
+                          '₹${agent.collectedAmount.toStringAsFixed(2)}',
                           style: Theme.of(context).textTheme.headlineLarge
                               ?.copyWith(
                                 color: Colors.white,
@@ -252,7 +340,7 @@ class _AgentDashboardState extends State<AgentDashboard> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              '$targetMetPercent% of Target Met (₹${agent.collectedAmount.toStringAsFixed(2)} collected)',
+                              '$targetMetPercent% of Target Met (Target: ₹${agent.assignedTarget.toStringAsFixed(2)})',
                               style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
                                     color: Colors.white,
@@ -363,89 +451,119 @@ class _AgentDashboardState extends State<AgentDashboard> {
                 ),
               ),
               const SizedBox(height: 12),
-              CustomBentoCard(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          CustomerDetailsScreen(customer: priorityCustomer),
-                    ),
-                  );
-                },
-                child: Row(
-                  children: [
-                    // map route thumbnail
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
+              if (!_hasPermission('priority'))
+                CustomBentoCard(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.shieldAlert,
+                          color: AppTheme.secondary.withOpacity(0.5),
+                          size: 32,
                         ),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          LucideIcons.map,
-                          color: AppTheme.primary,
-                          size: 28,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            priorityCustomer.name,
-                            style: Theme.of(context).textTheme.bodyLarge
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'You have no permission to view',
+                          style: TextStyle(
+                            color: AppTheme.secondary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(
-                                LucideIcons.mapPin,
-                                size: 14,
-                                color: AppTheme.secondary,
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  priorityCustomer.address,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (priorityCustomer != null)
+                CustomBentoCard(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            CustomerDetailsScreen(customer: priorityCustomer),
+                      ),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      // map route thumbnail
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMedium,
+                          ),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            LucideIcons.map,
+                            color: AppTheme.primary,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              priorityCustomer.name,
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  LucideIcons.mapPin,
+                                  size: 14,
+                                  color: AppTheme.secondary,
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const StatusChip(
-                                label: 'HIGH PRIORITY',
-                                type: 'HIGH',
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Due: 10:30 AM',
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                            ],
-                          ),
-                        ],
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    priorityCustomer.address,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                StatusChip(
+                                  label:
+                                      '${priorityCustomer.priority.toUpperCase()} PRIORITY',
+                                  type: priorityCustomer.priority.toUpperCase(),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Due: 10:30 AM',
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const Icon(
-                      LucideIcons.chevronRight,
-                      color: AppTheme.outline,
-                    ),
-                  ],
+                      const Icon(
+                        LucideIcons.chevronRight,
+                        color: AppTheme.outline,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
               const SizedBox(height: 24),
 
               // Quick Field Actions
@@ -463,16 +581,27 @@ class _AgentDashboardState extends State<AgentDashboard> {
                     child: SizedBox(
                       height: 48,
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          // Trigger record payment sheet for Henderson
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (context) =>
-                                RecordPaymentSheet(customer: priorityCustomer),
-                          );
-                        },
+                        onPressed: priorityCustomer == null
+                            ? null
+                            : () {
+                                if (!_hasPermission('approvePartial')) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('You do not have permission to collect payments.'),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                // Trigger record payment sheet for priority customer
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) => RecordPaymentSheet(
+                                    customer: priorityCustomer,
+                                  ),
+                                );
+                              },
                         icon: const Icon(LucideIcons.scrollText, size: 18),
                         label: const Text(
                           'Scan Receipt',
@@ -506,7 +635,8 @@ class _AgentDashboardState extends State<AgentDashboard> {
             ],
           ],
         ),
-      );
+      ),
+    );
   }
 
   Widget _buildDrawer(BuildContext context, dynamic agent) {
@@ -572,6 +702,14 @@ class _AgentDashboardState extends State<AgentDashboard> {
             ),
             onTap: () {
               Navigator.pop(context);
+              if (!_hasPermission('accessHistory')) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('You do not have permission to view history.'),
+                  ),
+                );
+                return;
+              }
               setState(() {
                 _currentIndex = 2;
               });
@@ -580,30 +718,30 @@ class _AgentDashboardState extends State<AgentDashboard> {
           const Divider(height: 1),
 
           // Security & Privacy
-          ListTile(
-            leading: const Icon(
-              LucideIcons.shield,
-              color: AppTheme.primary,
-              size: 20,
-            ),
-            title: const Text(
-              'Security & Privacy',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.onSurface,
-                fontSize: 14,
-              ),
-            ),
-            subtitle: const Text(
-              'Manage PIN & security settings',
-              style: TextStyle(fontSize: 12, color: AppTheme.secondary),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.of(context).pushNamed('/security_settings');
-            },
-          ),
-          const Divider(height: 1),
+          // ListTile(
+          //   leading: const Icon(
+          //     LucideIcons.shield,
+          //     color: AppTheme.primary,
+          //     size: 20,
+          //   ),
+          //   title: const Text(
+          //     'Security & Privacy',
+          //     style: TextStyle(
+          //       fontWeight: FontWeight.bold,
+          //       color: AppTheme.onSurface,
+          //       fontSize: 14,
+          //     ),
+          //   ),
+          //   subtitle: const Text(
+          //     'Manage PIN & security settings',
+          //     style: TextStyle(fontSize: 12, color: AppTheme.secondary),
+          //   ),
+          //   onTap: () {
+          //     Navigator.pop(context);
+          //     Navigator.of(context).pushNamed('/security_settings');
+          //   },
+          // ),
+          // const Divider(height: 1),
 
           // Edit Agent Profile settings
           ListTile(
@@ -777,7 +915,8 @@ class _AgentDashboardState extends State<AgentDashboard> {
               c.assignedAgentId == agentId &&
               (c.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                   c.id.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                  c.address.toLowerCase().contains(_searchQuery.toLowerCase())),
+                  c.address.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                  c.assetRegNo.toLowerCase().contains(_searchQuery.toLowerCase())),
         )
         .toList();
 
@@ -829,8 +968,9 @@ class _AgentDashboardState extends State<AgentDashboard> {
           separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final customer = matchingCustomers[index];
-            final bool isPaid = customer.status == 'PAID';
-            final bool isPending = customer.status == 'PENDING_VERIFICATION';
+            final bool isPaid =
+                customer.status == 'Completed' || customer.status == 'Closed';
+            final bool isPending = customer.status == 'Pending';
 
             return CustomBentoCard(
               onTap: () {
