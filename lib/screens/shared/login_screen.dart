@@ -32,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _loadLastLoginMode() {
     final lastMode = SharedPrefsService.getLastLoginMode();
-    if (lastMode == AppConstants.apiRoleAdmin) {
+    if (lastMode == AppConstants.roleAdmin) {
       _prefillAdmin();
     } else {
       _prefillAgent();
@@ -45,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // _idController.text = '';
       // _passwordController.text = '';
     });
-    SharedPrefsService.saveLastLoginMode(AppConstants.apiRoleAgent);
+    SharedPrefsService.saveLastLoginMode(AppConstants.roleAgent);
   }
 
   void _prefillAdmin() {
@@ -54,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // _idController.text = '';
       // _passwordController.text = '';
     });
-    SharedPrefsService.saveLastLoginMode(AppConstants.apiRoleAdmin);
+    SharedPrefsService.saveLastLoginMode(AppConstants.roleAdmin);
   }
 
   void _handleLogin() async {
@@ -81,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final success = await _db.login(email, password, isAdmin: _isAdminMode);
       if (success) {
         SharedPrefsService.saveLastLoginMode(
-          _isAdminMode ? AppConstants.apiRoleAdmin : AppConstants.apiRoleAgent,
+          _isAdminMode ? AppConstants.roleAdmin : AppConstants.roleAgent,
         );
         _navigateToDashboard();
       } else {
@@ -349,7 +349,7 @@ class _LoginScreenState extends State<LoginScreen> {
               //     ),
               //   ),
               // ),
-              // const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
               // Login Button
               SizedBox(

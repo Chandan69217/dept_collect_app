@@ -12,16 +12,14 @@ import '../../config/field_mapping.dart';
 class AgentProfileScreen extends StatefulWidget {
   final bool isEmbedded;
 
-  const AgentProfileScreen({
-    super.key,
-    this.isEmbedded = false,
-  });
+  const AgentProfileScreen({super.key, this.isEmbedded = false});
 
   @override
   State<AgentProfileScreen> createState() => _AgentProfileScreenState();
 }
 
-class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTickerProviderStateMixin {
+class _AgentProfileScreenState extends State<AgentProfileScreen>
+    with SingleTickerProviderStateMixin {
   final db = DatabaseService();
   bool _pushNotificationsEnabled = true;
   late AnimationController _radialController;
@@ -73,7 +71,10 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => const AgentEditProfileScreen()),
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const AgentEditProfileScreen(),
+                              ),
                             );
                           },
                           child: Stack(
@@ -112,12 +113,21 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                                       width: 62,
                                       height: 62,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => Container(
-                                        width: 62,
-                                        height: 62,
-                                        color: AppTheme.surfaceContainerLow,
-                                        child: const Icon(LucideIcons.user, color: AppTheme.secondary, size: 24),
-                                      ),
+                                      errorBuilder:
+                                          (
+                                            context,
+                                            error,
+                                            stackTrace,
+                                          ) => Container(
+                                            width: 62,
+                                            height: 62,
+                                            color: AppTheme.surfaceContainerLow,
+                                            child: const Icon(
+                                              LucideIcons.user,
+                                              color: AppTheme.secondary,
+                                              size: 24,
+                                            ),
+                                          ),
                                     ),
                                   ),
                                 ),
@@ -135,7 +145,9 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                                   child: Container(
                                     padding: const EdgeInsets.all(2.5),
                                     decoration: const BoxDecoration(
-                                      color: Color(0xFF1B5E20), // Smart Emerald Green
+                                      color: Color(
+                                        0xFF1B5E20,
+                                      ), // Smart Emerald Green
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
@@ -157,7 +169,8 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                             children: [
                               Text(
                                 agent.name,
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
                                       fontWeight: FontWeight.w800,
                                       color: AppTheme.onSurface,
                                       letterSpacing: -0.5,
@@ -167,15 +180,25 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                               Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: AppTheme.primary.withOpacity(0.06),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: AppTheme.primary.withOpacity(0.1)),
+                                      border: Border.all(
+                                        color: AppTheme.primary.withOpacity(
+                                          0.1,
+                                        ),
+                                      ),
                                     ),
                                     child: Text(
                                       'DCP-88429-XM',
-                                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
                                             fontSize: 9,
                                             fontWeight: FontWeight.bold,
                                             color: AppTheme.primary,
@@ -185,7 +208,10 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                                   ),
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFE8F5E9),
                                       borderRadius: BorderRadius.circular(6),
@@ -243,7 +269,10 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                                   ),
                                   Text(
                                     'North East',
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
                                           fontWeight: FontWeight.bold,
                                           color: AppTheme.onSurface,
                                         ),
@@ -253,7 +282,11 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                             ],
                           ),
                         ),
-                        Container(width: 1, height: 28, color: AppTheme.outlineVariant),
+                        Container(
+                          width: 1,
+                          height: 28,
+                          color: AppTheme.outlineVariant,
+                        ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Row(
@@ -285,7 +318,10 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                                   ),
                                   Text(
                                     '98.4%',
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
                                           fontWeight: FontWeight.bold,
                                           color: const Color(0xFF2E7D32),
                                         ),
@@ -343,7 +379,8 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                                 const SizedBox(height: 2),
                                 Text(
                                   '14',
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: AppTheme.onSurface,
                                       ),
@@ -394,7 +431,8 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                                 const SizedBox(height: 2),
                                 Text(
                                   '₹12,450',
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: AppTheme.onSurface,
                                       ),
@@ -473,7 +511,8 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                               height: 64,
                               child: CustomPaint(
                                 painter: TargetProgressPainter(
-                                  percentage: percentage * _radialController.value,
+                                  percentage:
+                                      percentage * _radialController.value,
                                 ),
                               ),
                             ),
@@ -502,7 +541,11 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                   children: [
                     const Row(
                       children: [
-                        Icon(LucideIcons.shieldCheck, color: AppTheme.primary, size: 18),
+                        Icon(
+                          LucideIcons.shieldCheck,
+                          color: AppTheme.primary,
+                          size: 18,
+                        ),
                         SizedBox(width: 8),
                         Text(
                           'SECURITY & DATA CLEARANCE',
@@ -518,30 +561,57 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                     const SizedBox(height: 12),
                     const Text(
                       'The following data access and operational clearances are set for your account by system administrators:',
-                      style: TextStyle(fontSize: 11, color: AppTheme.onSurfaceVariant, height: 1.4),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.onSurfaceVariant,
+                        height: 1.4,
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // General Capabilities
                     const Text(
                       'Operational Clearances',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.onSurface),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    _buildClearanceRow('Access Collections History', agent.permissions['accessHistory'] ?? false),
-                    _buildClearanceRow('Edit Customer Details', agent.permissions['editDetails'] ?? false),
-                    _buildClearanceRow('Approve Partial Payments', agent.permissions['approvePartial'] ?? false),
-                    _buildClearanceRow('Export Data Logs', agent.permissions['exportData'] ?? false),
-                    _buildClearanceRow('Delete Local Records', agent.permissions['deleteRecords'] ?? false),
-                    
+                    _buildClearanceRow(
+                      'Access Collections History',
+                      agent.permissions['accessHistory'] ?? false,
+                    ),
+                    _buildClearanceRow(
+                      'Edit Customer Details',
+                      agent.permissions['editDetails'] ?? false,
+                    ),
+                    _buildClearanceRow(
+                      'Approve Partial Payments',
+                      agent.permissions['approvePartial'] ?? false,
+                    ),
+                    _buildClearanceRow(
+                      'Export Data Logs',
+                      agent.permissions['exportData'] ?? false,
+                    ),
+                    _buildClearanceRow(
+                      'Delete Local Records',
+                      agent.permissions['deleteRecords'] ?? false,
+                    ),
+
                     const SizedBox(height: 16),
                     const Divider(height: 1, color: AppTheme.outlineVariant),
                     const SizedBox(height: 16),
-                    
+
                     // Field Access Visibility
                     const Text(
                       'Field Visibility Clearance',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.onSurface),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Wrap(
@@ -549,14 +619,28 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                       runSpacing: 8,
                       children: ExcelFieldMapping.mapping.keys.map((fieldKey) {
                         final isGranted = agent.permissions[fieldKey] ?? false;
-                        final label = fieldKey[0].toUpperCase() + fieldKey.substring(1).replaceAllMapped(RegExp(r'[A-Z]'), (match) => ' ${match.group(0)}');
+                        final label =
+                            fieldKey[0].toUpperCase() +
+                            fieldKey
+                                .substring(1)
+                                .replaceAllMapped(
+                                  RegExp(r'[A-Z]'),
+                                  (match) => ' ${match.group(0)}',
+                                );
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
-                            color: isGranted ? const Color(0xFFE8F5E9) : const Color(0xFFECEFF1),
+                            color: isGranted
+                                ? const Color(0xFFE8F5E9)
+                                : const Color(0xFFECEFF1),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: isGranted ? const Color(0xFFC8E6C9) : const Color(0xFFCFD8DC),
+                              color: isGranted
+                                  ? const Color(0xFFC8E6C9)
+                                  : const Color(0xFFCFD8DC),
                               width: 1,
                             ),
                           ),
@@ -564,9 +648,13 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                isGranted ? LucideIcons.check : LucideIcons.lock,
+                                isGranted
+                                    ? LucideIcons.check
+                                    : LucideIcons.lock,
                                 size: 12,
-                                color: isGranted ? const Color(0xFF2E7D32) : const Color(0xFF546E7A),
+                                color: isGranted
+                                    ? const Color(0xFF2E7D32)
+                                    : const Color(0xFF546E7A),
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -574,7 +662,9 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: isGranted ? const Color(0xFF1B5E20) : const Color(0xFF37474F),
+                                  color: isGranted
+                                      ? const Color(0xFF1B5E20)
+                                      : const Color(0xFF37474F),
                                 ),
                               ),
                             ],
@@ -600,113 +690,131 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                           color: AppTheme.primary.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Icon(LucideIcons.user, color: AppTheme.primary, size: 20),
+                        child: const Icon(
+                          LucideIcons.user,
+                          color: AppTheme.primary,
+                          size: 20,
+                        ),
                       ),
                       title: const Text(
                         'Edit Profile Details',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.onSurface,
+                          fontSize: 14,
+                        ),
                       ),
-                      subtitle: const Text('Change name, email, phone & photo', style: TextStyle(fontSize: 12)),
-                      trailing: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.secondary),
+                      subtitle: const Text(
+                        'Change name, email, phone & photo',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: const Icon(
+                        LucideIcons.chevronRight,
+                        size: 20,
+                        color: AppTheme.secondary,
+                      ),
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const AgentEditProfileScreen()),
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const AgentEditProfileScreen(),
+                          ),
                         );
                       },
                     ),
-                    const Divider(height: 1, indent: 56),
+                    // const Divider(height: 1, indent: 56),
 
                     // Security & Privacy
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(LucideIcons.shieldCheck, color: AppTheme.primary, size: 20),
-                      ),
-                      title: const Text(
-                        'Security & Privacy',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
-                      ),
-                      subtitle: const Text('PIN setup, Face ID & encryption', style: TextStyle(fontSize: 12)),
-                      trailing: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.secondary),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const SecuritySettingsScreen()),
-                        );
-                      },
-                    ),
-                    const Divider(height: 1, indent: 56),
+                    // ListTile(
+                    //   leading: Container(
+                    //     padding: const EdgeInsets.all(8),
+                    //     decoration: BoxDecoration(
+                    //       color: AppTheme.primary.withOpacity(0.08),
+                    //       borderRadius: BorderRadius.circular(6),
+                    //     ),
+                    //     child: const Icon(LucideIcons.shieldCheck, color: AppTheme.primary, size: 20),
+                    //   ),
+                    //   title: const Text(
+                    //     'Security & Privacy',
+                    //     style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+                    //   ),
+                    //   subtitle: const Text('PIN setup, Face ID & encryption', style: TextStyle(fontSize: 12)),
+                    //   trailing: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.secondary),
+                    //   onTap: () {
+                    //     Navigator.push(
+                    //       context,
+                    //       MaterialPageRoute(builder: (context) => const SecuritySettingsScreen()),
+                    //     );
+                    //   },
+                    // ),
+                    // const Divider(height: 1, indent: 56),
 
                     // Push Notifications Toggle
-                    SwitchListTile(
-                      activeColor: AppTheme.primary,
-                      secondary: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(LucideIcons.bellRing, color: AppTheme.primary, size: 20),
-                      ),
-                      title: const Text(
-                        'Push Notifications',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
-                      ),
-                      subtitle: const Text('Instant alerts on verification', style: TextStyle(fontSize: 12)),
-                      value: _pushNotificationsEnabled,
-                      onChanged: (val) {
-                        setState(() {
-                          _pushNotificationsEnabled = val;
-                        });
-                        CustomFeedback.showToast(
-                          context,
-                          _pushNotificationsEnabled
-                              ? 'Push notifications activated.'
-                              : 'Push notifications silenced.',
-                          type: _pushNotificationsEnabled ? 'success' : 'info',
-                        );
-                      },
-                    ),
-                    const Divider(height: 1, indent: 56),
+                    // SwitchListTile(
+                    //   activeColor: AppTheme.primary,
+                    //   secondary: Container(
+                    //     padding: const EdgeInsets.all(8),
+                    //     decoration: BoxDecoration(
+                    //       color: AppTheme.primary.withOpacity(0.08),
+                    //       borderRadius: BorderRadius.circular(6),
+                    //     ),
+                    //     child: const Icon(LucideIcons.bellRing, color: AppTheme.primary, size: 20),
+                    //   ),
+                    //   title: const Text(
+                    //     'Push Notifications',
+                    //     style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+                    //   ),
+                    //   subtitle: const Text('Instant alerts on verification', style: TextStyle(fontSize: 12)),
+                    //   value: _pushNotificationsEnabled,
+                    //   onChanged: (val) {
+                    //     setState(() {
+                    //       _pushNotificationsEnabled = val;
+                    //     });
+                    //     CustomFeedback.showToast(
+                    //       context,
+                    //       _pushNotificationsEnabled
+                    //           ? 'Push notifications activated.'
+                    //           : 'Push notifications silenced.',
+                    //       type: _pushNotificationsEnabled ? 'success' : 'info',
+                    //     );
+                    //   },
+                    // ),
+                    // const Divider(height: 1, indent: 56),
 
                     // Helpdesk
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(LucideIcons.headset, color: AppTheme.primary, size: 20),
-                      ),
-                      title: const Text(
-                        'Protocol Support Helpdesk',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
-                      ),
-                      subtitle: const Text('Contact tech-ops support desk', style: TextStyle(fontSize: 12)),
-                      trailing: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.secondary),
-                      onTap: () {
-                        CustomFeedback.showFeedbackDialog(
-                          context,
-                          title: 'Support Desk Contact',
-                          message: 'Establish encrypted voice call or direct ticket with Mumbai Tech-Ops Support Desk?',
-                          type: 'info',
-                          confirmLabel: 'ESTABLISH',
-                          onConfirm: () {
-                            CustomFeedback.showToast(
-                              context,
-                              'Support ticket created. Tech-Ops will contact you.',
-                              type: 'success',
-                            );
-                          },
-                        );
-                      },
-                    ),
+                    // ListTile(
+                    //   leading: Container(
+                    //     padding: const EdgeInsets.all(8),
+                    //     decoration: BoxDecoration(
+                    //       color: AppTheme.primary.withOpacity(0.08),
+                    //       borderRadius: BorderRadius.circular(6),
+                    //     ),
+                    //     child: const Icon(LucideIcons.headset, color: AppTheme.primary, size: 20),
+                    //   ),
+                    //   title: const Text(
+                    //     'Protocol Support Helpdesk',
+                    //     style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.onSurface, fontSize: 14),
+                    //   ),
+                    //   subtitle: const Text('Contact tech-ops support desk', style: TextStyle(fontSize: 12)),
+                    //   trailing: const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.secondary),
+                    //   onTap: () {
+                    //     CustomFeedback.showFeedbackDialog(
+                    //       context,
+                    //       title: 'Support Desk Contact',
+                    //       message: 'Establish encrypted voice call or direct ticket with Mumbai Tech-Ops Support Desk?',
+                    //       type: 'info',
+                    //       confirmLabel: 'ESTABLISH',
+                    //       onConfirm: () {
+                    //         CustomFeedback.showToast(
+                    //           context,
+                    //           'Support ticket created. Tech-Ops will contact you.',
+                    //           type: 'success',
+                    //         );
+                    //       },
+                    //     );
+                    //   },
+                    // ),
                   ],
                 ),
               ),
@@ -726,13 +834,16 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
                   CustomFeedback.showFeedbackDialog(
                     context,
                     title: 'Terminate Session?',
-                    message: 'This will terminate your secure offline data caching and log out ${db.currentUser?.name ?? 'user'} from this terminal.',
+                    message:
+                        'This will terminate your secure offline data caching and log out ${db.currentUser?.name ?? 'user'} from this terminal.',
                     type: 'error',
                     confirmLabel: 'TERMINATE SESSION',
                     onConfirm: () {
                       db.logout();
                       Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
                         (route) => false,
                       );
                     },
@@ -757,9 +868,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> with SingleTick
 
         return Scaffold(
           backgroundColor: AppTheme.background,
-          appBar: AppBar(
-            title: const Text('My Profile'),
-          ),
+          appBar: AppBar(title: const Text('My Profile')),
           body: content,
         );
       },
@@ -817,7 +926,8 @@ class TargetProgressPainter extends CustomPainter {
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
-    final double sweepAngle = 2 * 3.1415926535 * (percentage > 1.0 ? 1.0 : percentage);
+    final double sweepAngle =
+        2 * 3.1415926535 * (percentage > 1.0 ? 1.0 : percentage);
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
       -3.1415926535 / 2, // Start at the top (-90 degrees)

@@ -22,9 +22,7 @@ class EditPermissionsScreen extends StatefulWidget {
 class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
   // Stateful permission toggles
   bool _accessHistory = true;
-  bool _editDetails = true;
   bool _approvePartial = false;
-  bool _exportData = true;
   bool _deleteRecords = false;
 
   bool _isSaving = false;
@@ -35,7 +33,11 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedRegion = widget.agent.zone;
+    final isContains = DatabaseService.regionalDropdownValues.firstWhere(
+      (e) => e['value'] == widget.agent.zone,
+      orElse: () => <String, String>{},
+    );
+    _selectedRegion = isContains.isNotEmpty ? widget.agent.zone : null;
     _fieldPermissions = Map<String, bool>.from(widget.agent.permissions);
     
     // Check if there are any permissions set for the agent
@@ -43,9 +45,7 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
     
     // Initialize general permissions: default to false if no permissions exist, otherwise pull previous value (fallback to false if key missing)
     _accessHistory = hasPermissions ? (_fieldPermissions['accessHistory'] ?? false) : false;
-    _editDetails = hasPermissions ? (_fieldPermissions['editDetails'] ?? false) : false;
     _approvePartial = hasPermissions ? (_fieldPermissions['approvePartial'] ?? false) : false;
-    _exportData = hasPermissions ? (_fieldPermissions['exportData'] ?? false) : false;
     _deleteRecords = hasPermissions ? (_fieldPermissions['deleteRecords'] ?? false) : false;
 
     // Use standard keys from global ExcelFieldMapping configuration
@@ -202,12 +202,18 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
                           color: AppTheme.secondary,
                           size: 18,
                         ),
-                        items: DatabaseService.regionalDropdownValues.map((e) {
-                          return DropdownMenuItem(
-                            value: e['value'],
-                            child: Text(e['label'] ?? ''),
-                          );
-                        }).toList(),
+                        items: [
+                      DropdownMenuItem(
+                      value:null,
+                        child: Text('Select agent region'),
+                      ),
+                          ...DatabaseService.regionalDropdownValues.map((e) {
+                            return DropdownMenuItem(
+                              value: e['value'],
+                              child: Text(e['label'] ?? ''),
+                            );
+                          })
+                        ],
                         onChanged: (val) {
                           setState(() {
                             _selectedRegion = val;
@@ -266,13 +272,7 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
                       _accessHistory,
                       (val) => setState(() => _accessHistory = val),
                     ),
-                    const SizedBox(height: 12),
-                    _buildPermissionToggle(
-                      'Edit Customer Details',
-                      'Permit modifications to contact information, addresses, and employment status in the field.',
-                      _editDetails,
-                      (val) => setState(() => _editDetails = val),
-                    ),
+
                     const SizedBox(height: 12),
                     _buildPermissionToggle(
                       'Approve Partial Payments',
@@ -280,19 +280,13 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
                       _approvePartial,
                       (val) => setState(() => _approvePartial = val),
                     ),
+
                     const SizedBox(height: 12),
                     _buildPermissionToggle(
-                      'Export Data',
-                      'Download collection summaries and route performance reports as CSV or PDF documents.',
-                      _exportData,
-                      (val) => setState(() => _exportData = val),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildPermissionToggle(
-                      'Delete Records',
-                      'Ability to permanently remove transaction logs or debtor profiles from the local and sync databases.',
+                      'Remove Assigned Records',
+                      'Allows agents to remove assigned customer records from the system.',
                       _deleteRecords,
-                      (val) => setState(() => _deleteRecords = val),
+                          (val) => setState(() => _deleteRecords = val),
                       isHighRisk: true,
                     ),
                   ],
@@ -600,9 +594,7 @@ class _EditPermissionsScreenState extends State<EditPermissionsScreen> {
     try {
       // Sync general permissions in the map
       _fieldPermissions['accessHistory'] = _accessHistory;
-      _fieldPermissions['editDetails'] = _editDetails;
       _fieldPermissions['approvePartial'] = _approvePartial;
-      _fieldPermissions['exportData'] = _exportData;
       _fieldPermissions['deleteRecords'] = _deleteRecords;
 
       // Update region assignment and permissions in backend database service

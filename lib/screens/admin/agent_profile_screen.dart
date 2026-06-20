@@ -9,23 +9,52 @@ import 'edit_permissions_screen.dart';
 import '../../widgets/custom_feedback.dart';
 import '../../config/field_mapping.dart';
 import '../../constants/app_constants.dart';
+import '../../models/customer.dart';
+import '../../models/payment_record.dart';
+import '../agent/customer_details_screen.dart';
+import '../../widgets/status_chip.dart';
 
-class AgentProfileScreen extends StatelessWidget {
+class AgentProfileScreen extends StatefulWidget {
   final Agent agent;
 
   const AgentProfileScreen({super.key, required this.agent});
 
   @override
-  Widget build(BuildContext context) {
-    final db = DatabaseService();
+  State<AgentProfileScreen> createState() => _AgentProfileScreenState();
+}
 
+class _AgentProfileScreenState extends State<AgentProfileScreen> {
+  bool _isLoadingAssignments = true;
+  final db = DatabaseService();
+  int _activeTab = 0; // 0 for Portfolio Cases, 1 for Collection Records
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await db.fetchAgentAssignments(widget.agent.id);
+      } catch (e) {
+        debugPrint('Error loading assignments: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoadingAssignments = false;
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: db,
       builder: (context, child) {
         // Find the most up-to-date agent details from shared state
         final activeAgent = db.agents.firstWhere(
-          (a) => a.id == agent.id,
-          orElse: () => agent,
+          (a) => a.id == widget.agent.id,
+          orElse: () => widget.agent,
         );
 
         final targetPercentage = activeAgent.assignedTarget == 0
@@ -66,8 +95,8 @@ class AgentProfileScreen extends StatelessWidget {
                 _buildQuickActionsRow(context, db, activeAgent),
                 const SizedBox(height: 24),
 
-                // Recent Activity timeline
-                _buildRecentActivitySection(context, activeAgent),
+                // Dynamic Portfolio / Collections tabbed section
+                _buildDynamicTabsSection(context, activeAgent),
               ],
             ),
           ),
@@ -400,7 +429,7 @@ class AgentProfileScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text(
-                        '4 PRIORITY ACCOUNTS',
+                        'CUSTOMER',
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
@@ -446,9 +475,17 @@ class AgentProfileScreen extends StatelessWidget {
             agent.zone,
           ),
           const Divider(height: 1, color: AppTheme.outlineVariant),
-          _buildDetailRow(LucideIcons.refreshCw, 'Last Sync Time', '5m ago'),
+          _buildDetailRow(
+            LucideIcons.refreshCw,
+            'Last Sync Time',
+            AppConstants.dateFormat.format(DateTime.now()),
+          ),
           const Divider(height: 1, color: AppTheme.outlineVariant),
-          _buildDetailRow(LucideIcons.calendar, 'Join Date', 'Oct 12, 2022'),
+          _buildDetailRow(
+            LucideIcons.calendar,
+            'Join Date',
+            AppConstants.dateFormat.format(agent.joinDate).split(",").first,
+          ),
         ],
       ),
     );
@@ -665,14 +702,17 @@ class AgentProfileScreen extends StatelessWidget {
                       children: [
                         Text(
                           'Edit Agent Details',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primary,
                               ),
                         ),
                         IconButton(
                           icon: const Icon(LucideIcons.x),
-                          onPressed: isSaving ? null : () => Navigator.pop(context),
+                          onPressed: isSaving
+                              ? null
+                              : () => Navigator.pop(context),
                         ),
                       ],
                     ),
@@ -696,10 +736,16 @@ class AgentProfileScreen extends StatelessWidget {
                     TextFormField(
                       controller: nameController,
                       enabled: !isSaving,
-                      style: const TextStyle(fontSize: 14, color: AppTheme.onSurface),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.onSurface,
+                      ),
                       decoration: const InputDecoration(
                         hintText: 'Enter agent full name',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -724,10 +770,16 @@ class AgentProfileScreen extends StatelessWidget {
                       controller: emailController,
                       enabled: !isSaving,
                       keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(fontSize: 14, color: AppTheme.onSurface),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.onSurface,
+                      ),
                       decoration: const InputDecoration(
                         hintText: 'Enter agent email address',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -756,11 +808,17 @@ class AgentProfileScreen extends StatelessWidget {
                       enabled: !isSaving,
                       keyboardType: TextInputType.phone,
                       maxLength: 10,
-                      style: const TextStyle(fontSize: 14, color: AppTheme.onSurface),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.onSurface,
+                      ),
                       decoration: const InputDecoration(
                         counterText: "",
                         hintText: 'Enter 10-digit mobile number',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -834,7 +892,9 @@ class AgentProfileScreen extends StatelessWidget {
                                 height: 24,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
                                 ),
                               )
                             : const Text(
@@ -857,124 +917,397 @@ class AgentProfileScreen extends StatelessWidget {
     );
   }
 
-  // Timeline list for recent activities
-  Widget _buildRecentActivitySection(BuildContext context, Agent agent) {
+  Widget _buildDynamicTabsSection(BuildContext context, Agent activeAgent) {
+    final myCustomers = db.customers
+        .where((c) => c.assignedAgentId == activeAgent.id)
+        .toList();
+    final agentPayments = db.payments
+        .where((p) => p.agentId == activeAgent.id)
+        .toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Recent Activity',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            TextButton(
-              onPressed: () {},
-              child: const Text(
-                'View All',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-            ),
+            _buildTabHeader(0, 'Assigned Portfolio', myCustomers.length),
+            const SizedBox(width: 12),
+            _buildTabHeader(1, 'Collections Log', agentPayments.length),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
 
-        // Hardcoded activities based on the target agent or generic specs
-        _buildActivityRow(
-          LucideIcons.banknote,
-          Colors.green.shade100,
-          Colors.green.shade700,
-          'Collection Recorded',
-          '2h ago',
-          'Collected ₹1,200 from Case #4412 (${agent.name.split(' ').last})',
-        ),
-        const SizedBox(height: 12),
-        _buildActivityRow(
-          LucideIcons.fileText,
-          Colors.blue.shade100,
-          Colors.blue.shade700,
-          'Case Updated',
-          '5h ago',
-          'Changed status to \'PTP\' for Account #8892',
-        ),
-        const SizedBox(height: 12),
-        _buildActivityRow(
-          LucideIcons.mapPin,
-          Colors.orange.shade100,
-          Colors.orange.shade700,
-          'Field Visit Logged',
-          'Yesterday',
-          'Attempted visit at \'North Mall Complex\'',
-        ),
+        if (_isLoadingAssignments)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  CustomFeedback.showProgressIndicator(),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Loading assignments & history...',
+                    style: TextStyle(color: AppTheme.secondary, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else if (_activeTab == 0) ...[
+          if (myCustomers.isEmpty)
+            _buildEmptyState(
+              'No Assignments Found',
+              'This agent has no active portfolio assignments.',
+            )
+          else
+            ...myCustomers.map(
+              (customer) => _buildAssignmentCard(context, customer),
+            ),
+        ] else ...[
+          if (agentPayments.isEmpty)
+            _buildEmptyState(
+              'No Payments Found',
+              'This agent has not logged any collections yet.',
+            )
+          else
+            ...agentPayments.map(
+              (payment) => _buildPaymentRecordCard(context, payment),
+            ),
+        ],
       ],
     );
   }
 
-  Widget _buildActivityRow(
-    IconData icon,
-    Color bg,
-    Color color,
-    String title,
-    String time,
-    String desc,
-  ) {
-    return CustomBentoCard(
-      padding: 16,
-      child: Row(
+  Widget _buildEmptyState(String title, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.outlineVariant),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-            child: Icon(icon, color: color, size: 18),
+          Icon(
+            LucideIcons.folderOpen,
+            size: 48,
+            color: AppTheme.secondary.withOpacity(0.3),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: AppTheme.onSurface,
-                      ),
-                    ),
-                    Text(
-                      time.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: AppTheme.outline,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.secondary,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(color: AppTheme.secondary, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabHeader(int index, String label, int count) {
+    final isActive = _activeTab == index;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _activeTab = index;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive
+              ? AppTheme.primaryContainer.withOpacity(0.08)
+              : Colors.transparent,
+          border: Border.all(
+            color: isActive ? AppTheme.primary : Colors.transparent,
+            width: isActive ? 1.5 : 1,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? AppTheme.primary : AppTheme.secondary,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? AppTheme.primary
+                    : AppTheme.outlineVariant.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: isActive ? Colors.white : AppTheme.onSurfaceVariant,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 2),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAssignmentCard(BuildContext context, Customer customer) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: CustomBentoCard(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CustomerDetailsScreen(customer: customer),
+            ),
+          );
+        },
+        padding: 16,
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color:
+                    customer.status.toLowerCase() == 'completed' ||
+                        customer.status.toLowerCase() == 'closed'
+                    ? Colors.green.shade50
+                    : customer.status.toLowerCase() == 'rejected'
+                    ? Colors.red.shade50
+                    : AppTheme.primaryContainer.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                customer.status.toLowerCase() == 'completed' ||
+                        customer.status.toLowerCase() == 'closed'
+                    ? LucideIcons.checkCircle2
+                    : customer.status.toLowerCase() == 'rejected'
+                    ? LucideIcons.alertTriangle
+                    : LucideIcons.banknote,
+                color:
+                    customer.status.toLowerCase() == 'completed' ||
+                        customer.status.toLowerCase() == 'closed'
+                    ? Colors.green.shade700
+                    : customer.status.toLowerCase() == 'rejected'
+                    ? Colors.red.shade700
+                    : AppTheme.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    customer.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppTheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(
+                        LucideIcons.mapPin,
+                        size: 12,
+                        color: AppTheme.secondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          customer.address,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.secondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
                 Text(
-                  desc,
+                  '₹${customer.amountDue.toStringAsFixed(0)}',
                   style: const TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.onSurfaceVariant,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppTheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                StatusChip(
+                  label: customer.status.toUpperCase(),
+                  type: customer.status.toUpperCase(),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentRecordCard(BuildContext context, PaymentRecord payment) {
+    final isCompleted =
+        payment.status.toLowerCase() == 'completed' ||
+        payment.status.toLowerCase() == 'paid' ||
+        payment.status.toLowerCase() == 'closed';
+    final isRejected = payment.status.toLowerCase() == 'rejected';
+
+    Color statusColor = AppTheme.primary;
+    if (isCompleted) statusColor = Colors.green.shade700;
+    if (isRejected) statusColor = Colors.red.shade700;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: CustomBentoCard(
+        padding: 16,
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isCompleted
+                    ? Colors.green.shade50
+                    : isRejected
+                    ? Colors.red.shade50
+                    : AppTheme.primaryContainer.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isCompleted
+                    ? LucideIcons.checkCircle
+                    : isRejected
+                    ? LucideIcons.xCircle
+                    : LucideIcons.clock,
+                color: statusColor,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    payment.customerName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppTheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          payment.paymentMethod.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          payment.transactionReference.isNotEmpty
+                              ? payment.transactionReference
+                              : 'No remarks',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.secondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '₹${payment.amount.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppTheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isCompleted
+                        ? Colors.green.shade50
+                        : isRejected
+                        ? Colors.red.shade50
+                        : AppTheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    payment.status.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(
-            LucideIcons.chevronRight,
-            size: 18,
-            color: AppTheme.outline,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1026,19 +1359,11 @@ class AgentProfileScreen extends StatelessWidget {
             agent.permissions['accessHistory'] ?? false,
           ),
           _buildClearanceRow(
-            'Edit Customer Details',
-            agent.permissions['editDetails'] ?? false,
-          ),
-          _buildClearanceRow(
             'Approve Partial Payments',
             agent.permissions['approvePartial'] ?? false,
           ),
           _buildClearanceRow(
-            'Export Data Logs',
-            agent.permissions['exportData'] ?? false,
-          ),
-          _buildClearanceRow(
-            'Delete Local Records',
+            'Remove Assign Records',
             agent.permissions['deleteRecords'] ?? false,
           ),
 
@@ -1139,5 +1464,14 @@ class AgentProfileScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _getInitials(String name) {
+    if (name.trim().isEmpty) return '?';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts.first[0].toUpperCase()}${parts.last[0].toUpperCase()}';
+    }
+    return parts.first[0].toUpperCase();
   }
 }

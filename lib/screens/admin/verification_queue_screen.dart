@@ -22,6 +22,7 @@ class VerificationQueueScreen extends StatefulWidget {
 class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
   bool _isLoading = true;
   final db = DatabaseService();
+  String _activeFilter = 'PENDING'; // 'PENDING', 'REJECTED'
 
   @override
   void initState() {
@@ -49,9 +50,14 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
     return ListenableBuilder(
       listenable: db,
       builder: (context, child) {
-        // Filter pending records
-        final pendingPayments = db.payments
+        // Filter pending records for header/badge
+        final int pendingCount = db.payments
             .where((p) => p.status == 'Pending')
+            .length;
+
+        // Filter payments based on active filter
+        final filteredPayments = db.payments
+            .where((p) => p.status.toLowerCase() == _activeFilter.toLowerCase())
             .toList();
 
         // Calculate dynamic values for the stats bar directly from database service
@@ -87,25 +93,29 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
             children: [
               if (_isLoading) CustomFeedback.showProgressIndicator(),
               // Sub Header Section
-              _buildSubHeader(context, pendingPayments.length),
+              _buildSubHeader(context, pendingCount),
               const SizedBox(height: 16),
 
               // Stats Counter Bar
               _buildStatsBar(context, approvedTodayText, rejectedCountText),
               const SizedBox(height: 20),
 
+              // Filter Tabs Row
+              _buildFilterTabsRow(context),
+              const SizedBox(height: 16),
+
               // Queue List / Empty State
-              if (pendingPayments.isEmpty)
+              if (filteredPayments.isEmpty)
                 _buildEmptyState(context)
               else
-                ...pendingPayments.map(
+                ...filteredPayments.map(
                   (item) => _buildSwipeableCard(context, db, item),
                 ),
 
               const SizedBox(height: 16),
 
               // Footer
-              _buildLoadMoreFooter(context, pendingPayments.length),
+              _buildLoadMoreFooter(context, filteredPayments.length),
             ],
           ),
         );
@@ -295,6 +305,74 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
     );
   }
 
+  Widget _buildFilterTabsRow(BuildContext context) {
+    final pendingCount = db.payments.where((p) => p.status.toLowerCase() == 'pending').length;
+    final rejectedCount = db.payments.where((p) => p.status.toLowerCase() == 'rejected').length;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          _buildFilterTab('PENDING', pendingCount),
+          const SizedBox(width: 8),
+          _buildFilterTab('REJECTED', rejectedCount),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterTab(String label, int count) {
+    final bool isActive = _activeFilter == label;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _activeFilter = label;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? AppTheme.primaryContainer.withOpacity(0.08) : Colors.white,
+          border: Border.all(
+            color: isActive ? AppTheme.primary : AppTheme.outlineVariant,
+            width: isActive ? 1.5 : 1,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? AppTheme.primary : AppTheme.secondary,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: isActive ? AppTheme.primary : AppTheme.outlineVariant.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: isActive ? Colors.white : AppTheme.onSurfaceVariant,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Dotted / Swipe backdrop block helper
   Widget _buildSwipeBackground({required bool isLeftToRight}) {
     return Container(
@@ -361,405 +439,84 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
             ? 'Payment confirmed via transaction ID ${item.transactionReference}. Customer was satisfied.'
             : 'Full settlement for invoice #${item.transactionReference}. Counted and verified twice.');
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Dismissible(
-        key: Key(item.id),
-        background: _buildSwipeBackground(isLeftToRight: true),
-        secondaryBackground: _buildSwipeBackground(isLeftToRight: false),
-        confirmDismiss: (direction) async {
-          final localContext = context;
-          setState(() {
-            _isLoading = true;
-          });
-          try {
-            if (direction == DismissDirection.startToEnd) {
-              // Swipe Right -> Approve
-              await db.approvePayment(item.id);
-              if (localContext.mounted) {
-                _showSnackBar(
-                  localContext,
-                  'Collection of ₹${item.amount.toStringAsFixed(0)} for ${item.customerName} approved successfully!',
-                  true,
-                );
-              }
-              return true;
-            } else {
-              // Swipe Left -> Reject
-              await db.rejectPayment(item.id);
-              if (localContext.mounted) {
-                _showSnackBar(
-                  localContext,
-                  'Collection of ₹${item.amount.toStringAsFixed(0)} rejected.',
-                  false,
-                );
-              }
-              return true;
-            }
-          } catch (e) {
-            if (localContext.mounted) {
-              _showSnackBar(
-                localContext,
-                'Failed to update collection status: ${e.toString().replaceAll('Exception: ', '')}',
-                false,
-              );
-            }
-            return false;
-          } finally {
-            if (mounted) {
-              setState(() {
-                _isLoading = false;
-              });
-            }
-          }
-        },
-        child: CustomBentoCard(
-          padding: 16,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final cardContent = CustomBentoCard(
+      padding: 16,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Card Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Card Header
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: AppTheme.surfaceContainerHigh,
-                        child: Text(
-                          _getAgentInitials(item.agentName),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primary,
-                            fontSize: 14,
-                          ),
-                        ),
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: AppTheme.surfaceContainerHigh,
+                    child: Text(
+                      _getAgentInitials(item.agentName),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primary,
+                        fontSize: 14,
                       ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.agentName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: AppTheme.onSurface,
-                            ),
-                          ),
-                          Text(
-                            'Agent ID: #${item.agentId.toUpperCase()}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.secondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '₹${item.amount.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.primary,
-                          fontSize: 18,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isUpi
-                              ? AppTheme.surfaceContainerHigh
-                              : Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          item.paymentMethod.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: isUpi
-                                ? AppTheme.primary
-                                : Colors.orange.shade800,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Dashed Divider Line
-              const DashedDivider(height: 1, dashWidth: 5, dashGap: 3),
-              const SizedBox(height: 12),
-
-              // Customer / Date Metadata Column Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      final customerList = db.customers.where((c) => c.id == item.customerId);
-                      final Customer? customer = customerList.isNotEmpty ? customerList.first : null;
-                      if (customer != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CustomerDetailsScreen(customer: customer),
-                          ),
-                        );
-                      } else {
-                        CustomFeedback.showToast(
-                          context,
-                          'Customer details not found for ${item.customerName}',
-                          type: 'error',
-                        );
-                      }
-                    },
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'CUSTOMER',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.secondary,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              item.customerName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: AppTheme.primary,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              LucideIcons.info,
-                              size: 13,
-                              color: AppTheme.primary,
-                            ),
-                          ],
-                        ),
-                      ],
                     ),
                   ),
+                  const SizedBox(width: 12),
                   Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'DATE',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.secondary,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
                       Text(
-                        DateFormat('MMM dd, hh:mm a').format(item.timestamp),
+                        item.agentName,
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
                           color: AppTheme.onSurface,
                         ),
                       ),
+                      Text(
+                        'Agent ID: #${item.agentId.toUpperCase()}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.secondary,
+                        ),
+                      ),
                     ],
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
-              // Receipt Image & Comment Row
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  GestureDetector(
-                    onTap: () =>
-                        _showReceiptModal(context, item, imageUrl, comment),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Image.network(
-                            imageUrl,
-                            width: 64,
-                            height: 64,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(
-                                  width: 64,
-                                  height: 64,
-                                  color: AppTheme.surfaceContainerHigh,
-                                  child: const Icon(
-                                    LucideIcons.unlink,
-                                    size: 24,
-                                    color: AppTheme.secondary,
-                                  ),
-                                ),
-                          ),
-                          Container(
-                            width: 64,
-                            height: 64,
-                            color: Colors.black.withOpacity(0.2),
-                          ),
-                          Icon(
-                            isUpi ? LucideIcons.eye : LucideIcons.camera,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ],
-                      ),
+                  Text(
+                    '₹${item.amount.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.primary,
+                      fontSize: 18,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isUpi
+                          ? AppTheme.surfaceContainerHigh
+                          : Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                     child: Text(
-                      '"$comment"',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: AppTheme.onSurfaceVariant,
-                        height: 1.3,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Action Buttons Row
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 44,
-                      child: ElevatedButton.icon(
-                        onPressed: _isLoading ? null : () async {
-                          final localContext = context;
-                          setState(() {
-                            _isLoading = true;
-                          });
-                          try {
-                            await db.approvePayment(item.id);
-                            if (localContext.mounted) {
-                              _showSnackBar(
-                                localContext,
-                                'Collection of ₹${item.amount.toStringAsFixed(0)} for ${item.customerName} approved successfully!',
-                                true,
-                              );
-                            }
-                          } catch (e) {
-                            if (localContext.mounted) {
-                              _showSnackBar(
-                                localContext,
-                                'Failed to approve collection: ${e.toString().replaceAll('Exception: ', '')}',
-                                false,
-                              );
-                            }
-                          } finally {
-                            if (mounted) {
-                              setState(() {
-                                _isLoading = false;
-                              });
-                            }
-                          }
-                        },
-                        icon: const Icon(LucideIcons.check, size: 16),
-                        label: const Text(
-                          'Approve',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade700,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 44,
-                      child: OutlinedButton.icon(
-                        onPressed: _isLoading ? null : () async {
-                          final localContext = context;
-                          setState(() {
-                            _isLoading = true;
-                          });
-                          try {
-                            await db.rejectPayment(item.id);
-                            if (localContext.mounted) {
-                              _showSnackBar(
-                                localContext,
-                                'Collection of ₹${item.amount.toStringAsFixed(0)} rejected.',
-                                false,
-                              );
-                            }
-                          } catch (e) {
-                            if (localContext.mounted) {
-                              _showSnackBar(
-                                localContext,
-                                'Failed to reject collection: ${e.toString().replaceAll('Exception: ', '')}',
-                                false,
-                              );
-                            }
-                          } finally {
-                            if (mounted) {
-                              setState(() {
-                                _isLoading = false;
-                              });
-                            }
-                          }
-                        },
-                        icon: const Icon(
-                          LucideIcons.x,
-                          size: 16,
-                          color: Colors.red,
-                        ),
-                        label: const Text(
-                          'Reject',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: Colors.red,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.red, width: 1.0),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
+                      item.paymentMethod.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: isUpi
+                            ? AppTheme.primary
+                            : Colors.orange.shade800,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ),
@@ -767,9 +524,365 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 12),
+
+          // Dashed Divider Line
+          const DashedDivider(height: 1, dashWidth: 5, dashGap: 3),
+          const SizedBox(height: 12),
+
+          // Customer / Date Metadata Column Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  final customerList = db.customers.where((c) => c.id == item.customerId);
+                  final Customer? customer = customerList.isNotEmpty ? customerList.first : null;
+                  if (customer != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CustomerDetailsScreen(customer: customer),
+                      ),
+                    );
+                  } else {
+                    CustomFeedback.showToast(
+                      context,
+                      'Customer details not found for ${item.customerName}',
+                      type: 'error',
+                    );
+                  }
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'CUSTOMER',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.secondary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          item.customerName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: AppTheme.primary,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          LucideIcons.info,
+                          size: 13,
+                          color: AppTheme.primary,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text(
+                    'DATE',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.secondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    DateFormat('MMM dd, hh:mm a').format(item.timestamp),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Receipt Image & Comment Row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: () =>
+                    _showReceiptModal(context, item, imageUrl, comment),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Image.network(
+                        imageUrl,
+                        width: 64,
+                        height: 64,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Container(
+                              width: 64,
+                              height: 64,
+                              color: AppTheme.surfaceContainerHigh,
+                              child: const Icon(
+                                LucideIcons.unlink,
+                                size: 24,
+                                color: AppTheme.secondary,
+                              ),
+                            ),
+                      ),
+                      Container(
+                        width: 64,
+                        height: 64,
+                        color: Colors.black.withOpacity(0.2),
+                      ),
+                      Icon(
+                        isUpi ? LucideIcons.eye : LucideIcons.camera,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '"$comment"',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    color: AppTheme.onSurfaceVariant,
+                    height: 1.3,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Action Buttons Row
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : () async {
+                      final localContext = context;
+                      setState(() {
+                        _isLoading = true;
+                      });
+                      try {
+                        await db.approvePayment(item.id);
+                        if (localContext.mounted) {
+                          _showSnackBar(
+                            localContext,
+                            'Collection of ₹${item.amount.toStringAsFixed(0)} for ${item.customerName} approved successfully!',
+                            true,
+                          );
+                        }
+                      } catch (e) {
+                        if (localContext.mounted) {
+                          _showSnackBar(
+                            localContext,
+                            'Failed to approve collection: ${e.toString().replaceAll('Exception: ', '')}',
+                            false,
+                          );
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _isLoading = false;
+                          });
+                        }
+                      }
+                    },
+                    icon: const Icon(LucideIcons.check, size: 16),
+                    label: Text(
+                      item.status.toLowerCase() == 'rejected' ? 'Re-Approve' : 'Approve',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade700,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: item.status.toLowerCase() == 'rejected'
+                      ? Container(
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade200, width: 1.0),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(LucideIcons.xCircle, color: Colors.red.shade800, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                'REJECTED',
+                                style: TextStyle(
+                                  color: Colors.red.shade800,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : OutlinedButton.icon(
+                          onPressed: _isLoading ? null : () async {
+                            final localContext = context;
+                            setState(() {
+                              _isLoading = true;
+                            });
+                            try {
+                              await db.rejectPayment(item.id);
+                              if (localContext.mounted) {
+                                _showSnackBar(
+                                  localContext,
+                                  'Collection of ₹${item.amount.toStringAsFixed(0)} rejected.',
+                                  false,
+                                );
+                              }
+                            } catch (e) {
+                              if (localContext.mounted) {
+                                _showSnackBar(
+                                  localContext,
+                                  'Failed to reject collection: ${e.toString().replaceAll('Exception: ', '')}',
+                                  false,
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  _isLoading = false;
+                                });
+                              }
+                            }
+                          },
+                          icon: const Icon(
+                            LucideIcons.x,
+                            size: 16,
+                            color: Colors.red,
+                          ),
+                          label: const Text(
+                            'Reject',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.red,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red, width: 1.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
+
+    if (item.status.toLowerCase() == 'pending') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16.0),
+        child: Dismissible(
+          key: Key(item.id),
+          background: _buildSwipeBackground(isLeftToRight: true),
+          secondaryBackground: _buildSwipeBackground(isLeftToRight: false),
+          confirmDismiss: (direction) async {
+            final localContext = context;
+            setState(() {
+              _isLoading = true;
+            });
+            try {
+              if (direction == DismissDirection.startToEnd) {
+                // Swipe Right -> Approve
+                await db.approvePayment(item.id);
+                if (localContext.mounted) {
+                  _showSnackBar(
+                    localContext,
+                    'Collection of ₹${item.amount.toStringAsFixed(0)} for ${item.customerName} approved successfully!',
+                    true,
+                  );
+                }
+                return true;
+              } else {
+                // Swipe Left -> Reject
+                await db.rejectPayment(item.id);
+                if (localContext.mounted) {
+                  _showSnackBar(
+                    localContext,
+                    'Collection of ₹${item.amount.toStringAsFixed(0)} rejected.',
+                    false,
+                  );
+                }
+                return true;
+              }
+            } catch (e) {
+              if (localContext.mounted) {
+                _showSnackBar(
+                  localContext,
+                  'Failed to update collection status: ${e.toString().replaceAll('Exception: ', '')}',
+                  false,
+                );
+              }
+              return false;
+            } finally {
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            }
+          },
+          child: cardContent,
+        ),
+      );
+    } else {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16.0),
+        child: cardContent,
+      );
+    }
   }
 
   // Interactive Receipt Modal Popup with Checklist verification flow

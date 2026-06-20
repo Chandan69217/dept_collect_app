@@ -736,4 +736,42 @@ class ApiService {
       throw Exception('Network or server error: $e');
     }
   }
+
+  Future<List<Map<String, dynamic>>> getAllAgentAssignments() async {
+    final limit = 2147483647;
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}${ApiConstants.getAgentAssignments}?page=1&limit=$limit',
+    );
+
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${SharedPrefsService.getToken()}',
+          'Accept': 'application/json',
+        },
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {
+        responseData = {};
+      }
+
+      final isSuccess = responseData['success'] ?? false;
+      if (response.statusCode == 200 && isSuccess) {
+        final List<dynamic> data = responseData['data'] ?? [];
+        return data.map((e) => e as Map<String, dynamic>).toList();
+      } else {
+        final message =
+            responseData['message'] ?? 'Failed to load agent assignments.';
+        throw Exception(message);
+      }
+    } on Exception {
+      rethrow;
+    } catch (e) {
+      throw Exception('Network or server error: $e');
+    }
+  }
 }

@@ -62,7 +62,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         final List<Widget> pages = [
           _buildHomeDashboard(context, pendingCount),
           const AgentTrackingScreen(isEmbedded: true),
-          const UploadedFilesScreen(isForCaseAssignment: true, isEmbedded: true),
+          const UploadedFilesScreen(
+            isForCaseAssignment: true,
+            isEmbedded: true,
+          ),
           const VerificationQueueScreen(isEmbedded: true),
         ];
 
@@ -74,9 +77,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               icon: const Icon(LucideIcons.menu, color: AppTheme.primary),
               onPressed: () => _scaffoldKey.currentState?.openDrawer(),
             ),
-            title: const Text(
-              'Agency Admin',
-            ),
+            title: const Text('Agency Admin'),
             actions: [
               // IconButton(
               //   icon: Badge(
@@ -178,7 +179,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final fieldAgents = _db.agents.where((a) => !a.isAdmin).toList();
     final totalAgentsCount = fieldAgents.length;
     final activeAgentsCount = fieldAgents.where((a) => a.isOnline).length;
-    final activeAgentsRatio = totalAgentsCount > 0 ? activeAgentsCount / totalAgentsCount : 0.0;
+    final activeAgentsRatio = totalAgentsCount > 0
+        ? activeAgentsCount / totalAgentsCount
+        : 0.0;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -417,10 +420,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     const SizedBox(width: 16),
                     PerformanceChart(
                       type: ChartType.gauge,
-                      value: _db.totalAssignmentsCount > 0 
-                          ? _db.completedAssignmentsCount / _db.totalAssignmentsCount 
+                      value: _db.totalAssignmentsCount > 0
+                          ? _db.completedAssignmentsCount /
+                                _db.totalAssignmentsCount
                           : 0.0,
-                      centerText: '${(_db.totalAssignmentsCount > 0 ? (_db.completedAssignmentsCount / _db.totalAssignmentsCount) * 100 : 0.0).toStringAsFixed(0)}%',
+                      centerText:
+                          '${(_db.totalAssignmentsCount > 0 ? (_db.completedAssignmentsCount / _db.totalAssignmentsCount) * 100 : 0.0).toStringAsFixed(0)}%',
                     ),
                   ],
                 ),
@@ -719,7 +724,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const UploadedFilesScreen(isForCaseAssignment: false),
+                  builder: (context) =>
+                      const UploadedFilesScreen(isForCaseAssignment: false),
                 ),
               );
             },

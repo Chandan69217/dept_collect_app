@@ -1,6 +1,3 @@
-import 'dart:developer';
-import 'package:intl/intl.dart';
-
 import 'package:dept_collection_app/models/recent_upload_item.dart';
 import 'package:flutter/material.dart';
 import '../models/agent.dart';
@@ -124,25 +121,6 @@ class DatabaseService extends ChangeNotifier {
         'type': 'warning',
       },
     ];
-
-    // 5. Initialize Notifications
-    _notifications = [
-      AppNotification(
-        id: 'not1',
-        title: 'New Case Assigned',
-        body: 'You have been assigned high priority case: Robert Henderson.',
-        timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-        type: 'assignment',
-      ),
-      AppNotification(
-        id: 'not2',
-        title: 'Target Approaching',
-        body:
-            'You are at 82% of your daily collection target. ₹2,241 remaining.',
-        timestamp: DateTime.now().subtract(const Duration(hours: 4)),
-        type: 'alert',
-      ),
-    ];
   }
 
   // Auth Operations
@@ -175,8 +153,8 @@ class DatabaseService extends ChangeNotifier {
           }
 
           final role = isAdmin
-              ? AppConstants.apiRoleAdmin
-              : AppConstants.apiRoleAgent;
+              ? AppConstants.roleAdmin
+              : AppConstants.roleAgent;
 
           // Store user details in prefs
           final Map<String, dynamic> storedUser = Map<String, dynamic>.from(
@@ -219,16 +197,17 @@ class DatabaseService extends ChangeNotifier {
                 sessionData['region']?.toString() ??
                 sessionData['zone']?.toString() ??
                 'Default Zone',
-            assignedTarget: isResponseAdmin ? 0.0 : 15000.0,
+            assignedTarget: 0.0,
             collectedAmount: 0.0,
-            casesCount: isResponseAdmin ? 0 : 5,
-            pendingVisitsCount: isResponseAdmin ? 0 : 3,
+            casesCount: 0,
+            pendingVisitsCount: 0,
             isAdmin: isResponseAdmin,
             isOnline: true,
             email: sessionData['email'] ?? '',
             phone: sessionData['mobile'] ?? '',
             address: sessionData['address'] ?? '',
             permissions: parsedPermissions,
+            joinDate: DateTime.now(),
           );
 
           _isLoggedIn = true;
@@ -238,6 +217,8 @@ class DatabaseService extends ChangeNotifier {
             fetchAgentAssignments(_currentUser!.id).catchError((e) {
               debugPrint('Error pre-fetching agent assignments: $e');
             });
+          } else {
+            fetchRecentUploads();
           }
           return true;
         }
@@ -256,7 +237,8 @@ class DatabaseService extends ChangeNotifier {
       final userData = SharedPrefsService.getUserData();
       if (token != null && userData != null) {
         _isLoggedIn = true;
-        final isAdmin = userData['role'] == AppConstants.apiRoleAdmin;
+
+        final isAdmin = userData['role'] == AppConstants.roleAdmin;
         _currentRole = isAdmin
             ? AppConstants.roleAdmin
             : AppConstants.roleAgent;
@@ -278,7 +260,10 @@ class DatabaseService extends ChangeNotifier {
 
         _currentUser = Agent(
           id:
-              (userData['admin_id'] ?? userData['agent_id'])?.toString() ??
+              (isAdmin
+                      ? userData['admin_id'] ?? ''
+                      : userData['agent_id'] ?? '')
+                  ?.toString() ??
               'unknown',
           name: fullName,
           avatarUrl: avatarUrl,
@@ -286,22 +271,25 @@ class DatabaseService extends ChangeNotifier {
               userData['region']?.toString() ??
               userData['zone']?.toString() ??
               'Default Zone',
-          assignedTarget: isAdmin ? 0.0 : 15000.0,
+          assignedTarget: 0.0,
           collectedAmount: 0.0,
-          casesCount: isAdmin ? 0 : 5,
-          pendingVisitsCount: isAdmin ? 0 : 3,
+          casesCount: 0,
+          pendingVisitsCount: 0,
           isAdmin: isAdmin,
           isOnline: true,
           email: userData['email'] ?? '',
           phone: userData['mobile'] ?? '',
           address: userData['address'] ?? '',
           permissions: parsedPermissions,
+          joinDate: DateTime.now(),
         );
 
         if (!isAdmin) {
           fetchAgentAssignments(_currentUser!.id).catchError((e) {
             debugPrint('Error auto-login pre-fetching agent assignments: $e');
           });
+        } else {
+          fetchRecentUploads();
         }
       }
     }
@@ -348,9 +336,8 @@ class DatabaseService extends ChangeNotifier {
 
     if (assignmentId != null) {
       final now = DateTime.now();
-      final formattedDate =
-          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
-      
+      final formattedDate = AppConstants.dateFormat.format(now);
+
       await _apiService.updateAssignment(
         assignmentId: assignmentId,
         scheduleDate: formattedDate,
@@ -367,8 +354,8 @@ class DatabaseService extends ChangeNotifier {
       id: txnId,
       customerId: customerId,
       customerName: customer.name,
-      agentId: _currentUser?.id ?? 'miller',
-      agentName: _currentUser?.name ?? 'Agent Miller',
+      agentId: _currentUser?.id ?? '',
+      agentName: _currentUser?.name ?? 'Agent',
       amount: amount,
       paymentMethod: method,
       transactionReference: reference,
@@ -399,7 +386,10 @@ class DatabaseService extends ChangeNotifier {
         }
         return a;
       }).toList();
-      _currentUser = _agents.firstWhere((a) => a.id == _currentUser!.id, orElse: () => _currentUser!);
+      _currentUser = _agents.firstWhere(
+        (a) => a.id == _currentUser!.id,
+        orElse: () => _currentUser!,
+      );
     }
 
     // Add activity for Admin Feed
@@ -429,9 +419,9 @@ class DatabaseService extends ChangeNotifier {
     final int? assignmentId = int.tryParse(recordId) ?? customer?.assignmentId;
 
     if (assignmentId != null) {
-      final scheduleDateFormatted = DateFormat(
-        'yyyy-MM-dd HH:mm:ss',
-      ).format(customer?.scheduledVisit ?? record.timestamp);
+      final scheduleDateFormatted = AppConstants.dateFormat.format(
+        customer?.scheduledVisit ?? record.timestamp,
+      );
       await _apiService.updateAssignment(
         assignmentId: assignmentId,
         scheduleDate: scheduleDateFormatted,
@@ -522,9 +512,9 @@ class DatabaseService extends ChangeNotifier {
     final int? assignmentId = int.tryParse(recordId) ?? customer?.assignmentId;
 
     if (assignmentId != null) {
-      final scheduleDateFormatted = DateFormat(
-        'yyyy-MM-dd HH:mm:ss',
-      ).format(customer?.scheduledVisit ?? record.timestamp);
+      final scheduleDateFormatted = AppConstants.dateFormat.format(
+        customer?.scheduledVisit ?? record.timestamp,
+      );
       await _apiService.updateAssignment(
         assignmentId: assignmentId,
         scheduleDate: scheduleDateFormatted,
@@ -532,7 +522,7 @@ class DatabaseService extends ChangeNotifier {
             'Rejected by Admin: Invalid ${record.paymentMethod} payment verification.',
         paymentCollection: record.amount,
         paymentMethod: record.paymentMethod,
-        approvedImg: record.receiptImagePath ?? 'receipt.jpg',
+        approvedImg: record.receiptImagePath ?? '',
         status: 'Rejected',
       );
     }
@@ -592,8 +582,7 @@ class DatabaseService extends ChangeNotifier {
     final int? assignmentId = customer.assignmentId;
 
     if (assignmentId != null) {
-      final formattedDate =
-          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} 12:00:00";
+      final formattedDate = AppConstants.dateFormat.format(date);
 
       await _apiService.updateAssignment(
         assignmentId: assignmentId,
@@ -653,8 +642,7 @@ class DatabaseService extends ChangeNotifier {
 
     // Format date as yyyy-MM-dd HH:mm:ss
     final now = DateTime.now();
-    final formattedDate =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
+    final formattedDate = AppConstants.dateFormat.format(now);
 
     // Call API
     await _apiService.assignRecord(
@@ -831,7 +819,8 @@ class DatabaseService extends ChangeNotifier {
     // Check matching criteria (satisfies "and all other records of customers")
     bool matchesTarget(Customer c) {
       if (c.id == customerId) return true;
-      if (nameToMatch.isNotEmpty && c.name.trim().toLowerCase() == nameToMatch) {
+      if (nameToMatch.isNotEmpty &&
+          c.name.trim().toLowerCase() == nameToMatch) {
         return true;
       }
       if (phoneToMatch.isNotEmpty && c.phone.trim() == phoneToMatch) {
@@ -1037,7 +1026,7 @@ class DatabaseService extends ChangeNotifier {
     final agentMatches = _agents.where((a) => a.id == agentId);
 
     if (agentMatches.isEmpty) {
-      log('Agent not found: $agentId');
+      debugPrint('Agent not found: $agentId');
       return;
     }
 
@@ -1376,6 +1365,7 @@ class DatabaseService extends ChangeNotifier {
         final email = data['email'] ?? '';
         final phone = data['mobile'] ?? data['phone'] ?? '';
         final status = data['status'] ?? 'Active';
+        final createdAt = data['created_at'] ?? "";
         final isOnline = status.toLowerCase() == 'active';
         final avatarUrl =
             'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=00328A&color=fff&size=150';
@@ -1399,8 +1389,8 @@ class DatabaseService extends ChangeNotifier {
             name: name,
             avatarUrl: avatarUrl,
             zone: region,
-            assignedTarget: 15000.0,
-            collectedAmount: 0.0,
+            assignedTarget: 0,
+            collectedAmount: 0,
             casesCount: 0,
             pendingVisitsCount: 0,
             isAdmin: false,
@@ -1408,6 +1398,8 @@ class DatabaseService extends ChangeNotifier {
             email: email,
             phone: phone,
             permissions: parsedPermissions,
+            address: "",
+            joinDate: DateTime.tryParse(createdAt) ?? DateTime.now(),
           ),
         );
       }
@@ -1460,8 +1452,11 @@ class DatabaseService extends ChangeNotifier {
           tempRejectedCount++;
         }
 
-        // If status is "In Progress" or "Pending", it represents a payment verification pending request!
-        if (statusLower == 'in progress' || statusLower == 'pending_verification' || statusLower == 'pending') {
+        // If status is "In Progress", "Pending", or "Rejected", it represents a payment request (either pending or rejected)
+        if (statusLower == 'in progress' ||
+            statusLower == 'pending_verification' ||
+            statusLower == 'pending' ||
+            statusLower == 'rejected') {
           final recordId = assignment['record_id']?.toString() ?? '';
           final agentData = assignment['agent'] as Map?;
           final agentId =
@@ -1517,8 +1512,7 @@ class DatabaseService extends ChangeNotifier {
                     assignment['schedule_date']?.toString() ?? '',
                   ) ??
                   DateTime.now(),
-              status:
-                  'Pending', // PENDING status means it shows in the verification queue!
+              status: statusLower == 'rejected' ? 'Rejected' : 'Pending',
             ),
           );
         }
@@ -1560,8 +1554,8 @@ class DatabaseService extends ChangeNotifier {
 
   Future<void> fetchAgentAssignments(String agentId) async {
     try {
-      final List<Map<String, dynamic>> assignmentsData =
-          await _apiService.getAgentAssignments(agentId);
+      final List<Map<String, dynamic>> assignmentsData = await _apiService
+          .getAgentAssignments(agentId);
 
       List<Customer> agentCustomers = [];
       List<PaymentRecord> personalPayments = [];
@@ -1592,7 +1586,9 @@ class DatabaseService extends ChangeNotifier {
         }
 
         // Parse collection history if a payment is present or case is completed/closed
-        if (amount > 0.0 || customer.status == 'Completed' || customer.status == 'Closed') {
+        if (amount > 0.0 ||
+            customer.status == 'Completed' ||
+            customer.status == 'Closed') {
           final recordId = assignment['record_id']?.toString() ?? '';
           final agentData = assignment['agent'] as Map?;
           final method = assignment['payment_method']?.toString() ?? 'Cash';

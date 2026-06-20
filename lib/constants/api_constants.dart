@@ -14,5 +14,6 @@ class ApiConstants {
   static const String createAssignment = '/api/assignments/create';
   static const String getAllAssignments = '/api/assignments/all';
   static const String getAgentAssignments = '/api/assignments/agent';
+  static const String getAllAgentAssignments = '/api/assignments/all';
   static const String updateRecordPriority = '/api/excel-file/record-status';
 }

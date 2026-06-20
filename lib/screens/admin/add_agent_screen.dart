@@ -674,6 +674,7 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
           isOnline: true,
           email: email,
           phone: phone,
+          joinDate: DateTime.now(),
           permissions: _fieldPermissions,
         );
 

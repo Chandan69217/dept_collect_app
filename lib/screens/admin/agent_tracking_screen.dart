@@ -9,10 +9,7 @@ import 'agent_profile_screen.dart';
 class AgentTrackingScreen extends StatefulWidget {
   final bool isEmbedded;
 
-  const AgentTrackingScreen({
-    super.key,
-    this.isEmbedded = false,
-  });
+  const AgentTrackingScreen({super.key, this.isEmbedded = false});
 
   @override
   State<AgentTrackingScreen> createState() => _AgentTrackingScreenState();
@@ -21,7 +18,8 @@ class AgentTrackingScreen extends StatefulWidget {
 class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
   final _db = DatabaseService();
   String _searchQuery = '';
-  String _selectedZoneFilter = 'ALL'; // 'ALL', 'Mumbai Metro Area', 'Mumbai South', 'Mumbai West'
+  String _selectedZoneFilter =
+      'ALL'; // 'ALL', 'Mumbai Metro Area', 'Mumbai South', 'Mumbai West'
   bool _isLoading = false;
 
   @override
@@ -60,16 +58,20 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
       listenable: _db,
       builder: (context, child) {
         // Filter out admin, only track field agents
-        final List<dynamic> fieldAgents = _db.agents.where((a) => !a.isAdmin).toList();
+        final List<dynamic> fieldAgents = _db.agents
+            .where((a) => !a.isAdmin)
+            .toList();
 
         // Apply filters
         final filteredAgents = fieldAgents.where((agent) {
           final query = _searchQuery.toLowerCase();
-          final matchesSearch = agent.name.toLowerCase().contains(query) ||
+          final matchesSearch =
+              agent.name.toLowerCase().contains(query) ||
               agent.id.toLowerCase().contains(query) ||
               agent.zone.toLowerCase().contains(query);
 
-          final matchesZone = _selectedZoneFilter == 'ALL' || agent.zone == _selectedZoneFilter;
+          final matchesZone =
+              _selectedZoneFilter == 'ALL' || agent.zone == _selectedZoneFilter;
 
           return matchesSearch && matchesZone;
         }).toList();
@@ -84,7 +86,10 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
               ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 20.0,
+                ),
                 children: [
                   // Hero Header
                   Column(
@@ -92,7 +97,8 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                     children: [
                       Text(
                         'Agent Performance',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w800,
                               color: AppTheme.onSurface,
                             ),
@@ -100,7 +106,10 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                       const SizedBox(height: 4),
                       const Text(
                         'Real-time productivity and collection tracking for field agents.',
-                        style: TextStyle(fontSize: 13, color: AppTheme.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -115,8 +124,15 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                     },
                     decoration: InputDecoration(
                       hintText: 'Find agent by name or ID...',
-                      prefixIcon: const Icon(LucideIcons.search, size: 20, color: AppTheme.outline),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      prefixIcon: const Icon(
+                        LucideIcons.search,
+                        size: 20,
+                        color: AppTheme.outline,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
                       fillColor: const Color(0xFFF1F3F9),
                       filled: true,
                       border: OutlineInputBorder(
@@ -129,7 +145,10 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                        borderSide: const BorderSide(
+                          color: AppTheme.primary,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
@@ -160,11 +179,18 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 48.0),
                             child: Column(
                               children: [
-                                Icon(LucideIcons.headset, size: 56, color: AppTheme.outline.withOpacity(0.4)),
+                                Icon(
+                                  LucideIcons.headset,
+                                  size: 56,
+                                  color: AppTheme.outline.withOpacity(0.4),
+                                ),
                                 const SizedBox(height: 12),
                                 const Text(
                                   'No field agents found matching filters.',
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondary),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.secondary,
+                                  ),
                                 ),
                               ],
                             ),
@@ -174,7 +200,8 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: filteredAgents.length,
-                          separatorBuilder: (context, index) => const SizedBox(height: 12),
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final agent = filteredAgents[index];
                             return _buildAgentCard(agent);
@@ -192,11 +219,7 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
         return Scaffold(
           backgroundColor: AppTheme.background,
           appBar: AppBar(
-
-            title: const Text(
-              'Field Agents Productivity Cockpit',
-
-            ),
+            title: const Text('Field Agents Productivity Cockpit'),
           ),
           body: scaffoldBody,
         );
@@ -239,15 +262,35 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
         : (agent.collectedAmount / agent.assignedTarget);
 
     // Dynamic color maps
-    final Color pctColor = agent.isOnline ? AppTheme.primary : AppTheme.secondary;
-    final Color progressFillColor = agent.isOnline ? AppTheme.primary : AppTheme.outlineVariant;
+    final Color pctColor = agent.isOnline
+        ? AppTheme.primary
+        : AppTheme.secondary;
+    final Color progressFillColor = agent.isOnline
+        ? AppTheme.primary
+        : AppTheme.outlineVariant;
 
     // Greyscale Matrix filter for offline avatars
     final grayscaleFilter = const ColorFilter.matrix([
-      0.2126, 0.7152, 0.0722, 0, 0,
-      0.2126, 0.7152, 0.0722, 0, 0,
-      0.2126, 0.7152, 0.0722, 0, 0,
-      0,      0,      0,      1, 0,
+      0.2126,
+      0.7152,
+      0.0722,
+      0,
+      0,
+      0.2126,
+      0.7152,
+      0.0722,
+      0,
+      0,
+      0.2126,
+      0.7152,
+      0.0722,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
     ]);
 
     return CustomBentoCard(
@@ -261,7 +304,9 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
         );
       },
       child: Opacity(
-        opacity: agent.isOnline ? 1.0 : 0.75, // Lower opacity for offline state matching Stitch specs
+        opacity: agent.isOnline
+            ? 1.0
+            : 0.75, // Lower opacity for offline state matching Stitch specs
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -282,13 +327,17 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                             agent.isOnline
                                 ? CircleAvatar(
                                     radius: 24,
-                                    backgroundImage: NetworkImage(agent.avatarUrl),
+                                    backgroundImage: NetworkImage(
+                                      agent.avatarUrl,
+                                    ),
                                   )
                                 : ColorFiltered(
                                     colorFilter: grayscaleFilter,
                                     child: CircleAvatar(
                                       radius: 24,
-                                      backgroundImage: NetworkImage(agent.avatarUrl),
+                                      backgroundImage: NetworkImage(
+                                        agent.avatarUrl,
+                                      ),
                                     ),
                                   ),
                             if (agent.isOnline)
@@ -307,7 +356,10 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                                   decoration: BoxDecoration(
                                     color: AppTheme.outlineVariant,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 1.5),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1.5,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -331,7 +383,10 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                                 'ID: #${agent.id.toUpperCase()} • ${agent.zone}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11, color: AppTheme.onSurfaceVariant),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ),
@@ -349,7 +404,9 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          color: agent.isOnline ? AppTheme.success : AppTheme.secondary,
+                          color: agent.isOnline
+                              ? AppTheme.success
+                              : AppTheme.secondary,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -359,7 +416,9 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: agent.isOnline ? AppTheme.primary : AppTheme.onSurfaceVariant,
+                          color: agent.isOnline
+                              ? AppTheme.primary
+                              : AppTheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -376,7 +435,11 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                     children: [
                       const Text(
                         'Achievement Target',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.onSurfaceVariant,
+                        ),
                       ),
                       Text(
                         '${(targetPercentage * 100).toStringAsFixed(0)}%',
@@ -395,7 +458,9 @@ class _AgentTrackingScreenState extends State<AgentTrackingScreen> {
                       value: targetPercentage > 1.0 ? 1.0 : targetPercentage,
                       minHeight: 4,
                       backgroundColor: const Color(0xFFEFF4FF),
-                      valueColor: AlwaysStoppedAnimation<Color>(progressFillColor),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        progressFillColor,
+                      ),
                     ),
                   ),
                 ],
@@ -415,7 +480,8 @@ class _StatusPulseIndicator extends StatefulWidget {
   State<_StatusPulseIndicator> createState() => _StatusPulseIndicatorState();
 }
 
-class _StatusPulseIndicatorState extends State<_StatusPulseIndicator> with SingleTickerProviderStateMixin {
+class _StatusPulseIndicatorState extends State<_StatusPulseIndicator>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override

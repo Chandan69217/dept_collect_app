@@ -14,26 +14,6 @@ class CustomerDetailsScreen extends StatelessWidget {
 
   const CustomerDetailsScreen({super.key, required this.customer});
 
-  String _formatDate(DateTime date, String customerId) {
-    if (customerId == 'cust_robert') {
-      return '10 Oct 2023';
-    }
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
-  }
 
   String _formatCurrency(double amount) {
     if (!_hasPermission('amountDue')) {
@@ -42,12 +22,6 @@ class CustomerDetailsScreen extends StatelessWidget {
     return '₹${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
   }
 
-  String _getTotalLoan(String customerId) {
-    if (customerId == 'cust_robert') {
-      return '₹8,50,000';
-    }
-    return '₹2,50,000'; // Default mock total loan
-  }
 
   bool _hasPermission(String fieldKey) {
     final user = DatabaseService().currentUser;
@@ -64,35 +38,38 @@ class CustomerDetailsScreen extends StatelessWidget {
     return value;
   }
 
-  String _getAssetModel(dynamic customer) {
-    if (!_hasPermission('assetModel')) {
-      return '••••';
-    }
-    try {
-      return customer.assetModel;
-    } catch (_) {
-      return customer.id == 'cust_robert' ? 'Sedan X' : 'SUV Sport';
-    }
-  }
 
-  String _getAssetRegNo(dynamic customer) {
-    if (!_hasPermission('assetRegNo')) {
-      return '••••';
-    }
-    try {
-      return customer.assetRegNo;
-    } catch (_) {
-      return customer.id == 'cust_robert' ? '#DL-04-CH-9821' : '#MH-02-AB-4321';
-    }
-  }
-
-  String _getAddress(dynamic customer) {
-    if (!_hasPermission('address')) {
-      return '••••••••';
-    }
-    return customer.id == 'cust_robert'
-        ? '452, Park Avenue, Block C, Green Meadows, South Delhi, Delhi - 110024'
-        : customer.address;
+  Widget _buildAssetRow({
+    required String label,
+    required String value,
+    bool isMasked = false,
+    String? fieldName,
+  }) {
+    return Column(
+      children: [
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(color: AppTheme.secondary),
+              ),
+              Text(
+                isMasked && fieldName != null
+                    ? _getMaskedText(fieldName, value)
+                    : value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -182,13 +159,6 @@ class CustomerDetailsScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
                   children: [
-                    Text(
-                      _getMaskedText('name', currentCust.name),
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     CircleAvatar(
                       radius: 16,
                       backgroundColor: AppTheme.primaryContainer,
@@ -282,7 +252,7 @@ class CustomerDetailsScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      'Loan ID: #L-8829-X01',
+                                      _getMaskedText("name", currentCust.name),
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -502,10 +472,7 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         ),
                                       ),
                                       Text(
-                                        _formatDate(
-                                          currentCust.dueDate,
-                                          currentCust.id,
-                                        ),
+                                        _getMaskedText("overdueDays", AppConstants.dateFormat.format( currentCust.dueDate).split(',').first),
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
@@ -541,7 +508,7 @@ class CustomerDetailsScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 4),
                                      Text(
-                                       !_hasPermission('amountDue') ? '••••' : _getTotalLoan(currentCust.id),
+                                       !_hasPermission('amountDue') ? '••••' : _formatCurrency(currentCust.amountDue),
                                        style: const TextStyle(
                                         color: AppTheme.primary,
                                         fontWeight: FontWeight.bold,
@@ -613,44 +580,36 @@ class CustomerDetailsScreen extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 12),
-                          const Divider(height: 1),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Model',
-                                  style: TextStyle(color: AppTheme.secondary),
-                                ),
-                                Text(
-                                  _getAssetModel(currentCust),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          _buildAssetRow(
+                            label: "Model",
+                            value: currentCust.assetModel,
+                            isMasked: true,
+                            fieldName: 'assetModel'
                           ),
-                          const Divider(height: 1),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Reg No.',
-                                  style: TextStyle(color: AppTheme.secondary),
-                                ),
-                                Text(
-                                  _getAssetRegNo(currentCust),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
+
+                          _buildAssetRow(
+                            label: "Reg No.",
+                            value: currentCust.assetRegNo,
+                            isMasked: true,
+                            fieldName: 'assetRegNo'
                           ),
+
+                          _buildAssetRow(
+                            label: "Variant",
+                            value: currentCust.assetVariant,
+                            isMasked: true,
+                            fieldName: 'assetVariant'
+                          ),
+
+                          _buildAssetRow(
+                            label: "Engine No.",
+                            value: currentCust.engineNumber,
+                            isMasked: true,
+                            fieldName: 'engineNumber'
+                          ),
+
+
+
                         ],
                       ),
                     ),
@@ -686,7 +645,7 @@ class CustomerDetailsScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
-                                  _getAddress(currentCust),
+                                  _getMaskedText('address',currentCust.address),
                                   style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(
                                         color: AppTheme.onSurfaceVariant,
@@ -747,7 +706,7 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         );
                                         return;
                                       }
-                                      final address = _getAddress(currentCust);
+                                      final address = _getMaskedText("address",currentCust.address);
                                       final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
                                       try {
                                         final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -790,62 +749,64 @@ class CustomerDetailsScreen extends StatelessWidget {
                     const SizedBox(height: 16),
 
                     // 5. Notes History Log
-                    CustomBentoCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'VISIT FEEDBACK HISTORY',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.0,
-                                ),
-                          ),
-                          const SizedBox(height: 12),
-                          if (currentCust.notes.isEmpty)
-                            const Text(
-                              'No comments logged for this case yet.',
-                              style: TextStyle(
-                                fontStyle: FontStyle.italic,
-                                fontSize: 12,
-                              ),
-                            )
-                          else
-                            ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: currentCust.notes.length,
-                              itemBuilder: (context, index) {
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 4,
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        '• ',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: AppTheme.primary,
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Text(
-                                          currentCust.notes[index],
-                                          style: const TextStyle(fontSize: 13),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
+                   if(_hasPermission('accessHistory'))...[
+                     CustomBentoCard(
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                           Text(
+                             'VISIT FEEDBACK HISTORY',
+                             style: Theme.of(context).textTheme.labelSmall
+                                 ?.copyWith(
+                               fontWeight: FontWeight.bold,
+                               letterSpacing: 1.0,
+                             ),
+                           ),
+                           const SizedBox(height: 12),
+                           if (currentCust.notes.isEmpty)
+                             const Text(
+                               'No comments logged for this case yet.',
+                               style: TextStyle(
+                                 fontStyle: FontStyle.italic,
+                                 fontSize: 12,
+                               ),
+                             )
+                           else
+                             ListView.builder(
+                               shrinkWrap: true,
+                               physics: const NeverScrollableScrollPhysics(),
+                               itemCount: currentCust.notes.length,
+                               itemBuilder: (context, index) {
+                                 return Padding(
+                                   padding: const EdgeInsets.symmetric(
+                                     vertical: 4,
+                                   ),
+                                   child: Row(
+                                     crossAxisAlignment:
+                                     CrossAxisAlignment.start,
+                                     children: [
+                                       const Text(
+                                         '• ',
+                                         style: TextStyle(
+                                           fontWeight: FontWeight.bold,
+                                           color: AppTheme.primary,
+                                         ),
+                                       ),
+                                       Expanded(
+                                         child: Text(
+                                           currentCust.notes[index],
+                                           style: const TextStyle(fontSize: 13),
+                                         ),
+                                       ),
+                                     ],
+                                   ),
+                                 );
+                               },
+                             ),
+                         ],
+                       ),
+                     ),
+                   ]
                   ],
                 ),
               ),

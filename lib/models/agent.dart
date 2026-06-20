@@ -13,6 +13,7 @@ class Agent {
   final String phone;
   final String address;
   final Map<String, bool> permissions;
+  final DateTime joinDate;
 
   const Agent({
     required this.id,
@@ -23,12 +24,14 @@ class Agent {
     required this.collectedAmount,
     required this.casesCount,
     required this.pendingVisitsCount,
+    required this.joinDate,
     this.isAdmin = false,
     this.isOnline = true,
     this.email = '',
     this.phone = '',
     this.address = '',
     this.permissions = const {},
+
   });
 
   Agent copyWith({
@@ -44,6 +47,7 @@ class Agent {
     bool? isOnline,
     String? email,
     String? phone,
+    DateTime? joinDate,
     String? address,
     Map<String, bool>? permissions,
   }) {
@@ -61,6 +65,7 @@ class Agent {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       address: address ?? this.address,
+      joinDate: joinDate ?? this.joinDate,
       permissions: permissions ?? this.permissions,
     );
   }

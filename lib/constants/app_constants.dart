@@ -2,12 +2,12 @@ import 'package:intl/intl.dart';
 
 class AppConstants {
   // Roles
-  static const String roleAdmin = 'ADMIN';
-  static const String roleAgent = 'AGENT';
+  static const String roleAdmin = 'admin';
+  static const String roleAgent = 'agent';
 
   // API Role keys
-  static const String apiRoleAdmin = 'admin';
-  static const String apiRoleAgent = 'agent';
+  // static const String apiRoleAdmin = 'admin';
+  // static const String apiRoleAgent = 'agent';
 
   // Statuses
   static const String statusActive = 'active';
