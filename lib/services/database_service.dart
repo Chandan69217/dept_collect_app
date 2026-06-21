@@ -1,5 +1,6 @@
 import 'package:dept_collection_app/models/recent_upload_item.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/agent.dart';
 import '../models/customer.dart';
 import '../models/payment_record.dart';
@@ -336,8 +337,8 @@ class DatabaseService extends ChangeNotifier {
 
     if (assignmentId != null) {
       final now = DateTime.now();
-      final formattedDate = AppConstants.dateFormat.format(now);
-
+      final formattedDate =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
       await _apiService.updateAssignment(
         assignmentId: assignmentId,
         scheduleDate: formattedDate,
@@ -419,9 +420,9 @@ class DatabaseService extends ChangeNotifier {
     final int? assignmentId = int.tryParse(recordId) ?? customer?.assignmentId;
 
     if (assignmentId != null) {
-      final scheduleDateFormatted = AppConstants.dateFormat.format(
-        customer?.scheduledVisit ?? record.timestamp,
-      );
+      final scheduleDateFormatted = DateFormat(
+        'yyyy-MM-dd HH:mm:ss',
+      ).format(customer?.scheduledVisit ?? record.timestamp);
       await _apiService.updateAssignment(
         assignmentId: assignmentId,
         scheduleDate: scheduleDateFormatted,
@@ -512,9 +513,10 @@ class DatabaseService extends ChangeNotifier {
     final int? assignmentId = int.tryParse(recordId) ?? customer?.assignmentId;
 
     if (assignmentId != null) {
-      final scheduleDateFormatted = AppConstants.dateFormat.format(
-        customer?.scheduledVisit ?? record.timestamp,
-      );
+      final scheduleDateFormatted = DateFormat(
+        'yyyy-MM-dd HH:mm:ss',
+      ).format(customer?.scheduledVisit ?? record.timestamp);
+
       await _apiService.updateAssignment(
         assignmentId: assignmentId,
         scheduleDate: scheduleDateFormatted,
@@ -582,11 +584,9 @@ class DatabaseService extends ChangeNotifier {
     final int? assignmentId = customer.assignmentId;
 
     if (assignmentId != null) {
-      final formattedDate = AppConstants.dateFormat.format(date);
-
       await _apiService.updateAssignment(
         assignmentId: assignmentId,
-        scheduleDate: formattedDate,
+        scheduleDate: date.toString(),
         remarks: remarks,
         paymentCollection: 0.0,
         paymentMethod: 'Cash',
@@ -642,8 +642,8 @@ class DatabaseService extends ChangeNotifier {
 
     // Format date as yyyy-MM-dd HH:mm:ss
     final now = DateTime.now();
-    final formattedDate = AppConstants.dateFormat.format(now);
-
+    final formattedDate =
+        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
     // Call API
     await _apiService.assignRecord(
       recordId: int.tryParse(customerId) ?? 0,
@@ -1358,6 +1358,46 @@ class DatabaseService extends ChangeNotifier {
     try {
       final List<Map<String, dynamic>> agentsData = await _apiService
           .getAllAgents();
+
+      // Fetch all assignments to calculate metrics per agent
+      List<Map<String, dynamic>> assignmentsData = [];
+      try {
+        assignmentsData = await _apiService.getAllAgentAssignments();
+      } catch (e) {
+        debugPrint('Error fetching all agent assignments in fetchAgentsFromApi: $e');
+      }
+
+      // Map to hold aggregated metrics per agent ID
+      final Map<String, Map<String, dynamic>> agentMetrics = {};
+
+      for (var assignment in assignmentsData) {
+        final customer = Customer.fromJson(assignment);
+        final agentId = customer.assignedAgentId;
+        if (agentId.isEmpty) continue;
+
+        if (!agentMetrics.containsKey(agentId)) {
+          agentMetrics[agentId] = {
+            'casesCount': 0,
+            'assignedTarget': 0.0,
+            'collectedAmount': 0.0,
+            'pendingVisitsCount': 0,
+          };
+        }
+
+        final metrics = agentMetrics[agentId]!;
+        metrics['casesCount'] = (metrics['casesCount'] as int) + 1;
+        metrics['assignedTarget'] = (metrics['assignedTarget'] as double) + customer.amountDue;
+
+        final amount = double.tryParse(assignment['payment_collection']?.toString() ?? '') ?? 0.0;
+        if (customer.status == 'Completed' || customer.status == 'Closed') {
+          metrics['collectedAmount'] = (metrics['collectedAmount'] as double) + amount;
+        }
+
+        if (customer.status == 'Assigned' || customer.status == 'Rejected') {
+          metrics['pendingVisitsCount'] = (metrics['pendingVisitsCount'] as int) + 1;
+        }
+      }
+
       final List<Agent> apiAgents = [];
       for (var data in agentsData) {
         final id = (data['agent_id'] ?? data['id'])?.toString() ?? '';
@@ -1383,16 +1423,23 @@ class DatabaseService extends ChangeNotifier {
           });
         }
 
+        final metrics = agentMetrics[id] ?? {
+          'casesCount': 0,
+          'assignedTarget': 0.0,
+          'collectedAmount': 0.0,
+          'pendingVisitsCount': 0,
+        };
+
         apiAgents.add(
           Agent(
             id: id,
             name: name,
             avatarUrl: avatarUrl,
             zone: region,
-            assignedTarget: 0,
-            collectedAmount: 0,
-            casesCount: 0,
-            pendingVisitsCount: 0,
+            assignedTarget: metrics['assignedTarget'] as double,
+            collectedAmount: metrics['collectedAmount'] as double,
+            casesCount: metrics['casesCount'] as int,
+            pendingVisitsCount: metrics['pendingVisitsCount'] as int,
             isAdmin: false,
             isOnline: isOnline,
             email: email,

@@ -8,10 +8,7 @@ import '../../widgets/custom_feedback.dart';
 class RecordPaymentSheet extends StatefulWidget {
   final dynamic customer;
 
-  const RecordPaymentSheet({
-    super.key,
-    required this.customer,
-  });
+  const RecordPaymentSheet({super.key, required this.customer});
 
   @override
   State<RecordPaymentSheet> createState() => _RecordPaymentSheetState();
@@ -48,10 +45,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
   }
 
   String _formatCurrency(double amount) {
-    return '₹${amount.toStringAsFixed(2).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    )}';
+    return '₹${amount.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
   }
 
   String _formatDate(DateTime date, String customerId) {
@@ -59,8 +53,18 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
       return '12 Oct 2023';
     }
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
@@ -158,12 +162,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
       ),
-      padding: EdgeInsets.fromLTRB(
-        16,
-        16,
-        16,
-        16 + keyboardOffset,
-      ),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + keyboardOffset),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -218,7 +217,10 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
                         ],
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.errorContainer,
                           borderRadius: BorderRadius.circular(4),
@@ -323,7 +325,9 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
                   Expanded(
                     child: TextField(
                       controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -397,7 +401,10 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                  borderSide: const BorderSide(
+                    color: AppTheme.primary,
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -425,30 +432,42 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
               borderRadius: BorderRadius.circular(12),
               child: CustomPaint(
                 painter: _DashedBorderPainter(
-                  color: _receiptUploaded ? AppTheme.success : AppTheme.outlineVariant,
+                  color: _receiptUploaded
+                      ? AppTheme.success
+                      : AppTheme.outlineVariant,
                 ),
                 child: Container(
                   height: 96,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: _receiptUploaded ? AppTheme.successContainer.withOpacity(0.2) : Colors.white,
+                    color: _receiptUploaded
+                        ? AppTheme.successContainer.withOpacity(0.2)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        _receiptUploaded ? LucideIcons.circleCheck : LucideIcons.camera,
-                        color: _receiptUploaded ? AppTheme.success : AppTheme.secondary,
+                        _receiptUploaded
+                            ? LucideIcons.circleCheck
+                            : LucideIcons.camera,
+                        color: _receiptUploaded
+                            ? AppTheme.success
+                            : AppTheme.secondary,
                         size: 32,
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        _receiptUploaded ? 'RECEIPT ATTACHED' : 'TAP TO CAPTURE RECEIPT',
+                        _receiptUploaded
+                            ? 'RECEIPT ATTACHED'
+                            : 'TAP TO CAPTURE RECEIPT',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: _receiptUploaded ? AppTheme.success : AppTheme.secondary,
+                          color: _receiptUploaded
+                              ? AppTheme.success
+                              : AppTheme.secondary,
                         ),
                       ),
                     ],
@@ -531,7 +550,9 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? AppTheme.primaryContainer.withOpacity(0.1) : AppTheme.surfaceContainerLowest,
+            color: isSelected
+                ? AppTheme.primaryContainer.withOpacity(0.1)
+                : AppTheme.surfaceContainerLowest,
             border: Border.all(
               color: isSelected ? AppTheme.primary : AppTheme.outlineVariant,
               width: isSelected ? 2.0 : 1.0,

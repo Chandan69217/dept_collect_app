@@ -740,7 +740,7 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getAllAgentAssignments() async {
     final limit = 2147483647;
     final url = Uri.parse(
-      '${ApiConstants.baseUrl}${ApiConstants.getAgentAssignments}?page=1&limit=$limit',
+      '${ApiConstants.baseUrl}${ApiConstants.getAllAgentAssignments}?page=1&limit=$limit',
     );
 
     try {

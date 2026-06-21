@@ -4,7 +4,6 @@ import '../../theme/app_theme.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_bento_card.dart';
 import '../shared/login_screen.dart';
-import 'security_settings.dart';
 import 'agent_edit_profile_screen.dart';
 import '../../widgets/custom_feedback.dart';
 import '../../config/field_mapping.dart';
@@ -21,7 +20,6 @@ class AgentProfileScreen extends StatefulWidget {
 class _AgentProfileScreenState extends State<AgentProfileScreen>
     with SingleTickerProviderStateMixin {
   final db = DatabaseService();
-  bool _pushNotificationsEnabled = true;
   late AnimationController _radialController;
 
   @override
