@@ -14,14 +14,12 @@ class CustomerDetailsScreen extends StatelessWidget {
 
   const CustomerDetailsScreen({super.key, required this.customer});
 
-
   String _formatCurrency(double amount) {
     if (!_hasPermission('amountDue')) {
       return '••••';
     }
     return '₹${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
   }
-
 
   bool _hasPermission(String fieldKey) {
     final user = DatabaseService().currentUser;
@@ -38,7 +36,6 @@ class CustomerDetailsScreen extends StatelessWidget {
     return value;
   }
 
-
   Widget _buildAssetRow({
     required String label,
     required String value,
@@ -53,17 +50,12 @@ class CustomerDetailsScreen extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                label,
-                style: const TextStyle(color: AppTheme.secondary),
-              ),
+              Text(label, style: const TextStyle(color: AppTheme.secondary)),
               Text(
                 isMasked && fieldName != null
                     ? _getMaskedText(fieldName, value)
                     : value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -87,8 +79,11 @@ class CustomerDetailsScreen extends StatelessWidget {
 
         final bool isAdmin = db.currentRole == AppConstants.roleAdmin;
 
-        final bool isPaid = currentCust.status == AppConstants.statusPaid || currentCust.status == AppConstants.statusClosed;
-        final bool isPending = currentCust.status == AppConstants.statusPendingVerification;
+        final bool isPaid =
+            currentCust.status == AppConstants.statusPaid ||
+            currentCust.status == AppConstants.statusClosed;
+        final bool isPending =
+            currentCust.status == AppConstants.statusPendingVerification;
 
         // Extract initials for the avatar
         final initials = currentCust.name
@@ -123,7 +118,9 @@ class CustomerDetailsScreen extends StatelessWidget {
                       context: context,
                       builder: (context) => AlertDialog(
                         title: const Text('Remove Assignment'),
-                        content: const Text('Are you sure you want to remove this assignment from your queue?'),
+                        content: const Text(
+                          'Are you sure you want to remove this assignment from your queue?',
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
@@ -136,19 +133,30 @@ class CustomerDetailsScreen extends StatelessWidget {
                                 await db.unassignCase(currentCust.id);
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Assignment removed successfully.')),
+                                    const SnackBar(
+                                      content: Text(
+                                        'Assignment removed successfully.',
+                                      ),
+                                    ),
                                   );
                                   Navigator.pop(context);
                                 }
                               } catch (e) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Failed to remove assignment: $e')),
+                                    SnackBar(
+                                      content: Text(
+                                        'Failed to remove assignment: $e',
+                                      ),
+                                    ),
                                   );
                                 }
                               }
                             },
-                            child: const Text('Remove', style: TextStyle(color: AppTheme.error)),
+                            child: const Text(
+                              'Remove',
+                              style: TextStyle(color: AppTheme.error),
+                            ),
                           ),
                         ],
                       ),
@@ -206,7 +214,9 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: currentCust.priority == AppConstants.priorityHigh
+                                        color:
+                                            currentCust.priority ==
+                                                AppConstants.priorityHigh
                                             ? AppTheme.errorContainer
                                             : AppTheme.warningContainer,
                                         borderRadius: BorderRadius.circular(99),
@@ -218,18 +228,22 @@ class CustomerDetailsScreen extends StatelessWidget {
                                             LucideIcons.alertTriangle,
                                             size: 12,
                                             color:
-                                                currentCust.priority == AppConstants.priorityHigh
+                                                currentCust.priority ==
+                                                    AppConstants.priorityHigh
                                                 ? AppTheme.error
                                                 : AppTheme.warning,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            !_hasPermission('priority') ? '•••• Priority' : '${currentCust.priority == AppConstants.priorityHigh ? 'High' : 'Medium'} Priority',
+                                            !_hasPermission('priority')
+                                                ? '•••• Priority'
+                                                : '${currentCust.priority == AppConstants.priorityHigh ? 'High' : 'Medium'} Priority',
                                             style: TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.bold,
                                               color:
-                                                  currentCust.priority == AppConstants.priorityHigh
+                                                  currentCust.priority ==
+                                                      AppConstants.priorityHigh
                                                   ? AppTheme.error
                                                   : AppTheme.warning,
                                             ),
@@ -309,7 +323,10 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         return;
                                       }
 
-                                      final Uri phoneUri = Uri(scheme: 'tel', path: phone);
+                                      final Uri phoneUri = Uri(
+                                        scheme: 'tel',
+                                        path: phone,
+                                      );
                                       try {
                                         if (await canLaunchUrl(phoneUri)) {
                                           await launchUrl(phoneUri);
@@ -370,7 +387,9 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         );
                                         return;
                                       }
-                                      final phone = currentCust.phone.trim().replaceAll(RegExp(r'\D'), '');
+                                      final phone = currentCust.phone
+                                          .trim()
+                                          .replaceAll(RegExp(r'\D'), '');
                                       if (phone.isEmpty) {
                                         CustomFeedback.showToast(
                                           context,
@@ -383,15 +402,26 @@ class CustomerDetailsScreen extends StatelessWidget {
                                       if (phone.length == 10) {
                                         cleanPhone = '91$phone';
                                       }
-                                      final url = Uri.parse('https://wa.me/$cleanPhone');
+                                      final url = Uri.parse(
+                                        'https://wa.me/$cleanPhone',
+                                      );
                                       try {
-                                        final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+                                        final launched = await launchUrl(
+                                          url,
+                                          mode: LaunchMode.externalApplication,
+                                        );
                                         if (!launched) {
-                                          await launchUrl(url, mode: LaunchMode.platformDefault);
+                                          await launchUrl(
+                                            url,
+                                            mode: LaunchMode.platformDefault,
+                                          );
                                         }
                                       } catch (e) {
                                         try {
-                                          await launchUrl(url, mode: LaunchMode.platformDefault);
+                                          await launchUrl(
+                                            url,
+                                            mode: LaunchMode.platformDefault,
+                                          );
                                         } catch (e2) {
                                           if (context.mounted) {
                                             CustomFeedback.showToast(
@@ -472,7 +502,13 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         ),
                                       ),
                                       Text(
-                                        _getMaskedText("overdueDays", AppConstants.dateFormat.format( currentCust.dueDate).split(',').first),
+                                        _getMaskedText(
+                                          "overdueDays",
+                                          AppConstants.dateFormat
+                                              .format(currentCust.dueDate)
+                                              .split(',')
+                                              .first,
+                                        ),
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
@@ -507,9 +543,13 @@ class CustomerDetailsScreen extends StatelessWidget {
                                           ),
                                     ),
                                     const SizedBox(height: 4),
-                                     Text(
-                                       !_hasPermission('amountDue') ? '••••' : _formatCurrency(currentCust.amountDue),
-                                       style: const TextStyle(
+                                    Text(
+                                      !_hasPermission('amountDue')
+                                          ? '••••'
+                                          : _formatCurrency(
+                                              currentCust.amountDue,
+                                            ),
+                                      style: const TextStyle(
                                         color: AppTheme.primary,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 18,
@@ -584,32 +624,29 @@ class CustomerDetailsScreen extends StatelessWidget {
                             label: "Model",
                             value: currentCust.assetModel,
                             isMasked: true,
-                            fieldName: 'assetModel'
+                            fieldName: 'assetModel',
                           ),
 
                           _buildAssetRow(
                             label: "Reg No.",
                             value: currentCust.assetRegNo,
                             isMasked: true,
-                            fieldName: 'assetRegNo'
+                            fieldName: 'assetRegNo',
                           ),
 
                           _buildAssetRow(
                             label: "Variant",
                             value: currentCust.assetVariant,
                             isMasked: true,
-                            fieldName: 'assetVariant'
+                            fieldName: 'assetVariant',
                           ),
 
                           _buildAssetRow(
                             label: "Engine No.",
                             value: currentCust.engineNumber,
                             isMasked: true,
-                            fieldName: 'engineNumber'
+                            fieldName: 'engineNumber',
                           ),
-
-
-
                         ],
                       ),
                     ),
@@ -645,7 +682,10 @@ class CustomerDetailsScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
-                                  _getMaskedText('address',currentCust.address),
+                                  _getMaskedText(
+                                    'address',
+                                    currentCust.address,
+                                  ),
                                   style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(
                                         color: AppTheme.onSurfaceVariant,
@@ -706,16 +746,30 @@ class CustomerDetailsScreen extends StatelessWidget {
                                         );
                                         return;
                                       }
-                                      final address = _getMaskedText("address",currentCust.address);
-                                      final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
+                                      final address = _getMaskedText(
+                                        "address",
+                                        currentCust.address,
+                                      );
+                                      final url = Uri.parse(
+                                        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}',
+                                      );
                                       try {
-                                        final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+                                        final launched = await launchUrl(
+                                          url,
+                                          mode: LaunchMode.externalApplication,
+                                        );
                                         if (!launched) {
-                                          await launchUrl(url, mode: LaunchMode.platformDefault);
+                                          await launchUrl(
+                                            url,
+                                            mode: LaunchMode.platformDefault,
+                                          );
                                         }
                                       } catch (e) {
                                         try {
-                                          await launchUrl(url, mode: LaunchMode.platformDefault);
+                                          await launchUrl(
+                                            url,
+                                            mode: LaunchMode.platformDefault,
+                                          );
                                         } catch (e2) {
                                           if (context.mounted) {
                                             CustomFeedback.showToast(
@@ -749,64 +803,66 @@ class CustomerDetailsScreen extends StatelessWidget {
                     const SizedBox(height: 16),
 
                     // 5. Notes History Log
-                   if(_hasPermission('accessHistory'))...[
-                     CustomBentoCard(
-                       child: Column(
-                         crossAxisAlignment: CrossAxisAlignment.start,
-                         children: [
-                           Text(
-                             'VISIT FEEDBACK HISTORY',
-                             style: Theme.of(context).textTheme.labelSmall
-                                 ?.copyWith(
-                               fontWeight: FontWeight.bold,
-                               letterSpacing: 1.0,
-                             ),
-                           ),
-                           const SizedBox(height: 12),
-                           if (currentCust.notes.isEmpty)
-                             const Text(
-                               'No comments logged for this case yet.',
-                               style: TextStyle(
-                                 fontStyle: FontStyle.italic,
-                                 fontSize: 12,
-                               ),
-                             )
-                           else
-                             ListView.builder(
-                               shrinkWrap: true,
-                               physics: const NeverScrollableScrollPhysics(),
-                               itemCount: currentCust.notes.length,
-                               itemBuilder: (context, index) {
-                                 return Padding(
-                                   padding: const EdgeInsets.symmetric(
-                                     vertical: 4,
-                                   ),
-                                   child: Row(
-                                     crossAxisAlignment:
-                                     CrossAxisAlignment.start,
-                                     children: [
-                                       const Text(
-                                         '• ',
-                                         style: TextStyle(
-                                           fontWeight: FontWeight.bold,
-                                           color: AppTheme.primary,
-                                         ),
-                                       ),
-                                       Expanded(
-                                         child: Text(
-                                           currentCust.notes[index],
-                                           style: const TextStyle(fontSize: 13),
-                                         ),
-                                       ),
-                                     ],
-                                   ),
-                                 );
-                               },
-                             ),
-                         ],
-                       ),
-                     ),
-                   ]
+                    if (_hasPermission('accessHistory')) ...[
+                      CustomBentoCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'VISIT FEEDBACK HISTORY',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.0,
+                                  ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (currentCust.notes.isEmpty)
+                              const Text(
+                                'No comments logged for this case yet.',
+                                style: TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  fontSize: 12,
+                                ),
+                              )
+                            else
+                              ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: currentCust.notes.length,
+                                itemBuilder: (context, index) {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          '• ',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.primary,
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            currentCust.notes[index],
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -818,44 +874,106 @@ class CustomerDetailsScreen extends StatelessWidget {
                   left: 0,
                   width: MediaQuery.of(context).size.width,
                   child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    border: Border(
-                      top: BorderSide(color: AppTheme.outlineVariant, width: 1),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      border: Border(
+                        top: BorderSide(
+                          color: AppTheme.outlineVariant,
+                          width: 1,
+                        ),
+                      ),
                     ),
-                  ),
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    12,
-                    16,
-                    12 + MediaQuery.of(context).padding.bottom,
-                  ),
-                  child: Row(
-                    children: [
-                      // Record Collection
-                      Expanded(
-                        child: SizedBox(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      12,
+                      16,
+                      12 + MediaQuery.of(context).padding.bottom,
+                    ),
+                    child: Row(
+                      children: [
+                        // Record Collection
+                        Expanded(
+                          child: SizedBox(
+                            height: 50,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isPaid
+                                    ? AppTheme.success
+                                    : (isPending
+                                          ? AppTheme.warning
+                                          : AppTheme.primary),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppTheme.radiusLarge,
+                                  ),
+                                ),
+                              ),
+                              onPressed: () {
+                                if (isPaid) return;
+                                if (!_hasPermission('approvePartial')) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'You do not have permission to collect payments.',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) =>
+                                      RecordPaymentSheet(customer: currentCust),
+                                );
+                              },
+                              icon: Icon(
+                                isPaid
+                                    ? LucideIcons.circleCheck
+                                    : LucideIcons.banknote,
+                              ),
+                              label: Text(
+                                isPaid
+                                    ? 'EMI Settled'
+                                    : (isPending
+                                          ? 'Approval Processing...'
+                                          : 'Record Collection'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Schedule calendar
+                        SizedBox(
+                          width: 56,
                           height: 50,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isPaid
-                                  ? AppTheme.success
-                                  : (isPending
-                                        ? AppTheme.warning
-                                        : AppTheme.primary),
-                              foregroundColor: Colors.white,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: AppTheme.primary,
+                              foregroundColor: AppTheme.background,
+                              side: const BorderSide(
+                                color: AppTheme.outlineVariant,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(
                                   AppTheme.radiusLarge,
                                 ),
                               ),
+                              padding: EdgeInsets.zero,
                             ),
                             onPressed: () {
-                              if (isPaid) return;
-                              if (!_hasPermission('approvePartial')) {
+                              if (!_hasPermission('editDetails')) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('You do not have permission to collect payments.'),
+                                    content: Text(
+                                      'You do not have permission to schedule follow-up visits.',
+                                    ),
                                   ),
                                 );
                                 return;
@@ -863,73 +981,19 @@ class CustomerDetailsScreen extends StatelessWidget {
                               showModalBottomSheet(
                                 context: context,
                                 isScrollControlled: true,
+                                useSafeArea: true,
                                 backgroundColor: Colors.transparent,
                                 builder: (context) =>
-                                    RecordPaymentSheet(customer: currentCust),
+                                    ScheduleVisitSheet(customer: currentCust),
                               );
                             },
-                            icon: Icon(
-                              isPaid
-                                  ? LucideIcons.circleCheck
-                                  : LucideIcons.banknote,
-                            ),
-                            label: Text(
-                              isPaid
-                                  ? 'EMI Settled'
-                                  : (isPending
-                                        ? 'Approval Processing...'
-                                        : 'Record Collection'),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
+                            child: const Icon(LucideIcons.calendarClock),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Schedule calendar
-                      SizedBox(
-                        width: 56,
-                        height: 50,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: AppTheme.surfaceContainerHigh,
-                            foregroundColor: AppTheme.primary,
-                            side: const BorderSide(
-                              color: AppTheme.outlineVariant,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusLarge,
-                              ),
-                            ),
-                            padding: EdgeInsets.zero,
-                          ),
-                          onPressed: () {
-                            if (!_hasPermission('editDetails')) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('You do not have permission to schedule follow-up visits.'),
-                                ),
-                              );
-                              return;
-                            }
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) =>
-                                  ScheduleVisitSheet(customer: currentCust),
-                            );
-                          },
-                          child: const Icon(LucideIcons.calendarClock),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         );

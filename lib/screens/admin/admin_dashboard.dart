@@ -14,7 +14,6 @@ import 'upload_data_screen.dart';
 import 'uploaded_files_screen.dart';
 import 'add_agent_screen.dart';
 import '../agent/agent_edit_profile_screen.dart';
-import '../../widgets/custom_feedback.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -143,6 +142,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
               setState(() {
                 _currentIndex = index;
               });
+              if (index == 0) {
+                _fetchAgents();
+              }
             },
             items: [
               const CustomBottomBarItem(
@@ -183,11 +185,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ? activeAgentsCount / totalAgentsCount
         : 0.0;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    final double lastMonthBaseline = 50000.0;
+    final double percentChangeVal = lastMonthBaseline > 0
+        ? ((displayedTotalRecovery - lastMonthBaseline) / lastMonthBaseline * 100)
+        : 0.0;
+    final String percentChangeText = percentChangeVal >= 0
+        ? '+${percentChangeVal.toStringAsFixed(0)}% from last month'
+        : '${percentChangeVal.toStringAsFixed(0)}% from last month';
+    final Color trendColor = percentChangeVal >= 0 ? Colors.green : AppTheme.error;
+    final IconData trendIcon = percentChangeVal >= 0 ? LucideIcons.trendingUp : LucideIcons.trendingDown;
+
+    return RefreshIndicator(
+      onRefresh: _fetchAgents,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Header
           Text(
             'Admin Dashboard',
@@ -252,17 +267,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Icon(
-                          LucideIcons.trendingUp,
-                          color: Colors.green,
+                        Icon(
+                          trendIcon,
+                          color: trendColor,
                           size: 16,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          '+12% from last month',
+                          percentChangeText,
                           style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
-                                color: Colors.green,
+                                color: trendColor,
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
@@ -500,10 +515,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
               TextButton(
                 onPressed: () {
-                  CustomFeedback.showToast(
-                    context,
-                    'See All Activities Logged.',
-                  );
+                  _showAllActivitiesBottomSheet(context);
                 },
                 child: const Text('See All', style: TextStyle(fontSize: 12)),
               ),
@@ -595,8 +607,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
           const SizedBox(height: 80),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildDrawer(BuildContext context, dynamic admin) {
     return Drawer(
@@ -814,6 +827,146 @@ class _AdminDashboardState extends State<AdminDashboard> {
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  void _showAllActivitiesBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Real-Time Activity Feed',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primary,
+                        ),
+                  ),
+                  IconButton(
+                    icon: const Icon(LucideIcons.x),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListenableBuilder(
+                  listenable: _db,
+                  builder: (context, child) {
+                    if (_db.activityFeed.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No activities logged yet.',
+                          style: TextStyle(color: AppTheme.secondary),
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      itemCount: _db.activityFeed.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final act = _db.activityFeed[index];
+                        IconData icon;
+                        Color color;
+                        Color bg;
+
+                        if (act['type'] == 'success') {
+                          icon = LucideIcons.circleCheck;
+                          color = AppTheme.success;
+                          bg = AppTheme.successContainer;
+                        } else if (act['type'] == 'warning') {
+                          icon = LucideIcons.hourglass;
+                          color = AppTheme.warning;
+                          bg = AppTheme.warningContainer;
+                        } else if (act['type'] == 'error') {
+                          icon = LucideIcons.circleAlert;
+                          color = AppTheme.error;
+                          bg = AppTheme.errorContainer;
+                        } else {
+                          icon = LucideIcons.logIn;
+                          color = AppTheme.primary;
+                          bg = AppTheme.primaryContainer.withOpacity(0.1);
+                        }
+
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: AppTheme.outlineVariant),
+                            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: bg,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(icon, color: color, size: 18),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      act['title'] ?? '',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      act['subtitle'] ?? '',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme.secondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                act['time'] ?? '',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppTheme.secondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

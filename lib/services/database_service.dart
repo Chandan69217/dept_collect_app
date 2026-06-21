@@ -584,9 +584,10 @@ class DatabaseService extends ChangeNotifier {
     final int? assignmentId = customer.assignmentId;
 
     if (assignmentId != null) {
+      final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(date);
       await _apiService.updateAssignment(
         assignmentId: assignmentId,
-        scheduleDate: date.toString(),
+        scheduleDate: formattedDate,
         remarks: remarks,
         paymentCollection: 0.0,
         paymentMethod: 'Cash',

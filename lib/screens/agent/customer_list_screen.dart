@@ -232,55 +232,43 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: Container(
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(color: AppTheme.outlineVariant),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: TextField(
-                            onChanged: (val) {
-                              setState(() {
-                                _searchQuery = val;
-                              });
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Search customers by name or ID...',
-                              prefixIcon: const Icon(
-                                LucideIcons.search,
+                        child: TextField(
+                          onChanged: (val) {
+                            setState(() {
+                              _searchQuery = val;
+                            });
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Search customers by name or ID...',
+                            prefixIcon: const Icon(
+                              LucideIcons.search,
+                              color: AppTheme.outline,
+                            ),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                              icon: const Icon(
+                                LucideIcons.x,
+                                size: 18,
                                 color: AppTheme.outline,
                               ),
-                              suffixIcon: _searchQuery.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(
-                                        LucideIcons.x,
-                                        size: 18,
-                                        color: AppTheme.outline,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _searchQuery = '';
-                                        });
-                                      },
-                                    )
-                                  : null,
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                              ),
-                            ),
+                              onPressed: () {
+                                setState(() {
+                                  _searchQuery = '';
+                                });
+                              },
+                            )
+                                : null,
+
+
                           ),
-                        ),
+                        )
                       ),
                       const SizedBox(width: 12),
                       SizedBox(
                         height: 48,
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            backgroundColor: AppTheme.surfaceContainerHigh,
+                            // backgroundColor: AppTheme.surfaceContainerHigh,
                             foregroundColor: AppTheme.primary,
                             side: const BorderSide(
                               color: AppTheme.outlineVariant,

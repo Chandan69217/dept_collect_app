@@ -8,6 +8,7 @@ import '../../services/api_service.dart';
 import '../../widgets/custom_feedback.dart';
 import '../../constants/app_constants.dart';
 import '../../models/agent.dart';
+import '../../config/field_mapping.dart';
 
 class AddAgentScreen extends StatefulWidget {
   const AddAgentScreen({super.key});
@@ -30,23 +31,19 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
   String? _selectedRegion;
 
   // Toggle values
-  bool _recordPayments = true;
-  bool _modifyLedgers = false;
-  bool _accessSensitive = false;
+  bool _accessHistory = true;
+  bool _approvePartial = false;
+  bool _deleteRecords = false;
 
-  final Map<String, bool> _fieldPermissions = {
-    'name': true,
-    'assetRegNo': true,
-    'engineNumber': true,
-    'chasisNumber': true,
-    'assetVariant': true,
-    'assetModel': true,
-    'amountDue': true,
-    'overdueDays': true,
-    'address': true,
-    'phone': true,
-    'priority': true,
-  };
+  late final Map<String, bool> _fieldPermissions;
+
+  @override
+  void initState() {
+    super.initState();
+    _fieldPermissions = {
+      for (var key in ExcelFieldMapping.mapping.keys) key: false,
+    };
+  }
 
   // Form states
   bool _obscurePassword = true;
@@ -431,31 +428,31 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Switch 1: Record Payments
+                    // Switch 1: Access Collections History
                     _buildFormPermissionRow(
-                      LucideIcons.banknote,
-                      'Record Payments',
-                      'Allow agent to finalize collection entries',
-                      _recordPayments,
-                      (val) => setState(() => _recordPayments = val),
+                      LucideIcons.history,
+                      'Access Collections History',
+                      'Allow agent to view historical ledger data and previous transaction attempts for all assigned debtors.',
+                      _accessHistory,
+                      (val) => setState(() => _accessHistory = val),
                     ),
 
-                    // Switch 2: Modify Ledgers
+                    // Switch 2: Approve Partial Payments
                     _buildFormPermissionRow(
-                      LucideIcons.notebookPen,
-                      'Modify Ledgers',
-                      'Update primary debt record details',
-                      _modifyLedgers,
-                      (val) => setState(() => _modifyLedgers = val),
+                      LucideIcons.percent,
+                      'Approve Partial Payments',
+                      'Enable authorization for payment plans and partial settlements without immediate supervisor override.',
+                      _approvePartial,
+                      (val) => setState(() => _approvePartial = val),
                     ),
 
-                    // Switch 3: Access Sensitive Data
+                    // Switch 3: Remove Assigned Records
                     _buildFormPermissionRow(
-                      LucideIcons.shieldCheck,
-                      'Access Sensitive Data',
-                      'View full financial history of debtors',
-                      _accessSensitive,
-                      (val) => setState(() => _accessSensitive = val),
+                      LucideIcons.trash2,
+                      'Remove Assigned Records',
+                      'Allows agents to remove assigned customer records from the system.',
+                      _deleteRecords,
+                      (val) => setState(() => _deleteRecords = val),
                     ),
                   ],
                 ),
@@ -622,9 +619,9 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
 
       try {
         final apiService = ApiService();
-        _fieldPermissions['recordPayments'] = _recordPayments;
-        _fieldPermissions['modifyLedgers'] = _modifyLedgers;
-        _fieldPermissions['accessSensitive'] = _accessSensitive;
+        _fieldPermissions['accessHistory'] = _accessHistory;
+        _fieldPermissions['approvePartial'] = _approvePartial;
+        _fieldPermissions['deleteRecords'] = _deleteRecords;
         final response = await apiService.createAgent(
           adminId: adminId,
           fullName: inputName,
@@ -666,7 +663,7 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
           name: inputName,
           avatarUrl: randAvatar,
           zone: finalZone,
-          assignedTarget: 15000.0,
+          assignedTarget: 0,
           collectedAmount: 0.0,
           casesCount: 0,
           pendingVisitsCount: 0,
@@ -744,7 +741,8 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                     children: [
                       Text(
                         'Field Visibility Permissions',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AppTheme.primary,
                             ),
@@ -769,7 +767,14 @@ class _AddAgentScreenState extends State<AddAgentScreen> {
                       shrinkWrap: true,
                       children: _fieldPermissions.keys.map((fieldKey) {
                         // Create a user friendly label from key
-                        final label = fieldKey[0].toUpperCase() + fieldKey.substring(1).replaceAllMapped(RegExp(r'[A-Z]'), (match) => ' ${match.group(0)}');
+                        final label =
+                            fieldKey[0].toUpperCase() +
+                            fieldKey
+                                .substring(1)
+                                .replaceAllMapped(
+                                  RegExp(r'[A-Z]'),
+                                  (match) => ' ${match.group(0)}',
+                                );
                         return SwitchListTile(
                           title: Text(
                             label,

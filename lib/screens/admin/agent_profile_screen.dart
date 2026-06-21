@@ -331,7 +331,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> {
                         ),
                         SizedBox(width: 4),
                         Text(
-                          '+12% this month',
+                          'this month',
                           style: TextStyle(
                             fontSize: 10,
                             color: Colors.green,

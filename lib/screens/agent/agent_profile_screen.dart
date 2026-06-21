@@ -22,6 +22,10 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
   final db = DatabaseService();
   late AnimationController _radialController;
 
+  String _formatCurrency(double amount) {
+    return '₹${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +54,23 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
             ? 0.0
             : (agent.collectedAmount / agent.assignedTarget);
         final String metPercent = (percentage * 100).toStringAsFixed(0);
+
+        final int completedCases = agent.casesCount - agent.pendingVisitsCount;
+        final double score = agent.casesCount == 0
+            ? 100.0
+            : (completedCases > 0
+                  ? (completedCases / agent.casesCount) * 100.0
+                  : 0.0);
+        final String scorePercent = '${score.toStringAsFixed(1)}%';
+
+        final Color scoreColor = score >= 80.0
+            ? const Color(0xFF2E7D32)
+            : (score >= 50.0 ? AppTheme.warning : AppTheme.error);
+        final Color scoreBgColor = score >= 80.0
+            ? const Color(0xFFE8F5E9)
+            : (score >= 50.0
+                  ? AppTheme.warningContainer
+                  : AppTheme.errorContainer);
 
         final content = SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -106,27 +127,79 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(
-                                      agent.avatarUrl,
-                                      width: 62,
-                                      height: 62,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (
-                                            context,
-                                            error,
-                                            stackTrace,
-                                          ) => Container(
+                                    child: agent.avatarUrl.isNotEmpty
+                                        ? Image.network(
+                                            agent.avatarUrl,
                                             width: 62,
                                             height: 62,
-                                            color: AppTheme.surfaceContainerLow,
-                                            child: const Icon(
-                                              LucideIcons.user,
-                                              color: AppTheme.secondary,
-                                              size: 24,
-                                            ),
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                                  final initials =
+                                                      agent.name
+                                                          .trim()
+                                                          .isNotEmpty
+                                                      ? agent.name
+                                                            .trim()
+                                                            .split(
+                                                              RegExp(r'\s+'),
+                                                            )
+                                                            .map(
+                                                              (s) => s[0]
+                                                                  .toUpperCase(),
+                                                            )
+                                                            .take(2)
+                                                            .join()
+                                                      : 'A';
+                                                  return Container(
+                                                    width: 62,
+                                                    height: 62,
+                                                    color: AppTheme.primary
+                                                        .withOpacity(0.08),
+                                                    alignment: Alignment.center,
+                                                    child: Text(
+                                                      initials,
+                                                      style: const TextStyle(
+                                                        fontSize: 20,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: AppTheme.primary,
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                          )
+                                        : Builder(
+                                            builder: (context) {
+                                              final initials =
+                                                  agent.name.trim().isNotEmpty
+                                                  ? agent.name
+                                                        .trim()
+                                                        .split(RegExp(r'\s+'))
+                                                        .map(
+                                                          (s) => s[0]
+                                                              .toUpperCase(),
+                                                        )
+                                                        .take(2)
+                                                        .join()
+                                                  : 'A';
+                                              return Container(
+                                                width: 62,
+                                                height: 62,
+                                                color: AppTheme.primary
+                                                    .withOpacity(0.08),
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  initials,
+                                                  style: const TextStyle(
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppTheme.primary,
+                                                  ),
+                                                ),
+                                              );
+                                            },
                                           ),
-                                    ),
                                   ),
                                 ),
                               ),
@@ -192,7 +265,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                                       ),
                                     ),
                                     child: Text(
-                                      'DCP-88429-XM',
+                                      'DCP-${agent.id.toUpperCase()}',
                                       style: Theme.of(context)
                                           .textTheme
                                           .labelSmall
@@ -211,15 +284,19 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                                       vertical: 3,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFE8F5E9),
+                                      color: agent.isOnline
+                                          ? const Color(0xFFE8F5E9)
+                                          : const Color(0xFFECEFF1),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
-                                    child: const Text(
-                                      'ACTIVE',
+                                    child: Text(
+                                      agent.isOnline ? 'ACTIVE' : 'OFFLINE',
                                       style: TextStyle(
                                         fontSize: 8,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF2E7D32),
+                                        color: agent.isOnline
+                                            ? const Color(0xFF2E7D32)
+                                            : const Color(0xFF546E7A),
                                       ),
                                     ),
                                   ),
@@ -266,7 +343,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                                     ),
                                   ),
                                   Text(
-                                    'North East',
+                                    agent.zone,
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
@@ -291,14 +368,14 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFE8F5E9),
+                                decoration: BoxDecoration(
+                                  color: scoreBgColor,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   LucideIcons.star,
                                   size: 16,
-                                  color: Color(0xFF2E7D32),
+                                  color: scoreColor,
                                 ),
                               ),
                               const SizedBox(width: 10),
@@ -315,13 +392,13 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                                     ),
                                   ),
                                   Text(
-                                    '98.4%',
+                                    scorePercent,
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
                                         ?.copyWith(
                                           fontWeight: FontWeight.bold,
-                                          color: const Color(0xFF2E7D32),
+                                          color: scoreColor,
                                         ),
                                   ),
                                 ],
@@ -352,7 +429,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(
-                              LucideIcons.pinOff,
+                              LucideIcons.calendarClock,
                               color: AppTheme.primary,
                               size: 18,
                             ),
@@ -364,7 +441,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Text(
-                                  'Visits Today',
+                                  'Pending Visits',
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: AppTheme.secondary,
@@ -376,7 +453,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '14',
+                                  agent.pendingVisitsCount.toString(),
                                   style: Theme.of(context).textTheme.titleLarge
                                       ?.copyWith(
                                         fontWeight: FontWeight.bold,
@@ -428,7 +505,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '₹12,450',
+                                  _formatCurrency(agent.collectedAmount),
                                   style: Theme.of(context).textTheme.titleLarge
                                       ?.copyWith(
                                         fontWeight: FontWeight.bold,
@@ -476,9 +553,9 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                             ),
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            '82% Achieved',
-                            style: TextStyle(
+                          Text(
+                            '$metPercent% Achieved',
+                            style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -582,19 +659,16 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                       agent.permissions['accessHistory'] ?? false,
                     ),
                     _buildClearanceRow(
-                      'Edit Customer Details',
+                      'Customer Schedule Visit',
                       agent.permissions['editDetails'] ?? false,
                     ),
                     _buildClearanceRow(
                       'Approve Partial Payments',
                       agent.permissions['approvePartial'] ?? false,
                     ),
+
                     _buildClearanceRow(
-                      'Export Data Logs',
-                      agent.permissions['exportData'] ?? false,
-                    ),
-                    _buildClearanceRow(
-                      'Delete Local Records',
+                      'Remove Assigned Records',
                       agent.permissions['deleteRecords'] ?? false,
                     ),
 
@@ -835,7 +909,7 @@ class _AgentProfileScreenState extends State<AgentProfileScreen>
                     message:
                         'This will terminate your secure offline data caching and log out ${db.currentUser?.name ?? 'user'} from this terminal.',
                     type: 'error',
-                    confirmLabel: 'TERMINATE SESSION',
+                    confirmLabel: 'TERMINATE',
                     onConfirm: () {
                       db.logout();
                       Navigator.of(context).pushAndRemoveUntil(
