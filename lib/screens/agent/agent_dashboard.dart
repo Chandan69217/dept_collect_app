@@ -84,6 +84,16 @@ class _AgentDashboardState extends State<AgentDashboard> {
     return false;
   }
 
+  String _formatLicensePlate(String raw) {
+    final clean = raw.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+    final regex = RegExp(r'^([A-Z]{2})(\d{2})([A-Z]{1,2})(\d{4})$');
+    final match = regex.firstMatch(clean);
+    if (match != null) {
+      return '${match.group(1)} ${match.group(2)} ${match.group(3)}${match.group(4)}';
+    }
+    return raw.toUpperCase();
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -1070,14 +1080,43 @@ class _AgentDashboardState extends State<AgentDashboard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isPaid
+                                ? AppTheme.outlineVariant.withOpacity(0.4)
+                                : const Color(0xFFFFFBEB), // Amber 50
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: isPaid
+                                  ? AppTheme.outline
+                                  : const Color(0xFFFBBF24), // Amber 300
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            customer.assetRegNo.isNotEmpty
+                                ? _formatLicensePlate(customer.assetRegNo)
+                                : 'NO REG NO',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: isPaid
+                                  ? AppTheme.secondary
+                                  : const Color(0xFF78350F), // Amber 900
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
                         Text(
                           customer.name,
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isPaid
-                                ? AppTheme.secondary
-                                : AppTheme.onSurface,
+                            fontSize: 13,
+                            color: AppTheme.secondary,
                             decoration: isPaid
                                 ? TextDecoration.lineThrough
                                 : null,
