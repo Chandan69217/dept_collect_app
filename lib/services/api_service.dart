@@ -302,8 +302,9 @@ class ApiService {
 
   Future<Map<String, dynamic>> uploadRecords(
     String fileName,
-    List<Map<String, dynamic>> records,
-  ) async {
+    List<Map<String, dynamic>> records, {
+    void Function(double progress)? onProgress,
+  }) async {
     final url = Uri.parse(
       '${ApiConstants.baseUrl}${ApiConstants.uploadFileRecords}',
     );
@@ -358,6 +359,10 @@ class ApiService {
         }
 
         request.sink.add(utf8.encode(buffer.toString()));
+
+        if (onProgress != null) {
+          onProgress(end / records.length);
+        }
 
         await Future.delayed(Duration.zero);
       }

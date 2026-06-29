@@ -15,6 +15,7 @@ import 'agent_profile_screen.dart';
 import 'agent_edit_profile_screen.dart';
 import 'record_payment_sheet.dart';
 import '../../models/customer.dart';
+import '../../services/background_upload_service.dart';
 
 class AgentDashboard extends StatefulWidget {
   const AgentDashboard({super.key});
@@ -35,6 +36,8 @@ class _AgentDashboardState extends State<AgentDashboard> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Import/use background upload service to mark app as initialized
+      BackgroundUploadService().isAppInitialized = true;
       final agentId = _db.currentUser?.id;
       if (agentId != null) {
         setState(() {

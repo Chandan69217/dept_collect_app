@@ -8,10 +8,12 @@ import 'screens/agent/security_settings.dart';
 import 'screens/admin/upload_data_screen.dart';
 import 'services/shared_prefs_service.dart';
 import 'services/database_service.dart';
+import 'services/background_upload_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SharedPrefsService.init();
+  BackgroundUploadService().init();
   
   // Try restoring saved session
   await DatabaseService().tryAutoLogin();
@@ -25,6 +27,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: AppTheme.appName,
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,

@@ -14,6 +14,7 @@ import 'upload_data_screen.dart';
 import 'uploaded_files_screen.dart';
 import 'add_agent_screen.dart';
 import '../agent/agent_edit_profile_screen.dart';
+import '../../services/background_upload_service.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -31,6 +32,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void initState() {
     super.initState();
     _fetchAgents();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      BackgroundUploadService().isAppInitialized = true;
+      // Wait for route transition to fully finish before opening upload page
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        BackgroundUploadService().processPendingSharedFile();
+      });
+    });
   }
 
   Future<void> _fetchAgents() async {

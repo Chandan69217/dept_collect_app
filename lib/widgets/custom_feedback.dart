@@ -77,10 +77,11 @@ class CustomFeedback {
     );
   }
 
-  static LinearProgressIndicator showProgressIndicator() {
+  static LinearProgressIndicator showProgressIndicator({double? value}) {
     return LinearProgressIndicator(
+      value: value,
       color: AppTheme.primary,
-      backgroundColor: Color(0xFFEFF4FF),
+      backgroundColor: const Color(0xFFEFF4FF),
       minHeight: 3,
     );
   }
