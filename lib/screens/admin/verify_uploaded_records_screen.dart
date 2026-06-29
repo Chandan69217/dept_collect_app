@@ -135,7 +135,7 @@ class _VerifyUploadedRecordsScreenState
   double? _maxAmount;
   String _selectedDateFilter =
       'Today'; // 'Today', 'Last 7 Days', 'Custom Range'
-  bool _isUploading = false;
+  bool get _isUploading => _db.isCommittingUpload;
 
   // Match mappings (1st item Ganesh Hegde is discrepancy, 2nd is matched, 3rd is new, 4th is new)
   final Set<int> _matchedIndices = {1};
@@ -144,11 +144,18 @@ class _VerifyUploadedRecordsScreenState
   @override
   void initState() {
     super.initState();
+    _db.addListener(_onDbChange);
     // Initialize visibility flags from global ExcelFieldMapping
     for (final key in ExcelFieldMapping.mapping.keys) {
       _fieldVisibility[key] = true;
     }
     _precomputeCache();
+  }
+
+  void _onDbChange() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _precomputeCache() {
@@ -211,6 +218,7 @@ class _VerifyUploadedRecordsScreenState
 
   @override
   void dispose() {
+    _db.removeListener(_onDbChange);
     _searchController.dispose();
     super.dispose();
   }
@@ -319,10 +327,6 @@ class _VerifyUploadedRecordsScreenState
       return;
     }
 
-    setState(() {
-      _isUploading = true;
-    });
-
     try {
       // Commit to global database service (first saves to API then local db)
       await _db.uploadBankRecords(widget.fileName, processedRecords);
@@ -331,10 +335,10 @@ class _VerifyUploadedRecordsScreenState
 
       CustomFeedback.showFeedbackDialog(
         context,
-        title: 'Import Successful',
+        title: 'Background Import Started',
         message:
-            'Import complete: ${processedRecords.length} records committed successfully!',
-        type: 'success',
+            '${processedRecords.length} records have been queued for import. The upload will process in the background, and you can monitor it via notifications or the upload screen.',
+        type: 'info',
         confirmLabel: 'OK',
         showCancel: false,
         onConfirm: () {
@@ -354,12 +358,6 @@ class _VerifyUploadedRecordsScreenState
           confirmLabel: 'OK',
           showCancel: false,
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUploading = false;
-        });
       }
     }
   }
@@ -438,7 +436,36 @@ class _VerifyUploadedRecordsScreenState
       ),
       body: Column(
         children: [
-          if (_isUploading) CustomFeedback.showProgressIndicator(),
+          if (_isUploading) ...[
+            CustomFeedback.showProgressIndicator(value: _db.commitUploadProgress),
+            Container(
+              color: const Color(0xFFEFF4FF),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Committing records to server: ${(_db.commitUploadProgress * 100).toStringAsFixed(0)}% completed...',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary,
+                      fontFamily: 'Inter',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           // Header Summary Block
           Container(
             color: Colors.white,

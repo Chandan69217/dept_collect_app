@@ -1,16 +1,18 @@
-import 'dart:io';
-import 'dart:isolate';
+import 'dart:typed_data';
+
 import 'package:dept_collection_app/constants/app_constants.dart';
 import 'package:dept_collection_app/models/recent_upload_item.dart';
 import 'package:dept_collection_app/services/database_service.dart';
+import 'package:dept_collection_app/services/file_decryption_service.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:excel/excel.dart' hide Border, BorderStyle;
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_bento_card.dart';
-import '../../config/field_mapping.dart';
 import 'verify_uploaded_records_screen.dart';
 import '../../widgets/custom_feedback.dart';
 
@@ -23,53 +25,38 @@ class UploadDataScreen extends StatefulWidget {
 
 class _UploadDataScreenState extends State<UploadDataScreen> {
   final _db = DatabaseService();
-  String? _selectedFileName;
-  bool _isUploading = false;
-  double _uploadProgress = 0.0;
-  bool _uploadComplete = false;
-  int _totalRowsScanned = 0;
   bool _isLoading = false;
-  int _skippedRowsCount = 0;
-  String _progressMessage = 'Preparing file...';
-
-  final List<Map<String, dynamic>> _importRecords = [];
-
-  Isolate? _activeIsolate;
-  ReceivePort? _activeReceivePort;
-
-  void _cancelUpload() {
-    if (_activeIsolate != null) {
-      _activeIsolate!.kill(priority: Isolate.beforeNextEvent);
-      _activeIsolate = null;
-    }
-    if (_activeReceivePort != null) {
-      _activeReceivePort!.close();
-      _activeReceivePort = null;
-    }
-    setState(() {
-      _isUploading = false;
-      _uploadComplete = false;
-      _selectedFileName = null;
-      _totalRowsScanned = 0;
-      _skippedRowsCount = 0;
-      _importRecords.clear();
-    });
-  }
-
-  void _cancelParsedData() {
-    setState(() {
-      _uploadComplete = false;
-      _selectedFileName = null;
-      _totalRowsScanned = 0;
-      _skippedRowsCount = 0;
-      _importRecords.clear();
-    });
-  }
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void initState() {
     super.initState();
     _fetchData();
+    _passwordController.addListener(_onPasswordChanged);
+  }
+
+  @override
+  void dispose() {
+    _passwordController.removeListener(_onPasswordChanged);
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _onPasswordChanged() {
+    if (_db.passwordError != null) {
+      setState(() {
+        _db.passwordError = null;
+      });
+    }
+  }
+
+  void _cancelUpload() {
+    _db.cancelParsingAndReset();
+  }
+
+  void _cancelParsedData() {
+    _db.resetParsedData();
   }
 
   Future<void> _fetchData() async {
@@ -101,7 +88,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['xlsx', 'xls'],
-        withData: true,
+        withData: kIsWeb,
       );
 
       if (result == null) return;
@@ -115,112 +102,45 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
         return;
       }
 
-      setState(() {
-        _selectedFileName = file.name;
-        _isUploading = true;
-        _uploadProgress = 0.0;
-        _progressMessage = 'Reading file from disk...';
-        _uploadComplete = false;
-        _totalRowsScanned = 0;
-        _skippedRowsCount = 0;
-        _importRecords.clear();
-      });
-
       final filePath = file.path;
       final fileBytes = file.bytes;
 
       // Ensure we have data to process
       if (kIsWeb && fileBytes == null) {
         _showErrorSnackBar('Could not read file data (bytes are empty).');
-        setState(() {
-          _isUploading = false;
-        });
         return;
       }
-      if (!kIsWeb && filePath == null && fileBytes == null) {
-        _showErrorSnackBar(
-          'Could not read file data (both path and bytes are empty).',
-        );
-        setState(() {
-          _isUploading = false;
-        });
+      if (!kIsWeb && filePath == null) {
+        _showErrorSnackBar('Could not read file data (filePath is empty).');
         return;
       }
 
-      setState(() {
-        _uploadProgress = 0.05;
-        _progressMessage = 'Spawning background parser...';
-      });
+      List<int>? checkBytes;
+      if (kIsWeb) {
+        checkBytes = fileBytes;
+      } else {
+        final f = File(filePath!);
+        final raf = await f.open();
+        checkBytes = await raf.read(8);
+        await raf.close();
+      }
 
-      final receivePort = ReceivePort();
-      _activeReceivePort = receivePort;
-      final isolate = await Isolate.spawn(
-        _parseExcelIsolate,
-        _ExcelIsolateParams(
-          filePath: kIsWeb ? null : filePath,
-          bytes: kIsWeb ? fileBytes : null,
-          sendPort: receivePort.sendPort,
-        ),
-      );
-      _activeIsolate = isolate;
-
-      receivePort.listen((message) {
-        if (message is Map<String, dynamic>) {
-          final type = message['type'];
-          if (type == 'progress') {
-            setState(() {
-              _uploadProgress = message['progress'] as double;
-              _progressMessage = message['message'] as String;
-            });
-          } else if (type == 'chunk') {
-            final List<Map<String, dynamic>> chunkRecords =
-                List<Map<String, dynamic>>.from(message['records']);
-            final double? progress = message['progress'] as double?;
-            final String? progressMsg = message['message'] as String?;
-            setState(() {
-              _importRecords.addAll(chunkRecords);
-              if (progress != null) {
-                _uploadProgress = progress;
-              }
-              if (progressMsg != null) {
-                _progressMessage = progressMsg;
-              }
-            });
-          } else if (type == 'success') {
-            final int totalRows = message['totalRows'] as int;
-            final int skippedRows = message['skippedRows'] as int;
-
-            setState(() {
-              _uploadProgress = 1.0;
-              _isUploading = false;
-              _uploadComplete = true;
-              _totalRowsScanned = totalRows;
-              _skippedRowsCount = skippedRows;
-            });
-            _activeReceivePort = null;
-            _activeIsolate = null;
-            receivePort.close();
-            isolate.kill(priority: Isolate.beforeNextEvent);
-          } else if (type == 'error') {
-            final error = message['error'];
-            setState(() {
-              _isUploading = false;
-              _uploadComplete = false;
-            });
-            _showErrorSnackBar('Failed to parse Excel file: $error');
-            _activeReceivePort = null;
-            _activeIsolate = null;
-            receivePort.close();
-            isolate.kill(priority: Isolate.beforeNextEvent);
-          }
+      // Check if file is password protected
+      if (_db.checkIsPasswordProtectedPublic(checkBytes!)) {
+        _db.setupDecryptPrompt(file.name, fileBytes ?? Uint8List(0));
+        if (!kIsWeb) {
+          _db.pendingFilePathToDecrypt = filePath;
         }
-      });
+      } else {
+        await _db.startBackgroundParse(
+          fileName: file.name,
+          filePath: filePath,
+          bytes: fileBytes,
+          isPasswordProtected: false,
+        );
+      }
     } catch (e) {
-      setState(() {
-        _isUploading = false;
-        _uploadComplete = false;
-      });
-      _showErrorSnackBar('Failed to parse Excel file: $e');
+      _showErrorSnackBar('Failed to start parsing Excel file: $e');
     }
   }
 
@@ -231,22 +151,17 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
   }
 
   void _commitImport() {
-    // Navigate to VerifyUploadedRecordsScreen
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => VerifyUploadedRecordsScreen(
-          fileName: _selectedFileName ?? 'Q3_SouthZone_Debtors.csv',
-          records: _importRecords,
+          fileName: _db.uploadFileName ?? 'Q3_SouthZone_Debtors.csv',
+          records: _db.parsedRecords,
         ),
       ),
     ).then((success) {
       if (success == true) {
-        // If successfully committed from that screen, update local uploads log!
-        setState(() {
-          _uploadComplete = false;
-          _selectedFileName = null;
-        });
+        _db.resetParsedData();
       }
     });
   }
@@ -305,9 +220,13 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
                       const SizedBox(height: 24),
 
                       // Dynamic Interaction Block (Upload area, Loading progress, or Report analysis)
-                      if (_isUploading) ...[
+                      if (_db.isCommittingUpload) ...[
+                        _buildCommittingProgressCard(),
+                      ] else if (_db.isPasswordProtectedFile) ...[
+                        _buildPasswordInputCard(),
+                      ] else if (_db.isParsing) ...[
                         _buildProgressCard(),
-                      ] else if (_uploadComplete) ...[
+                      ] else if (_db.parsingComplete) ...[
                         _buildReportCard(),
                       ] else ...[
                         _buildUploadDropZone(),
@@ -509,8 +428,448 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
     );
   }
 
+  Widget _buildPasswordInputCard() {
+    return CustomBentoCard(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(LucideIcons.lock, color: AppTheme.error, size: 24),
+                SizedBox(width: 8),
+                Text(
+                  'Password Protected File',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppTheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'The file "${_db.pendingFileNameToDecrypt ?? "Import document"}" is encrypted. Enter the decryption password to proceed:',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              style: const TextStyle(fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Enter file password',
+                errorText: _db.passwordError,
+                prefixIcon: const Icon(LucideIcons.key, size: 18),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? LucideIcons.eyeOff : LucideIcons.eye,
+                    size: 18,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 16,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppTheme.outline),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(
+                    color: AppTheme.primary,
+                    width: 1.5,
+                  ),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(
+                    color: AppTheme.error,
+                    width: 1.0,
+                  ),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(
+                    color: AppTheme.error,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      _passwordController.clear();
+                      _db.cancelParsingAndReset();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.onSurfaceVariant,
+                      side: const BorderSide(color: AppTheme.outline),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final pwd = _passwordController.text;
+                      if (pwd.trim().isEmpty) {
+                        _showErrorSnackBar('Password cannot be empty.');
+                        return;
+                      }
+
+                      final name = _db.pendingFileNameToDecrypt;
+                      final path = _db.pendingFilePathToDecrypt;
+                      var bytes = _db.pendingBytesToDecrypt;
+
+                      if (name != null) {
+                        if ((bytes == null || bytes.isEmpty) && path != null) {
+                          bytes = await File(path).readAsBytes();
+                        }
+
+                        if (bytes != null && bytes.isNotEmpty) {
+                          final decryptedResponse =
+                              await FileDecryptionService().decrypt(bytes, pwd);
+                          if (decryptedResponse.isDataValid &&
+                              decryptedResponse.processedBytes != null) {
+                            _passwordController.clear();
+                            _db.cancelParsingAndReset();
+
+                            await _db.startBackgroundParse(
+                              fileName: name,
+                              bytes: decryptedResponse.processedBytes!,
+                              isPasswordProtected: false,
+                            );
+                          } else {
+                            setState(() {
+                              _db.passwordError = 'password incorrect';
+                            });
+                          }
+                        } else {
+                          _showErrorSnackBar('Could not read file bytes.');
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Unlock & Parse',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCommittingProgressCard() {
+    final isVerifyPending =
+        _db.commitUploadStatusMessage == 'verification_pending';
+
+    if (isVerifyPending) {
+      final scannedCount = _db.parseBackgroundScannedCount ?? 0;
+      final recordsCount = _db.parseBackgroundRecordsCount ?? 0;
+      final skippedCount = _db.parseBackgroundSkippedCount ?? 0;
+
+      return CustomBentoCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      LucideIcons.checkCircle,
+                      color: AppTheme.success,
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'PARSING ANALYSIS COMPLETE',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.success,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  onPressed: () async {
+                    // Cancel and clear SharedPreferences active task state
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.remove('active_upload_task_id');
+                    await prefs.remove('active_upload_file_name');
+                    await prefs.remove('active_upload_progress');
+                    await prefs.remove('active_upload_status_message');
+                    await prefs.remove('active_upload_records_count');
+                    await prefs.remove('active_upload_scanned_count');
+                    await prefs.remove('active_upload_skipped_count');
+                    await prefs.remove('active_upload_parsed_date');
+
+                    // Clear files
+                    final taskId = _db.parseBackgroundTaskId;
+                    if (taskId != null) {
+                      final docDir = await getApplicationDocumentsDirectory();
+                      final parsedFile = File(
+                        '${docDir.path}/parsed_$taskId.json',
+                      );
+                      if (await parsedFile.exists()) {
+                        await parsedFile.delete();
+                      }
+                    }
+
+                    _db.commitUploadStatusMessage = null;
+                    _db.isCommittingUpload = false;
+                    _db.notifyListeners();
+                  },
+                  icon: const Icon(
+                    LucideIcons.x,
+                    size: 18,
+                    color: AppTheme.secondary,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            const Divider(height: 24, color: AppTheme.outlineVariant),
+            _buildReportRow(
+              'File Selected',
+              _db.uploadFileName ?? 'Imported_File.xlsx',
+              color: AppTheme.primary,
+            ),
+            const SizedBox(height: 10),
+            _buildReportRow('Total Rows Scanned', '$scannedCount'),
+            const SizedBox(height: 10),
+            _buildReportRow(
+              'New Debtor Accounts',
+              '$recordsCount',
+              color: AppTheme.primary,
+            ),
+            const SizedBox(height: 10),
+            _buildReportRow(
+              'Duplicate/Invalid Skipped',
+              '$skippedCount',
+              color: AppTheme.secondary,
+            ),
+            const SizedBox(height: 10),
+            _buildReportRow(
+              'Validation Syntax Errors',
+              '0',
+              color: AppTheme.success,
+            ),
+            if (scannedCount > 10000) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.warningContainer,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.warning.withOpacity(0.2)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      LucideIcons.alertTriangle,
+                      color: AppTheme.warning,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Large Dataset Warning',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.warning,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'The selected file contains ${scannedCount.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")} rows. The preview below is capped at 10,000 records to ensure app stability and responsiveness.',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.onSurfaceVariant,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const Divider(height: 24, color: AppTheme.outlineVariant),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.success,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () async {
+                  await _db.loadParsedBackgroundRecords();
+                  final records = _db.parsedBackgroundRecords;
+                  final fileName =
+                      _db.parseBackgroundFileName ?? 'Import Document';
+                  final taskId = _db.parseBackgroundTaskId;
+
+                  if (taskId != null) {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.remove('active_upload_task_id');
+                    await prefs.remove('active_upload_file_name');
+                    await prefs.remove('active_upload_progress');
+                    await prefs.remove('active_upload_status_message');
+                    await prefs.remove('active_upload_records_count');
+                    await prefs.remove('active_upload_scanned_count');
+                    await prefs.remove('active_upload_skipped_count');
+                    await prefs.remove('active_upload_parsed_date');
+
+                    _db.commitUploadStatusMessage = null;
+                    _db.isCommittingUpload = false;
+                    _db.notifyListeners();
+                  }
+
+                  if (context.mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => VerifyUploadedRecordsScreen(
+                          fileName: fileName,
+                          records: records,
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: const Text(
+                  'COMMIT AND VERIFY',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return CustomBentoCard(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              LucideIcons.cloudUpload,
+              color: AppTheme.primary,
+              size: 44,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    '${_db.commitUploadStatusMessage ?? "Processing file..."}: ${_db.uploadFileName ?? ""}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppTheme.onSurface,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${(_db.commitUploadProgress * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: AppTheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: _db.commitUploadProgress,
+                minHeight: 8,
+                backgroundColor: AppTheme.surfaceContainerLow,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppTheme.primary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Uploading in progress. You can close the app safely.',
+              style: TextStyle(fontSize: 11, color: AppTheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildProgressCard() {
-    final bool isIndeterminate = _uploadProgress < 0.3;
+    final bool isIndeterminate = _db.parsingProgress < 0.3;
 
     return CustomBentoCard(
       child: Padding(
@@ -529,7 +888,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    _progressMessage,
+                    _db.parsingProgressMessage,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -542,7 +901,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
                 const SizedBox(width: 8),
                 if (!isIndeterminate)
                   Text(
-                    '${(_uploadProgress * 100).toStringAsFixed(0)}%',
+                    '${(_db.parsingProgress * 100).toStringAsFixed(0)}%',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
@@ -555,7 +914,9 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
                     height: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppTheme.primary,
+                      ),
                     ),
                   ),
               ],
@@ -564,7 +925,9 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(99),
               child: LinearProgressIndicator(
-                value: isIndeterminate ? null : (_uploadProgress > 1.0 ? 1.0 : _uploadProgress),
+                value: isIndeterminate
+                    ? null
+                    : (_db.parsingProgress > 1.0 ? 1.0 : _db.parsingProgress),
                 minHeight: 8,
                 backgroundColor: AppTheme.surfaceContainerLow,
                 valueColor: const AlwaysStoppedAnimation<Color>(
@@ -647,21 +1010,21 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
           const Divider(height: 24, color: AppTheme.outlineVariant),
           _buildReportRow(
             'File Selected',
-            _selectedFileName ?? 'Imported_File.xlsx',
+            _db.uploadFileName ?? 'Imported_File.xlsx',
             color: AppTheme.primary,
           ),
           const SizedBox(height: 10),
-          _buildReportRow('Total Rows Scanned', '$_totalRowsScanned'),
+          _buildReportRow('Total Rows Scanned', '${_db.parsedRowsScanned}'),
           const SizedBox(height: 10),
           _buildReportRow(
             'New Debtor Accounts',
-            '${_importRecords.length}',
+            '${_db.parsedRecords.length}',
             color: AppTheme.primary,
           ),
           const SizedBox(height: 10),
           _buildReportRow(
             'Duplicate/Invalid Skipped',
-            '$_skippedRowsCount',
+            '${_db.parsedRowsSkipped}',
             color: AppTheme.secondary,
           ),
           const SizedBox(height: 10),
@@ -670,7 +1033,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
             '0',
             color: AppTheme.success,
           ),
-          if (_totalRowsScanned > 10000) ...[
+          if (_db.parsedRowsScanned > 10000) ...[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -702,7 +1065,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'The selected file contains ${_totalRowsScanned.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")} rows. The preview below is capped at 10,000 records to ensure app stability and responsiveness.',
+                          'The selected file contains ${_db.parsedRowsScanned.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")} rows. The preview below is capped at 10,000 records to ensure app stability and responsiveness.',
                           style: const TextStyle(
                             fontSize: 11,
                             color: AppTheme.onSurfaceVariant,
@@ -919,189 +1282,6 @@ class _PulseIndicatorState extends State<_PulseIndicator>
         ),
       ),
     );
-  }
-}
-
-class _ExcelIsolateParams {
-  final String? filePath;
-  final List<int>? bytes;
-  final SendPort sendPort;
-
-  _ExcelIsolateParams({
-    this.filePath,
-    this.bytes,
-    required this.sendPort,
-  });
-}
-
-void _parseExcelIsolate(_ExcelIsolateParams params) {
-  final sendPort = params.sendPort;
-  final filePath = params.filePath;
-  List<int>? bytes = params.bytes;
-
-  try {
-    if (bytes == null && filePath != null) {
-      sendPort.send({
-        'type': 'progress',
-        'progress': 0.08,
-        'message': 'Reading file from disk...',
-      });
-      bytes = File(filePath).readAsBytesSync();
-    }
-
-    if (bytes == null) {
-      throw Exception('File data is empty');
-    }
-
-    sendPort.send({
-      'type': 'progress',
-      'progress': 0.12,
-      'message': 'Decoding Excel spreadsheet...',
-    });
-
-    final stopwatch = Stopwatch()..start();
-    var excel = Excel.decodeBytes(bytes);
-    debugPrint(
-      'Isolate: Excel decode completed in ${stopwatch.elapsedMilliseconds}ms',
-    );
-
-    sendPort.send({
-      'type': 'progress',
-      'progress': 0.25,
-      'message': 'Analyzing sheets and data structure...',
-    });
-
-    int totalRows = 0;
-    int skippedRows = 0;
-
-    if (excel.tables.isNotEmpty) {
-      final String firstSheetName = excel.tables.keys.first;
-      debugPrint('Isolate: Target sheet name: $firstSheetName');
-
-      final sheet = excel.tables[firstSheetName];
-      if (sheet != null) {
-        final rows = sheet.rows;
-        totalRows = rows.length;
-
-        if (rows.isNotEmpty) {
-          // Extract headers
-          final headerRow = rows.first;
-          List<String> headers = [];
-          for (final cell in headerRow) {
-            headers.add(cell?.value?.toString() ?? '');
-          }
-          debugPrint('Isolate: Mapped headers: $headers');
-
-          // Parse data rows in chunks
-          final List<Map<String, dynamic>> chunk = [];
-          const int chunkSize = 1000;
-
-          for (int i = 1; i < totalRows; i++) {
-            final row = rows[i];
-            Map<String, dynamic> record = {};
-            for (int j = 0; j < headers.length; j++) {
-              final cell = j < row.length ? row[j] : null;
-              final val = cell?.value;
-              final header = headers[j];
-              final mappedKey = ExcelFieldMapping.mapHeader(header);
-              if (mappedKey != null) {
-                record[mappedKey] = val?.toString() ?? '';
-              } else {
-                record[header] = val?.toString() ?? '';
-              }
-            }
-
-            // Normalise mandatory fields to pass to VerifyUploadedRecordsScreen
-            final name =
-                record['name'] ??
-                record['customer_name'] ??
-                record['CUSTOMER_NAME'] ??
-                '';
-            if (name.toString().trim().isNotEmpty) {
-              double amountDue = 0.0;
-              final rawAmount =
-                  record['amountDue'] ??
-                  record['amount'] ??
-                  record['Amount'] ??
-                  '';
-              if (rawAmount.toString().isNotEmpty) {
-                amountDue =
-                    double.tryParse(rawAmount.toString().replaceAll(',', '')) ??
-                    0.0;
-              }
-
-              int overdueDays = 10;
-              final rawOverdue = record['overdueDays'] ?? record['days'] ?? '';
-              if (rawOverdue.toString().isNotEmpty) {
-                overdueDays = int.tryParse(rawOverdue.toString()) ?? 10;
-              }
-
-              final address =
-                  record['address'] ?? record['location'] ?? 'No Address';
-              final phone =
-                  record['phone'] ?? record['mobile'] ?? '+91 99999 99999';
-              final priority = record['priority'] ?? 'MEDIUM';
-
-              chunk.add({
-                'name': name.toString().trim(),
-                'amountDue': amountDue,
-                'overdueDays': overdueDays,
-                'address': address.toString().trim(),
-                'phone': phone.toString().trim(),
-                'priority':
-                    (priority.toString().toUpperCase() == 'HIGH' ||
-                        priority.toString().toUpperCase() == 'LOW')
-                    ? priority.toString().toUpperCase()
-                    : 'MEDIUM',
-                // Additional excel mapped fields
-                'assetModel': record['assetModel'] ?? '',
-                'assetRegNo': record['assetRegNo'] ?? '',
-                'engineNumber': record['engineNumber'] ?? '',
-                'chasisNumber': record['chasisNumber'] ?? '',
-                'assetVariant': record['assetVariant'] ?? '',
-              });
-            } else {
-              skippedRows++;
-            }
-
-            if (chunk.length >= chunkSize) {
-              final double percent = 0.3 + (i / totalRows) * 0.6;
-              final String displayPercent = (percent * 100).toStringAsFixed(0);
-              sendPort.send({
-                'type': 'chunk',
-                'records': List<Map<String, dynamic>>.from(chunk),
-                'progress': percent,
-                'message': 'Parsed $i / $totalRows rows ($displayPercent%)...',
-              });
-              chunk.clear();
-            }
-          }
-
-          // Send any remaining records in the last chunk
-          if (chunk.isNotEmpty) {
-            sendPort.send({
-              'type': 'chunk',
-              'records': List<Map<String, dynamic>>.from(chunk),
-              'progress': 0.9,
-              'message': 'Parsed all rows...',
-            });
-            chunk.clear();
-          }
-
-          debugPrint(
-            'Isolate: Completed parsing of all rows in ${stopwatch.elapsedMilliseconds}ms. Skipped: $skippedRows',
-          );
-        }
-      }
-    }
-
-    sendPort.send({
-      'type': 'success',
-      'totalRows': totalRows,
-      'skippedRows': skippedRows,
-    });
-  } catch (e) {
-    sendPort.send({'type': 'error', 'error': e.toString()});
   }
 }
 

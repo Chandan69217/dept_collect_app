@@ -142,4 +142,28 @@ class ExcelFieldMapping {
     }
     return null;
   }
+
+  /// Helper to fetch values dynamically using canonical keys and synonyms.
+  static String? getMappedValue(Map<String, dynamic> record, String canonicalKey) {
+    // 1. Try directly with the canonical key
+    if (record.containsKey(canonicalKey) && record[canonicalKey] != null) {
+      return record[canonicalKey].toString();
+    }
+    // 2. Try the synonyms for that canonical key
+    final synonyms = mapping[canonicalKey];
+    if (synonyms != null) {
+      for (var synonym in synonyms) {
+        if (record.containsKey(synonym) && record[synonym] != null) {
+          return record[synonym].toString();
+        }
+        // Case-insensitive check
+        for (var key in record.keys) {
+          if (key.trim().toLowerCase() == synonym.trim().toLowerCase() && record[key] != null) {
+            return record[key].toString();
+          }
+        }
+      }
+    }
+    return null;
+  }
 }
